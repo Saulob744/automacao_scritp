@@ -1,0 +1,34 @@
+# Ambientes virtuais e cache Python
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Variáveis de ambiente e credenciais
+.env
+.env.*
+*.pem
+*.key
+
+# Planilhas, exportações, caches em memória e arquivos sensíveis de dados
+dados/*.xlsx
+dados/*.xls
+dados/*.csv
+dados/*.log
+dados/*.png
+dados/*.jpg
+dados/*.html
+dados/*_files/
+dados/comando_preencher_html.js
+dados/cache_etapa_4.json
+
+# Backups locais de desenvolvimento
+backups/
+
+# Arquivos de sistema e IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
