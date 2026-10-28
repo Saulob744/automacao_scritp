@@ -14,9 +14,11 @@ from typing import Any, Dict, List
 from src.automacao import (
     _extrair_tabela_auto_detectando_bloco,
     copiar_tabela_da_planilha_automaticamente,
+    definir_limite_linhas_teste,
     executar_bloco_ou_pagina_especifica,
     executar_preenchimento_completo_por_coluna,
     extrair_colunas_da_tabela,
+    obter_limite_linhas_teste,
 )
 from src.config import (
     carregar_mapeamento,
@@ -112,6 +114,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Executa toda a sequência conectada: Página 3 -> Página 4 -> Página 5 -> Página 6.",
     )
+    parser.add_argument(
+        "--limite",
+        "--linhas",
+        "-n",
+        dest="limite",
+        type=int,
+        default=None,
+        help="Limita a quantidade de linhas/itens a serem copiados de cada bloco/coluna no teste (ex: --limite 5).",
+    )
     return parser.parse_args()
 
 
@@ -198,6 +209,28 @@ def main() -> None:
     )
     if resumo_guias:
         print(f"📦 Guia das Caixas ({pagina_ativa}): {resumo_guias}")
+
+    if args.limite is not None and args.limite > 0:
+        definir_limite_linhas_teste(args.limite)
+    else:
+        try:
+            resp_limite = input(
+                "🔢 Quantas linhas de cada bloco/coluna deseja copiar neste teste? "
+                "(Ex: digite 5, ou aperte [ENTER] para copiar TODAS): "
+            ).strip()
+            if resp_limite:
+                val_lim = int(resp_limite)
+                if val_lim > 0:
+                    definir_limite_linhas_teste(val_lim)
+        except (ValueError, EOFError):
+            pass
+
+    lim_ativo = obter_limite_linhas_teste()
+    if lim_ativo:
+        print(f"🎯 Limite definido para este teste: {lim_ativo} linha(s) por bloco/coluna.")
+    else:
+        print("🎯 Modo sem limite: copiando TODAS as linhas preenchidas de cada bloco/coluna.")
+
     print("⏳ Iniciando em 3 segundos...")
     print("   [F8 = marcar planilha | F9 = treinar caixas/páginas/barra suspensa | ESC ou F12 = PARAR TUDO]")
 

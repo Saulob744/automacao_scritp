@@ -105,6 +105,27 @@ COLUNAS_MONITORAMENTO_KPIS_6 = [
 CACHE_MEMORIA_ETAPA_4: List[Dict[str, Any]] = []
 ARQUIVO_CACHE_ETAPA_4: Path = DIRETORIO_DADOS / "cache_etapa_4.json"
 
+# Limite configurável de linhas/itens a serem copiados e colados por bloco/coluna durante os testes
+LIMITE_LINHAS_TESTE: Optional[int] = None
+
+
+def definir_limite_linhas_teste(limite: Optional[int]) -> None:
+    """Define o limite máximo de linhas/itens a serem copiados e colados de cada bloco/coluna no teste."""
+    global LIMITE_LINHAS_TESTE
+    if limite is not None and int(limite) > 0:
+        LIMITE_LINHAS_TESTE = int(limite)
+        print(
+            f"🔢 [MODO DE TESTE COM LIMITE] Serão copiadas/coladas no máximo "
+            f"{LIMITE_LINHAS_TESTE} linha(s) de cada bloco/coluna!"
+        )
+    else:
+        LIMITE_LINHAS_TESTE = None
+
+
+def obter_limite_linhas_teste() -> Optional[int]:
+    """Retorna o limite de linhas configurado para o teste atual (ou None para copiar todas)."""
+    return LIMITE_LINHAS_TESTE
+
 
 def salvar_dados_etapa_4_em_memoria(
     linhas_etapa_4: List[Dict[str, Any]],
@@ -214,6 +235,8 @@ def buscar_valor_da_coluna(linha: Dict[str, Any], nome_campo: str) -> Optional[s
     chave_canon_alvo = _resolver_chave_sinonimo(nome_campo)
 
     for col_planilha, valor in linha.items():
+        if str(col_planilha).startswith("_"):
+            continue
         if not str(valor or "").strip():
             continue
         col_norm = remover_acentos(col_planilha)
@@ -404,7 +427,7 @@ def _determinar_colunas_para_preencher(
     colunas_planilha = [
         str(k).strip()
         for k in linhas[0].keys()
-        if str(k).strip() and not str(k).startswith("COLUNA_")
+        if str(k).strip() and not str(k).startswith("COLUNA_") and not str(k).startswith("_")
     ]
 
     if not colunas_planilha:
@@ -613,7 +636,10 @@ def _executar_passo_grupo_codependente(
                 valores_linha[c_nome] = str(opcoes_padrao[0])
 
         if valores_linha and (tem_conteudo_nao_toggle or len(campos_grupo) == 1):
-            linhas_grupo.append((idx_linha, valores_linha))
+            if linha.get("_ORDEM_SEQUENCIAL") is not None:
+                valores_linha["_ORDEM_SEQUENCIAL"] = str(linha["_ORDEM_SEQUENCIAL"])
+            num_l_exibicao = int(linha.get("_IDX_LINHA_ORIGINAL") or idx_linha)
+            linhas_grupo.append((num_l_exibicao, valores_linha))
 
     if not linhas_grupo:
         print(
@@ -621,6 +647,14 @@ def _executar_passo_grupo_codependente(
             "nenhuma linha preenchida encontrada na planilha."
         )
         return True, ja_rolou_para_baixo
+
+    if LIMITE_LINHAS_TESTE is not None and LIMITE_LINHAS_TESTE > 0 and len(linhas_grupo) > LIMITE_LINHAS_TESTE:
+        total_orig_grupo = len(linhas_grupo)
+        linhas_grupo = linhas_grupo[:LIMITE_LINHAS_TESTE]
+        print(
+            f"  🔢 [LIMITE DE TESTE ATIVO] Copiando/colando apenas as primeiras "
+            f"{len(linhas_grupo)} de {total_orig_grupo} linha(s) de '{nome_grupo}'!"
+        )
 
     # Obtém as coordenadas iniciais salvas de cada campo do grupo e do botão 'Adicionar necessidade'
     coords_iniciais: List[Tuple[int, int]] = []
@@ -724,8 +758,13 @@ def _executar_passo_grupo_codependente(
             return False, ja_rolou_para_baixo
 
         rotulo_item = "Ação" if ancorado_no_topo else "Necessidade"
+        info_ordem_seq = (
+            f"ORDEM SEQUENCIAL: {valores_linha['_ORDEM_SEQUENCIAL']} | "
+            if valores_linha.get("_ORDEM_SEQUENCIAL")
+            else ""
+        )
         print(
-            f"\n  🧩 [{rotulo_item} {idx_bloco + 1}/{len(linhas_grupo)} (Linha {num_linha_planilha} da planilha)] "
+            f"\n  🧩 [{rotulo_item} {idx_bloco + 1}/{len(linhas_grupo)} ({info_ordem_seq}Linha {num_linha_planilha} da planilha)] "
             f"Preenchendo os {len(campos_grupo)} campos na sequência antes de clicar em '{nome_botao_html}'..."
         )
         campos_preenchidos_na_linha = 0
@@ -936,10 +975,17 @@ def _copiar_tabela_da_guia_atual_na_planilha(
         linhas = extrair_tabela_de_texto_tsv(texto_copiado, nomes_esperados)
 
     if linhas:
-        cols_lidas = list(linhas[0].keys())
-        amostra_1 = {k: (str(v)[:35] + "..." if len(str(v)) > 35 else str(v)) for k, v in linhas[0].items()}
+        cols_lidas = [k for k in linhas[0].keys() if not str(k).startswith("_")]
+        amostra_1 = {
+            k: (str(v)[:35] + "..." if len(str(v)) > 35 else str(v))
+            for k, v in linhas[0].items()
+            if not str(k).startswith("_")
+        }
         print(f"   📌 Colunas identificadas na guia '{nome_guia}': {cols_lidas}")
-        print(f"   🔎 Amostra Linha 1: {amostra_1}")
+        if any(l.get("_ORDEM_SEQUENCIAL") is not None for l in linhas):
+            ordens_seq = [l.get("_ORDEM_SEQUENCIAL") for l in linhas if l.get("_ORDEM_SEQUENCIAL") is not None]
+            print(f"   🔢 Linhas ordenadas por 'ORDEM SEQUENCIAL' crescente: {ordens_seq}")
+        print(f"   🔎 Amostra 1ª Linha a colar: {amostra_1}")
     print(f"✅ Guia '{nome_guia}' lida com sucesso: {len(linhas)} linha(s) válida(s) encontrada(s)!")
     print("-" * 72)
     return linhas
@@ -1000,7 +1046,7 @@ def _confirmar_correspondencia_guia_planilha(
         return False
 
     # Confirmação específica para impedir mistura entre SWOT, Inventário, Metas/Orçamento/Riscos, Capacitação e Monitoramento
-    cols_lidas_norm = {remover_acentos(k) for k in linhas[0].keys()}
+    cols_lidas_norm = {remover_acentos(k) for k in linhas[0].keys() if not str(k).startswith("_")}
     if any("FORCA" in e for e in esperados_norm):
         return any("FORCA" in c or "FRAQUEZA" in c or "OPORTUNIDADE" in c or "AMEACA" in c for c in cols_lidas_norm)
     if any("AREA DEMANDANTE" in e or "JUSTIFICATIVA" in e for e in esperados_norm):
@@ -1414,6 +1460,14 @@ def _executar_roteiro_de_bloco(
         if not itens_coluna:
             print(f"\n⚪ Passo {idx_passo + 1}/{len(roteiro_passos)} ('{nome_campo}'): nenhum valor para preencher.")
             continue
+
+        if LIMITE_LINHAS_TESTE is not None and LIMITE_LINHAS_TESTE > 0 and len(itens_coluna) > LIMITE_LINHAS_TESTE:
+            total_orig_col = len(itens_coluna)
+            itens_coluna = itens_coluna[:LIMITE_LINHAS_TESTE]
+            print(
+                f"  🔢 [LIMITE DE TESTE ATIVO] Limitando coluna '{nome_campo}' para as primeiras "
+                f"{len(itens_coluna)} de {total_orig_col} linha(s)!"
+            )
 
         campos_simples = mapeamento.get("campos", {})
         if "sistema_campo_linha1" in info_calibrada and info_calibrada["sistema_campo_linha1"]:

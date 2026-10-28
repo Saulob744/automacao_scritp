@@ -207,12 +207,30 @@ Para cadastrar programaticamente um novo bloco em uma página (como feito em `_g
 
 ---
 
-### 3️⃣ Executar o Fluxo Completo Conectado (Etapas 3 ➔ 4 ➔ 5 ➔ 6)
+### 3️⃣ Executar o Fluxo Completo Conectado (Etapas 3 ➔ 4 ➔ 5 ➔ 6) e Limite de Linhas no Teste
 
 Executa todas as páginas e blocos em sequência automática, trocando as abas da planilha e avançando as etapas do sistema:
 ```powershell
 .\.venv\Scripts\python.exe main.py --tudo
 ```
+
+#### 🔢 Como Limitar a Quantidade de Linhas no Teste (Ex: 5 linhas de cada)
+Você pode definir quantas linhas/itens de cada bloco ou coluna serão copiados de duas formas:
+
+1. **Pelo comando no terminal (`--limite N`)**:
+   ```powershell
+   # Teste completo copiando apenas 5 linhas de cada bloco/coluna:
+   .\.venv\Scripts\python.exe main.py --tudo --limite 5
+
+   # Testar apenas o Bloco 3.2 (Inventário) copiando 5 linhas na ORDEM SEQUENCIAL (1 a 5):
+   .\.venv\Scripts\python.exe main.py --bloco 3.2 --limite 5
+   ```
+2. **Pergunta interativa ao iniciar**:
+   Se você rodar `.\.venv\Scripts\python.exe main.py --tudo` (ou qualquer comando sem `--limite`), o sistema perguntará no terminal antes de começar:
+   > `🔢 Quantas linhas de cada bloco/coluna deseja copiar neste teste? (Ex: digite 5, ou aperte [ENTER] para copiar TODAS):`
+
+> 📌 **Ordenação por `ORDEM SEQUENCIAL` na aba `3.2. Inventário de necessidades`:**
+> Ao ler a aba `3.2. Inventário de necessidades`, o robô localiza automaticamente a coluna **`ORDEM SEQUENCIAL`** e ordena todas as linhas em sequência crescente (`1, 2, 3, 4, 5...`) antes de aplicar o limite e iniciar a colagem no sistema.
 
 ---
 

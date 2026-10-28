@@ -305,6 +305,11 @@ COLUNAS_METADADOS_IGNORADAS = {
     "ITEM",
     "Nº",
     "N°",
+    "ORDEM SEQUENCIAL",
+    "ORDEM",
+    "SEQUENCIAL",
+    "ORDEM SEQ",
+    "ORDEM SEQ.",
 }
 
 
@@ -405,6 +410,8 @@ def _celula_corresponde_coluna(celula: str, nome_esperado: str) -> bool:
             if any(
                 termo_num in cel_sem
                 for termo_num in (
+                    "ORDEM",
+                    "SEQUENCIAL",
                     "PONTUACAO",
                     "NOTA",
                     "GRAU",
@@ -606,6 +613,100 @@ def _detectar_subcolunas_prazo(
     return None, usou_abaixo
 
 
+def _detectar_coluna_ordem_sequencial(
+    todas_linhas: List[List[str]],
+    indice_linha_cabecalho: int,
+    mapa_coluna_para_indice: Dict[str, int],
+) -> Tuple[int, bool]:
+    """
+    Localiza a coluna 'ORDEM SEQUENCIAL' na aba '3.2. Inventário de necessidades'
+    (mesmo quando o cabeçalho está dividido em duas linhas: 'ORDEM' e 'SEQUENCIAL').
+    Retorna (indice_coluna, usou_subcabecalho_abaixo).
+    """
+    if 0 <= indice_linha_cabecalho < len(todas_linhas):
+        linha_cab = todas_linhas[indice_linha_cabecalho]
+        prox_linha = (
+            todas_linhas[indice_linha_cabecalho + 1]
+            if (indice_linha_cabecalho + 1) < len(todas_linhas)
+            else []
+        )
+        ant_linha = (
+            todas_linhas[indice_linha_cabecalho - 1]
+            if indice_linha_cabecalho > 0
+            else []
+        )
+
+        for idx_c, cel in enumerate(linha_cab):
+            cel_sem = remover_acentos(cel)
+            if "ORDEM SEQUENCIAL" in cel_sem or cel_sem in (
+                "ORDEM SEQUENCIAL",
+                "ORDEM SEQ",
+                "ORDEM SEQ.",
+                "SEQUENCIAL",
+            ):
+                return idx_c, False
+
+        if prox_linha:
+            max_c = max(len(linha_cab), len(prox_linha))
+            for idx_c in range(max_c):
+                c_topo = remover_acentos(linha_cab[idx_c]) if idx_c < len(linha_cab) else ""
+                c_baixo = remover_acentos(prox_linha[idx_c]) if idx_c < len(prox_linha) else ""
+                comb = f"{c_topo} {c_baixo}".strip()
+                if (
+                    "ORDEM SEQUENCIAL" in comb
+                    or "ORDEM SEQUENCIAL" in c_baixo
+                    or ("ORDEM" in c_topo and "SEQUENCIAL" in c_baixo)
+                ):
+                    return idx_c, True
+
+        if ant_linha:
+            max_c = max(len(ant_linha), len(linha_cab))
+            for idx_c in range(max_c):
+                c_ant = remover_acentos(ant_linha[idx_c]) if idx_c < len(ant_linha) else ""
+                c_topo = remover_acentos(linha_cab[idx_c]) if idx_c < len(linha_cab) else ""
+                comb = f"{c_ant} {c_topo}".strip()
+                if "ORDEM SEQUENCIAL" in comb or ("ORDEM" in c_ant and "SEQUENCIAL" in c_topo):
+                    return idx_c, False
+
+        chaves_canon = {_resolver_chave_sinonimo(k) for k in mapa_coluna_para_indice.keys()}
+        if any(c in chaves_canon for c in ("DESCRIÇÃO", "PRIORIDADE", "ÁREA DEMANDANTE", "JUSTIFICATIVA")):
+            for idx_c, cel in enumerate(linha_cab):
+                cel_sem = remover_acentos(cel)
+                if cel_sem in ("ORDEM", "SEQ", "SEQ.", "SEQUENCIA"):
+                    return idx_c, False
+
+    # Fallback: varre as primeiras linhas da tabela procurando cabeçalho 'ORDEM SEQUENCIAL'
+    for idx_l, linha in enumerate(todas_linhas[:12]):
+        prox = todas_linhas[idx_l + 1] if (idx_l + 1) < len(todas_linhas) else []
+        for idx_c, cel in enumerate(linha):
+            cel_sem = remover_acentos(cel)
+            if "ORDEM SEQUENCIAL" in cel_sem or cel_sem in ("ORDEM SEQUENCIAL", "ORDEM SEQ", "ORDEM SEQ."):
+                return idx_c, False
+            if prox and idx_c < len(prox):
+                c_baixo = remover_acentos(prox[idx_c])
+                if "ORDEM" in cel_sem and "SEQUENCIAL" in c_baixo:
+                    return idx_c, (idx_l == indice_linha_cabecalho)
+
+    return -1, False
+
+
+def _extrair_numero_ordem_sequencial(valor: Any) -> Optional[float]:
+    """Extrai o valor numérico da coluna 'ORDEM SEQUENCIAL' (ex: '1', '2', '3º' -> 1.0, 2.0, 3.0)."""
+    texto = " ".join(str(valor or "").strip().splitlines()).strip()
+    if not texto:
+        return None
+    texto_sem = remover_acentos(texto)
+    if "ORDEM" in texto_sem or "SEQUENCIAL" in texto_sem:
+        return None
+    m = re.search(r"[-+]?\d+(?:[.,]\d+)?", texto_sem)
+    if not m:
+        return None
+    try:
+        return float(m.group(0).replace(",", "."))
+    except ValueError:
+        return None
+
+
 def _detectar_mapa_por_ambiente_interno_externo(
     todas_linhas: List[List[str]],
 ) -> tuple[int, Dict[str, int]]:
@@ -776,6 +877,13 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
     if sub_prazo_usou_abaixo:
         usou_linha_abaixo_no_cabecalho = True
 
+    # Detecta a coluna 'ORDEM SEQUENCIAL' na aba '3.2. Inventário de necessidades'
+    col_ordem_seq, ordem_seq_usou_abaixo = _detectar_coluna_ordem_sequencial(
+        todas_linhas, indice_linha_cabecalho, mapa_coluna_para_indice
+    )
+    if ordem_seq_usou_abaixo:
+        usou_linha_abaixo_no_cabecalho = True
+
     # Regra de Memória da Etapa 4 -> Etapa 6:
     # Quando estamos lendo a guia '4.1. Metas e Ações' (que possui 'INDICADOR'), localiza também
     # a coluna 'MÉTRICA / FÓRMULA' na linha de cabeçalho para deixá-la salva em memória para a Etapa 6!
@@ -841,6 +949,8 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             for k, idx_c in mapa_coluna_para_indice.items()
             if k != chave_p
         }
+        if col_ordem_seq != -1:
+            cols_fixas.add(col_ordem_seq)
         valores_toggle_prio = {"ALTA", "MEDIA", "BAIXA", "MUITO ALTA", "MUITO BAIXA", "CRITICA"}
         max_c_dados = max((len(l) for l in linhas_dados), default=0)
         melhor_col_toggle = -1
@@ -866,7 +976,7 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
     nomes_mapeados_norm = {remover_acentos(k) for k in mapa_coluna_para_indice.keys()}
     resultado: List[Dict[str, Any]] = []
 
-    for linha in linhas_dados:
+    for idx_linha_dados, linha in enumerate(linhas_dados, start=1):
         valores_up = [remover_acentos(c) for c in linha if c.strip()]
         if not valores_up:
             continue
@@ -915,7 +1025,7 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
         # um toggle pré-selecionado na planilha, linhas em branco no template que tenham apenas a
         # prioridade preenchida (sem Descrição, Área Demandante nem Justificativa) são ignoradas!
         chaves_item_canon = {
-            _resolver_chave_sinonimo(k): v for k, v in item.items()
+            _resolver_chave_sinonimo(k): v for k, v in item.items() if not str(k).startswith("_")
         }
         if "PRIORIDADE" in chaves_item_canon and (
             "DESCRIÇÃO" in chaves_item_canon or "JUSTIFICATIVA" in chaves_item_canon
@@ -944,8 +1054,25 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             if not tem_conteudo_meta:
                 continue
 
-        if any(item.values()):
+        if any(str(v).strip() for k, v in item.items() if not str(k).startswith("_")):
+            item["_IDX_LINHA_ORIGINAL"] = idx_linha_dados
+            if col_ordem_seq != -1 and col_ordem_seq < len(linha):
+                num_ordem = _extrair_numero_ordem_sequencial(linha[col_ordem_seq])
+                if num_ordem is not None:
+                    item["_ORDEM_SEQUENCIAL"] = (
+                        int(num_ordem) if float(num_ordem).is_integer() else num_ordem
+                    )
             resultado.append(item)
+
+    # Ordenação obrigatória pela coluna 'ORDEM SEQUENCIAL' (1, 2, 3...) na aba '3.2. Inventário de necessidades'
+    if col_ordem_seq != -1 and any(r.get("_ORDEM_SEQUENCIAL") is not None for r in resultado):
+        resultado.sort(
+            key=lambda r: (
+                0 if r.get("_ORDEM_SEQUENCIAL") is not None else 1,
+                float(r["_ORDEM_SEQUENCIAL"]) if r.get("_ORDEM_SEQUENCIAL") is not None else float("inf"),
+                int(r.get("_IDX_LINHA_ORIGINAL", 0)),
+            )
+        )
 
     return resultado
 
@@ -957,23 +1084,43 @@ def mesclar_tabelas_por_colunas(
     """
     Combina linha a linha as colunas capturadas na esquerda da planilha com as colunas
     capturadas após o scroll para o lado direito na planilha (ex: 'CLASSIFICAÇÃO DE PRIORIDADE',
-    'ÁREA DEMANDANTE', 'JUSTIFICATIVA').
+    'ÁREA DEMANDANTE', 'JUSTIFICATIVA'), preservando o vínculo da linha original e a ordenação
+    por 'ORDEM SEQUENCIAL'.
     """
     if not linhas_base:
         return list(linhas_direita)
     if not linhas_direita:
         return list(linhas_base)
 
+    mapa_direita_por_idx: Dict[int, Dict[str, Any]] = {
+        int(d["_IDX_LINHA_ORIGINAL"]): d
+        for d in linhas_direita
+        if isinstance(d, dict) and d.get("_IDX_LINHA_ORIGINAL") is not None
+    }
+
     total = max(len(linhas_base), len(linhas_direita))
     mescladas: List[Dict[str, Any]] = []
     for i in range(total):
         item_b = dict(linhas_base[i]) if i < len(linhas_base) else {}
-        item_d = dict(linhas_direita[i]) if i < len(linhas_direita) else {}
+        idx_orig = item_b.get("_IDX_LINHA_ORIGINAL")
+        if idx_orig is not None and int(idx_orig) in mapa_direita_por_idx:
+            item_d = dict(mapa_direita_por_idx[int(idx_orig)])
+        else:
+            item_d = dict(linhas_direita[i]) if i < len(linhas_direita) else {}
         for k, v in item_d.items():
             if v and not str(item_b.get(k, "")).strip():
                 item_b[k] = v
-        if any(str(val).strip() for val in item_b.values()):
+        if any(str(val).strip() for k, val in item_b.items() if not str(k).startswith("_")):
             mescladas.append(item_b)
+
+    if any(r.get("_ORDEM_SEQUENCIAL") is not None for r in mescladas):
+        mescladas.sort(
+            key=lambda r: (
+                0 if r.get("_ORDEM_SEQUENCIAL") is not None else 1,
+                float(r["_ORDEM_SEQUENCIAL"]) if r.get("_ORDEM_SEQUENCIAL") is not None else float("inf"),
+                int(r.get("_IDX_LINHA_ORIGINAL", 0)),
+            )
+        )
     return mescladas
 
 
