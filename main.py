@@ -298,10 +298,16 @@ def main() -> None:
     if args.bloco2:
         executar_bloco_ou_pagina_especifica("3.2")
         return
-    if args.pagina5:
+    if args.pagina3 and not args.tudo:
+        executar_bloco_ou_pagina_especifica("pagina3")
+        return
+    if args.pagina4 and not args.tudo:
+        executar_bloco_ou_pagina_especifica("pagina4")
+        return
+    if args.pagina5 and not args.tudo:
         executar_bloco_ou_pagina_especifica("pagina5")
         return
-    if args.pagina6:
+    if args.pagina6 and not args.tudo:
         executar_bloco_ou_pagina_especifica("pagina6")
         return
 

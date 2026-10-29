@@ -135,6 +135,10 @@ SINONIMOS_SWOT = {
         "AÇÃO ID",
         "CODIGO DA ACAO",
         "CÓDIGO DA AÇÃO",
+        "ID DA INICIATIVA",
+        "ID INICIATIVA",
+        "CODIGO DA INICIATIVA",
+        "CÓDIGO DA INICIATIVA",
     },
     "DESCRIÇÃO DO CUSTO": {
         "DESCRICAO DO CUSTO",
@@ -497,6 +501,9 @@ def _celula_corresponde_coluna(celula: str, nome_esperado: str) -> bool:
             or "ACAO ID" in cel_sem
             or "ID DA ACAO" in cel_sem
             or "ID ACAO" in cel_sem
+            or "ID DA INICIATIVA" in cel_sem
+            or "ID INICIATIVA" in cel_sem
+            or "CODIGO DA INICIATIVA" in cel_sem
         ):
             return True
         if chave_canon == "DESCRIÇÃO DO CUSTO" and (
@@ -508,9 +515,8 @@ def _celula_corresponde_coluna(celula: str, nome_esperado: str) -> bool:
         if chave_canon in ("ANO 1", "ANO 2", "ANO 3", "ANO 4"):
             num_ano = chave_canon.split()[-1]
             if (
-                f"ANO {num_ano}" in cel_sem
-                or f"ANO{num_ano}" in cel_sem
-                or f"{num_ano} ANO" in cel_sem
+                re.search(rf"\bANO\s*0?{num_ano}\b", cel_sem)
+                or re.search(rf"\b0?{num_ano}[º°]?\s*ANO\b", cel_sem)
             ):
                 return True
         if chave_canon == "RISCO IDENTIFICADO" and (
@@ -837,7 +843,8 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
         mapa_coluna_para_indice = dict(melhor_encontrados)
 
         # Se a linha de cabeçalho encontrou parte das colunas esperadas (ex: 2 ou 3 das 4 colunas
-        # do Bloco 2), mapeia as colunas restantes na ordem das células de cabeçalho disponíveis
+        # do Bloco 2, ou 4.2. Plano Orçamentário onde os anos vêm como '2024', '2025', '2026', '2027'),
+        # mapeia primeiro colunas de anos (4 dígitos) e depois as restantes na ordem disponível.
         if len(mapa_coluna_para_indice) < len(nomes_colunas_esperados):
             linha_cab = todas_linhas[indice_linha_cabecalho]
             prox_cab = (
@@ -846,6 +853,54 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 else []
             )
             max_cols_cab = max(len(linha_cab), len(prox_cab))
+
+            # Tratamento específico para 'ANO 1'..'ANO 4' quando a planilha usa anos calendário (ex: 2024..2027, ANO 2025, etc.)
+            anos_esperados = [
+                n for n in nomes_colunas_esperados if remover_acentos(n) in ("ANO 1", "ANO 2", "ANO 3", "ANO 4")
+            ]
+            if anos_esperados and any(a not in mapa_coluna_para_indice for a in anos_esperados):
+                idx_min_ano = 0
+                for chave_ant in ("FONTE DE RECURSO", "DESCRIÇÃO DO CUSTO", "AÇÃO (ID)"):
+                    for k_map, v_map in mapa_coluna_para_indice.items():
+                        if normalizar_nome_coluna(k_map) == chave_ant:
+                            idx_min_ano = max(idx_min_ano, v_map + 1)
+                cols_anos_detectadas: List[int] = []
+                for idx_c in range(idx_min_ano, max_cols_cab):
+                    if idx_c in mapa_coluna_para_indice.values():
+                        continue
+                    c_top = linha_cab[idx_c] if idx_c < len(linha_cab) else ""
+                    c_bot = prox_cab[idx_c] if idx_c < len(prox_cab) else ""
+                    comb_ano = remover_acentos(f"{c_top} {c_bot}".strip())
+                    if "TOTAL" in comb_ano:
+                        continue
+                    if (
+                        re.search(r"\b20[2-3]\d\b", comb_ano)
+                        or re.search(r"\bANO\s*[1-4]\b", comb_ano)
+                        or re.search(r"\b[1-4][º°]?\s*ANO\b", comb_ano)
+                    ):
+                        cols_anos_detectadas.append(idx_c)
+                        if len(prox_cab) > idx_c and prox_cab[idx_c].strip():
+                            usou_linha_abaixo_no_cabecalho = True
+                if len(cols_anos_detectadas) >= len(anos_esperados):
+                    for nome_ano, idx_ano in zip(anos_esperados, cols_anos_detectadas):
+                        mapa_coluna_para_indice[nome_ano] = idx_ano
+                elif idx_min_ano > 0:
+                    # Fallback posicional à direita de 'FONTE DE RECURSO' para as 4 colunas de ano
+                    cols_direita_fonte = [
+                        idx_c
+                        for idx_c in range(idx_min_ano, max_cols_cab)
+                        if idx_c not in mapa_coluna_para_indice.values()
+                        and "TOTAL" not in remover_acentos(
+                            f"{linha_cab[idx_c] if idx_c < len(linha_cab) else ''} "
+                            f"{prox_cab[idx_c] if idx_c < len(prox_cab) else ''}"
+                        )
+                    ]
+                    for nome_ano, idx_ano in zip(
+                        [a for a in anos_esperados if a not in mapa_coluna_para_indice],
+                        cols_direita_fonte,
+                    ):
+                        mapa_coluna_para_indice[nome_ano] = idx_ano
+
             cols_candidatas: List[int] = []
             for idx_c in range(max_cols_cab):
                 if idx_c in mapa_coluna_para_indice.values():

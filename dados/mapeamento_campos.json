@@ -202,14 +202,14 @@
             "nome_guia_planilha": "3.1. SWOT",
             "coord_guia_planilha": null,
             "coord_celula_planilha": [
-                -1641,
-                423
+                -1565,
+                494
             ],
             "nome_guia_sistema": "3. Diagnóstico",
             "step_index_sistema": 2,
             "coord_guia_sistema": [
-                398,
-                513
+                416,
+                516
             ],
             "proxima_pagina": "4. Metas e Planos Obrigatórios",
             "ligar_proxima_pagina": true,
@@ -220,12 +220,12 @@
                         373
                     ],
                     "sistema_campo_linha1": [
-                        735,
-                        635
+                        845,
+                        393
                     ],
                     "botao_adicionar": [
-                        1151,
-                        572
+                        1174,
+                        322
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true
@@ -236,12 +236,12 @@
                         373
                     ],
                     "sistema_campo_linha1": [
-                        1386,
-                        634
+                        1513,
+                        386
                     ],
                     "botao_adicionar": [
-                        1788,
-                        572
+                        1775,
+                        322
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true
@@ -252,12 +252,12 @@
                         373
                     ],
                     "sistema_campo_linha1": [
-                        739,
-                        790
+                        797,
+                        559
                     ],
                     "botao_adicionar": [
-                        1151,
-                        727
+                        1174,
+                        494
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true
@@ -268,26 +268,18 @@
                         373
                     ],
                     "sistema_campo_linha1": [
-                        1312,
-                        791
+                        1366,
+                        562
                     ],
                     "botao_adicionar": [
                         1775,
-                        718
+                        494
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true
                 }
             },
-            "caixas_bloqueadas": [
-                {
-                    "nome": "DESCRIÇÃO (Bloco 2 - Inventário de necessidades)",
-                    "coordenada": [
-                        667,
-                        715
-                    ]
-                }
-            ],
+            "caixas_bloqueadas": [],
             "passos_pagina": [
                 {
                     "tipo_passo": "coluna_independente",
@@ -428,16 +420,16 @@
                 ]
             },
             "coord_toggle_todas_guias": [
-                -1812,
-                1012
+                -1819,
+                1014
             ],
             "coord_item_no_toggle": [
                 -1764,
                 746
             ],
             "coord_botao_proxima_etapa": [
-                1776,
-                919
+                402,
+                518
             ]
         },
         "4. Metas e Planos Obrigatórios": {
@@ -625,7 +617,8 @@
                     588
                 ],
                 "ir_para_topo_no_inicio": false,
-                "rolar_ate_o_final_no_inicio": true,
+                "rolar_ate_o_final_no_inicio": false,
+                "ancorado_no_topo": true,
                 "campos": {
                     "AÇÃO (ID)": {
                         "coluna_planilha": "AÇÃO (ID)",
@@ -634,16 +627,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            730,
+                            755,
                             620
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     },
                     "DESCRIÇÃO DO CUSTO": {
                         "coluna_planilha": "DESCRIÇÃO DO CUSTO",
@@ -652,16 +645,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            1080,
+                            1065,
                             620
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     },
                     "FONTE DE RECURSO": {
                         "coluna_planilha": "FONTE DE RECURSO",
@@ -670,16 +663,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            1580,
+                            1500,
                             620
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     },
                     "ANO 1": {
                         "coluna_planilha": "ANO 1",
@@ -688,16 +681,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            760,
-                            710
+                            805,
+                            709
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     },
                     "ANO 2": {
                         "coluna_planilha": "ANO 2",
@@ -706,16 +699,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            1060,
-                            710
+                            1065,
+                            709
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     },
                     "ANO 3": {
                         "coluna_planilha": "ANO 3",
@@ -724,16 +717,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            1360,
-                            710
+                            1325,
+                            709
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     },
                     "ANO 4": {
                         "coluna_planilha": "ANO 4",
@@ -742,16 +735,16 @@
                             588
                         ],
                         "sistema_campo_linha1": [
-                            1660,
-                            710
+                            1585,
+                            709
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     }
                 },
                 "caixas_bloqueadas": [],
@@ -762,6 +755,7 @@
                         "titulo_card_busca": "Plano orçamentário e de investimentos",
                         "texto_botao_adicionar": "Adicionar linha",
                         "data_repeater_add": "budget-plan",
+                        "ancorado_no_topo": true,
                         "campos": [
                             "AÇÃO (ID)",
                             "DESCRIÇÃO DO CUSTO",
@@ -772,10 +766,10 @@
                             "ANO 4"
                         ],
                         "botao_adicionar": [
-                            1755,
+                            1769,
                             510
                         ],
-                        "passo_y_grupo": 215
+                        "passo_y_grupo": 276
                     }
                 ]
             },
@@ -794,7 +788,8 @@
                         588
                     ],
                     "ir_para_topo_no_inicio": false,
-                    "rolar_ate_o_final_no_inicio": true,
+                    "rolar_ate_o_final_no_inicio": false,
+                    "ancorado_no_topo": true,
                     "campos": {
                         "RISCO IDENTIFICADO": {
                             "coluna_planilha": "RISCO IDENTIFICADO",
@@ -803,16 +798,16 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                820,
+                                850,
                                 620
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
                             "tipo": "caixa_texto",
                             "tem_adicionar": true,
-                            "passo_y_grupo": 215
+                            "passo_y_grupo": 188
                         },
                         "PROBABILIDADE": {
                             "coluna_planilha": "PROBABILIDADE",
@@ -821,26 +816,16 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                1265,
+                                1150,
                                 620
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
-                            "tipo": "barra_suspensa",
+                            "tipo": "caixa_texto",
                             "tem_adicionar": true,
-                            "passo_y_grupo": 215,
-                            "opcoes": [
-                                "Alta",
-                                "Média",
-                                "Baixa"
-                            ],
-                            "opcoes_barra_suspensa": [
-                                "Alta",
-                                "Média",
-                                "Baixa"
-                            ]
+                            "passo_y_grupo": 188
                         },
                         "IMPACTO": {
                             "coluna_planilha": "IMPACTO",
@@ -849,26 +834,16 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                1495,
+                                1340,
                                 620
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
-                            "tipo": "barra_suspensa",
+                            "tipo": "caixa_texto",
                             "tem_adicionar": true,
-                            "passo_y_grupo": 215,
-                            "opcoes": [
-                                "Alto",
-                                "Médio",
-                                "Baixo"
-                            ],
-                            "opcoes_barra_suspensa": [
-                                "Alto",
-                                "Médio",
-                                "Baixo"
-                            ]
+                            "passo_y_grupo": 188
                         },
                         "NÍVEL": {
                             "coluna_planilha": "NÍVEL",
@@ -877,28 +852,16 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                1710,
+                                1530,
                                 620
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
-                            "tipo": "barra_suspensa",
+                            "tipo": "caixa_texto",
                             "tem_adicionar": true,
-                            "passo_y_grupo": 215,
-                            "opcoes": [
-                                "Crítico",
-                                "Alto",
-                                "Médio",
-                                "Baixo"
-                            ],
-                            "opcoes_barra_suspensa": [
-                                "Crítico",
-                                "Alto",
-                                "Médio",
-                                "Baixo"
-                            ]
+                            "passo_y_grupo": 188
                         },
                         "AÇÃO DE MITIGAÇÃO": {
                             "coluna_planilha": "AÇÃO DE MITIGAÇÃO",
@@ -907,16 +870,16 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                950,
-                                710
+                                1020,
+                                709
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
                             "tipo": "caixa_texto",
                             "tem_adicionar": true,
-                            "passo_y_grupo": 215
+                            "passo_y_grupo": 188
                         },
                         "RESPONSÁVEL PELO RISCO": {
                             "coluna_planilha": "RESPONSÁVEL PELO RISCO",
@@ -925,16 +888,16 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                1560,
-                                710
+                                1610,
+                                709
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
                             "tipo": "caixa_texto",
                             "tem_adicionar": true,
-                            "passo_y_grupo": 215
+                            "passo_y_grupo": 188
                         }
                     },
                     "caixas_bloqueadas": [],
@@ -945,6 +908,7 @@
                             "titulo_card_busca": "Plano de gestão de riscos",
                             "texto_botao_adicionar": "Adicionar risco",
                             "data_repeater_add": "risk-plan",
+                            "ancorado_no_topo": true,
                             "campos": [
                                 "RISCO IDENTIFICADO",
                                 "PROBABILIDADE",
@@ -954,10 +918,10 @@
                                 "RESPONSÁVEL PELO RISCO"
                             ],
                             "botao_adicionar": [
-                                1755,
+                                1769,
                                 510
                             ],
-                            "passo_y_grupo": 215
+                            "passo_y_grupo": 188
                         }
                     ]
                 }
@@ -1205,7 +1169,8 @@
                         1765,
                         675
                     ],
-                    "passo_y_grupo": 110
+                    "passo_y_grupo": 110,
+                    "ancorado_no_topo": true
                 }
             ],
             "caixas_bloqueadas": []
@@ -1213,11 +1178,11 @@
     },
     "pagina_ativa": "4. Metas e Planos Obrigatórios",
     "coord_toggle_todas_guias": [
-        -1812,
-        1012
+        -1819,
+        1014
     ],
     "coord_botao_proxima_etapa": [
-        1776,
-        919
+        402,
+        518
     ]
 }

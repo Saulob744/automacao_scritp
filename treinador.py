@@ -615,6 +615,8 @@ def _configurar_bloco_2_interativo(
     padrao_atual: Dict[str, Any],
     sugestoes_pagina: List[Dict[str, Any]],
     planilha_salva: List[int],
+    dados_raiz: Optional[Dict[str, Any]] = None,
+    pular_menu_e_guia: bool = False,
 ) -> None:
     """
     Configura a Fase 2 / Bloco 2 da mesma página do sistema ('Inventário de necessidades' na página '3. Diagnóstico'),
@@ -649,60 +651,61 @@ def _configurar_bloco_2_interativo(
 
     campos_b2: Dict[str, Any] = bloco_2.setdefault("campos", {})
 
-    print("\n" + "=" * 78)
-    print(f"🔗 CONFIGURAR BLOCO 2 DA PÁGINA 3. DIAGNÓSTICO: '{nome_b2}'")
-    print(f"   • Guia na planilha: '{nome_guia}'")
-    print(f"   • Clique da guia na planilha: {coord_guia_atual}")
-    print(f"   • Status atual do Bloco 2: {status_str}")
-    print("   • Sequência de preenchimento de cada linha antes de 'Adicionar necessidade':")
-    print("     1º Descrição       <- 'DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC'")
-    print("     2º Prioridade      <- 'CLASSIFICAÇÃO DE PRIORIDADE' [Toggle: Alta / Média / Baixa]")
-    print("     3º Área demandante <- 'ÁREA DEMANDANTE' [Lista suspensa na planilha]")
-    print("     4º Justificativa   <- 'JUSTIFICATIVA' [Campo maior abaixo + scroll extra]")
-    print("     ➕ Botão final     -> 'Adicionar necessidade' (data-repeater-add=\"needs\")")
-    print("=" * 78)
-    print("  [1] Mapear com [F8] a GUIA '3.2. Inventário de necessidades' + os 4 campos + botão 'Adicionar necessidade'")
-    print("  [2] Ativar / Desativar a execução automática do Bloco 2 após o último item de 'Ameaças'")
-    print("  [3] Configurar um grupo customizado de campos para o Bloco 2")
-    print("  [ENTER] Voltar")
+    if not pular_menu_e_guia:
+        print("\n" + "=" * 78)
+        print(f"🔗 CONFIGURAR BLOCO 2 DA PÁGINA 3. DIAGNÓSTICO: '{nome_b2}'")
+        print(f"   • Guia na planilha: '{nome_guia}'")
+        print(f"   • Clique da guia na planilha: {coord_guia_atual}")
+        print(f"   • Status atual do Bloco 2: {status_str}")
+        print("   • Sequência de preenchimento de cada linha antes de 'Adicionar necessidade':")
+        print("     1º Descrição       <- 'DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC'")
+        print("     2º Prioridade      <- 'CLASSIFICAÇÃO DE PRIORIDADE' [Toggle: Alta / Média / Baixa]")
+        print("     3º Área demandante <- 'ÁREA DEMANDANTE' [Lista suspensa na planilha]")
+        print("     4º Justificativa   <- 'JUSTIFICATIVA' [Campo maior abaixo + scroll extra]")
+        print("     ➕ Botão final     -> 'Adicionar necessidade' (data-repeater-add=\"needs\")")
+        print("=" * 78)
+        print("  [1] Mapear com [F8] a GUIA '3.2. Inventário de necessidades' + os 4 campos + botão 'Adicionar necessidade'")
+        print("  [2] Ativar / Desativar a execução automática do Bloco 2 após o último item de 'Ameaças'")
+        print("  [3] Configurar um grupo customizado de campos para o Bloco 2")
+        print("  [ENTER] Voltar")
 
-    esc = input("\nEscolha uma ação [1/2/3/ENTER]: ").strip()
-    if esc == "2":
-        bloco_2["ativo"] = not bool(bloco_2.get("ativo", True))
-        novo_st = "ATIVADO ✅" if bloco_2["ativo"] else "PAUSADO ⏸️ (foco apenas no Bloco 1)"
-        print(f"   🔄 Status do Bloco 2 alterado para: {novo_st}")
-        return
+        esc = input("\nEscolha uma ação [1/2/3/ENTER]: ").strip()
+        if esc == "2":
+            bloco_2["ativo"] = not bool(bloco_2.get("ativo", True))
+            novo_st = "ATIVADO ✅" if bloco_2["ativo"] else "PAUSADO ⏸️ (foco apenas no Bloco 1)"
+            print(f"   🔄 Status do Bloco 2 alterado para: {novo_st}")
+            return
 
-    if esc == "3":
-        sugestoes_b2 = [
-            s for s in sugestoes_pagina if s.get("nome") not in COLUNAS_PADRAO_SWOT
-        ]
-        _treinar_grupo_codependente_interativo(
-            padrao_atual=bloco_2,
-            sugestoes_pagina=sugestoes_b2 or sugestoes_pagina,
-            planilha_salva=list(coord_cel_atual),
+        if esc == "3":
+            sugestoes_b2 = [
+                s for s in sugestoes_pagina if s.get("nome") not in COLUNAS_PADRAO_SWOT
+            ]
+            _treinar_grupo_codependente_interativo(
+                padrao_atual=bloco_2,
+                sugestoes_pagina=sugestoes_b2 or sugestoes_pagina,
+                planilha_salva=list(coord_cel_atual),
+            )
+            return
+
+        if esc != "1":
+            return
+
+        _configurar_toggle_todas_guias_e_aba_interativo(
+            padrao_bloco_ou_pagina=bloco_2,
+            nome_guia_padrao=nome_guia,
+            dados_raiz=dados_raiz,
         )
-        return
 
-    if esc != "1":
-        return
-
-    _configurar_toggle_todas_guias_e_aba_interativo(
-        padrao_bloco_ou_pagina=bloco_2,
-        nome_guia_padrao=nome_guia,
-        dados_raiz=None,
-    )
-
-    cx_cel, cy_cel, _ = aguardar_captura_ponto_f8(
-        mensagem_instrucao=(
-            f"2º PASSO (CÉLULA DA TABELA): Com a guia '{bloco_2.get('nome_guia_planilha') or nome_guia}' aberta, "
-            f"aponte para uma célula de dados da tabela e aperte [F8] (ou [ENTER] para manter {coord_cel_atual})"
-        ),
-        coord_atual=coord_cel_atual,
-        permitir_sem_ponto=True,
-    )
-    if cx_cel is not None and cy_cel is not None:
-        bloco_2["coord_celula_planilha"] = [int(cx_cel), int(cy_cel)]
+        cx_cel, cy_cel, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao=(
+                f"2º PASSO (CÉLULA DA TABELA): Com a guia '{bloco_2.get('nome_guia_planilha') or nome_guia}' aberta, "
+                f"aponte para uma célula de dados da tabela e aperte [F8] (ou [ENTER] para manter {coord_cel_atual})"
+            ),
+            coord_atual=coord_cel_atual,
+            permitir_sem_ponto=True,
+        )
+        if cx_cel is not None and cy_cel is not None:
+            bloco_2["coord_celula_planilha"] = [int(cx_cel), int(cy_cel)]
 
     print("\n" + "-" * 78)
     print("📜 AGORA NO SISTEMA (3. Diagnóstico): Role a página até o FINAL para ver 'Inventário de necessidades'!")
@@ -816,9 +819,12 @@ def _configurar_bloco_2_interativo(
 
 
 def _configurar_toggle_todas_guias_e_aba_interativo(
-    padrao_bloco_ou_pagina: Dict[str, Any],
-    nome_guia_padrao: str,
+    padrao_bloco_ou_pagina: Optional[Dict[str, Any]] = None,
+    nome_guia_padrao: str = "",
     dados_raiz: Optional[Dict[str, Any]] = None,
+    alvo_dict: Optional[Dict[str, Any]] = None,
+    nome_guia_sugerido: Optional[str] = None,
+    reaproveitar_toggle_salvo: bool = False,
 ) -> None:
     """
     Ensina ao treinador como selecionar a guia ('aba') na planilha SEM depender de posições variáveis
@@ -831,6 +837,13 @@ def _configurar_toggle_todas_guias_e_aba_interativo(
        nome de referência via OCR nativo do Windows (ou permite apontar o item na lista aberta com [F8])
        e seleciona a aba correta na planilha!
     """
+    if padrao_bloco_ou_pagina is None and alvo_dict is not None:
+        padrao_bloco_ou_pagina = alvo_dict
+    if not nome_guia_padrao and nome_guia_sugerido:
+        nome_guia_padrao = nome_guia_sugerido
+    if padrao_bloco_ou_pagina is None:
+        return
+
     nome_guia_atual = str(padrao_bloco_ou_pagina.get("nome_guia_planilha") or nome_guia_padrao)
     novo_nome = input(
         f"Nome de referência da guia ('aba') na planilha [ENTER = manter '{nome_guia_atual}']: "
@@ -843,14 +856,18 @@ def _configurar_toggle_todas_guias_e_aba_interativo(
         (dados_raiz.get("coord_toggle_todas_guias") if isinstance(dados_raiz, dict) else None)
         or padrao_bloco_ou_pagina.get("coord_toggle_todas_guias")
     )
-    tx, ty, _ = aguardar_captura_ponto_f8(
-        mensagem_instrucao=(
-            "1º PASSO (TOGGLE DE TODAS AS GUIAS '≡' NA PLANILHA): Posicione o mouse sobre o botão "
-            "TOGGLE '≡' (que mostra todas as guias no canto inferior esquerdo da planilha) e aperte [F8]"
-        ),
-        coord_atual=coord_toggle_atual,
-        permitir_sem_ponto=coord_toggle_atual is not None,
-    )
+    if reaproveitar_toggle_salvo and coord_toggle_atual is not None:
+        tx, ty = int(coord_toggle_atual[0]), int(coord_toggle_atual[1])
+        print(f"   ♻️  Reaproveitando Toggle '≡' já salvo em ({tx}, {ty})!")
+    else:
+        tx, ty, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao=(
+                "1º PASSO (TOGGLE DE TODAS AS GUIAS '≡' NA PLANILHA): Posicione o mouse sobre o botão "
+                "TOGGLE '≡' (que mostra todas as guias no canto inferior esquerdo da planilha) e aperte [F8]"
+            ),
+            coord_atual=coord_toggle_atual,
+            permitir_sem_ponto=coord_toggle_atual is not None,
+        )
     if tx is not None and ty is not None:
         coord_toggle_final = [int(tx), int(ty)]
         padrao_bloco_ou_pagina["coord_toggle_todas_guias"] = coord_toggle_final
@@ -1170,31 +1187,47 @@ def _treinar_versao_completa_conectada(
 
     # 1. Fase 1 - Bloco 1 ('3.1. Análise SWOT')
     print("\n🔹 [ETAPA 1 DE 3] 1ª FASE ('3. Diagnóstico') — BLOCO 1 ('3.1. Análise SWOT')")
-    _configurar_guias_planilha_e_sistema_interativo(
-        nome_pagina_atual="3. Diagnóstico",
-        padrao_atual=padrao_p3,
-        planilha_salva=planilha_salva,
-        dados_raiz=dados_existentes,
-    )
-    padrao_p3["ligar_proxima_pagina"] = True
-    padrao_p3["proxima_pagina"] = "4. Metas e Planos Obrigatórios"
-    salvar_mapeamento(dados_existentes)
+    ja_tem_etapa1 = bool((padrao_p3.get("campos") or {}).get("FORÇAS"))
+    fazer_etapa1 = True
+    if ja_tem_etapa1:
+        resp_pular1 = input(
+            "   ✅ A Etapa 1 ('3.1. SWOT') já possui coordenadas salvas. "
+            "Deseja [ENTER/P] Pular para a Etapa 2 ('3.2. Inventário') ou [R] Refazer a Etapa 1? [P/r]: "
+        ).strip().upper()
+        if resp_pular1 not in ("R", "REFAZER", "S", "SIM"):
+            fazer_etapa1 = False
+            print("   ⏭️  Mantendo Etapa 1 ('3.1. SWOT') já salva e avançando para a Etapa 2!")
 
-    resp_swot = input(
-        "\nDeseja remarcar também os 4 campos SWOT (FORÇAS, FRAQUEZAS, OPORTUNIDADES, AMEAÇAS)? [S/N, ENTER=N (manter atuais)]: "
-    ).strip().upper()
-    if resp_swot in ("S", "SIM"):
-        campos_p3 = padrao_p3.setdefault("campos", {})
-        for nome_swot in COLUNAS_PADRAO_SWOT:
-            _mapear_uma_caixa_interativa(
-                nome_caixa=nome_swot,
-                tipo_sugerido="caixa_texto",
-                tem_adicionar_sugerido=True,
-                opcoes_sugeridas=None,
-                campos_pagina=campos_p3,
-                planilha_salva=list(planilha_salva),
-            )
+    if fazer_etapa1:
+        _configurar_guias_planilha_e_sistema_interativo(
+            nome_pagina_atual="3. Diagnóstico",
+            padrao_atual=padrao_p3,
+            planilha_salva=planilha_salva,
+            dados_raiz=dados_existentes,
+        )
+        padrao_p3["ligar_proxima_pagina"] = True
+        padrao_p3["proxima_pagina"] = "4. Metas e Planos Obrigatórios"
+        salvar_mapeamento(dados_existentes)
+
+        resp_swot = input(
+            "\nDeseja remarcar também os 4 campos SWOT (FORÇAS, FRAQUEZAS, OPORTUNIDADES, AMEAÇAS)? "
+            "[S = 1ª linha / 3 = ensinar com 3 linhas de amostra / ENTER = N (manter atuais)]: "
+        ).strip().upper()
+        if resp_swot == "3":
+            ensinar_passo_a_passo_3_linhas(bloco_alvo="3.1", dados_existentes=dados_existentes)
             salvar_mapeamento(dados_existentes)
+        elif resp_swot in ("S", "SIM"):
+            campos_p3 = padrao_p3.setdefault("campos", {})
+            for nome_swot in COLUNAS_PADRAO_SWOT:
+                _mapear_uma_caixa_interativa(
+                    nome_caixa=nome_swot,
+                    tipo_sugerido="caixa_texto",
+                    tem_adicionar_sugerido=True,
+                    opcoes_sugeridas=None,
+                    campos_pagina=campos_p3,
+                    planilha_salva=list(planilha_salva),
+                )
+                salvar_mapeamento(dados_existentes)
 
     # 2. Fase 1 - Bloco 2 ('3.2. Inventário de necessidades') via Toggle de Todas as Guias + Nome Referência
     print("\n🔹 [ETAPA 2 DE 3] 1ª FASE ('3. Diagnóstico') — BLOCO 2 ('3.2. Inventário de necessidades')")
@@ -1209,31 +1242,43 @@ def _treinar_versao_completa_conectada(
         },
     )
     _configurar_toggle_todas_guias_e_aba_interativo(
-        alvo_dict=bloco_2,
-        nome_guia_sugerido=bloco_2.get("nome_guia_planilha") or "3.2. Inventário de necessidades",
+        padrao_bloco_ou_pagina=bloco_2,
+        nome_guia_padrao=bloco_2.get("nome_guia_planilha") or "3.2. Inventário de necessidades",
         dados_raiz=dados_existentes,
+        reaproveitar_toggle_salvo=True,
+    )
+    bloco_2["coord_celula_planilha"] = list(
+        padrao_p3.get("coord_celula_planilha") or bloco_2.get("coord_celula_planilha") or planilha_salva
     )
     bloco_2["ativo"] = True
     salvar_mapeamento(dados_existentes)
 
     resp_b2 = input(
-        "\nDeseja remarcar também os 4 campos do 'Inventário de necessidades' no sistema? [S/N, ENTER=N (manter atuais)]: "
+        "\nDeseja remarcar os campos do 'Inventário de necessidades' no sistema? "
+        "[S = 1ª linha / 3 = ensinar com 3 linhas de amostra / ENTER = N (manter atuais)]: "
     ).strip().upper()
-    if resp_b2 in ("S", "SIM"):
+    if resp_b2 == "3":
+        ensinar_passo_a_passo_3_linhas(bloco_alvo="3.2", dados_existentes=dados_existentes)
+        salvar_mapeamento(dados_existentes)
+    elif resp_b2 in ("S", "SIM"):
         sugestoes_p3 = PAGINAS_PADRAO_SISTEMA.get("3. Diagnóstico", {}).get("caixas_sugeridas") or []
         _configurar_bloco_2_interativo(
             padrao_atual=padrao_p3,
             sugestoes_pagina=sugestoes_p3,
             planilha_salva=list(planilha_salva),
             dados_raiz=dados_existentes,
+            pular_menu_e_guia=True,
         )
         salvar_mapeamento(dados_existentes)
 
     # 3. Fase 2 - Bloco 1 ('4. Metas e Planos Obrigatórios' -> '4.1. Metas e Ações')
     print("\n🔹 [ETAPA 3 DE 3] 2ª FASE ('4. Metas e Planos Obrigatórios') — BLOCO 1 ('4.1. Metas e Ações')")
     resp_p4_completo = input(
-        "Deseja mapear/revisar apenas as GUIAS da Fase 2 (planilha '4.1. Metas e Ações' via Toggle + sistema '4. Metas e Planos') "
-        "ou TAMBÉM os 7 campos de 'Metas e ações'? [G = só guias (padrão) / T = guias + 7 campos]: "
+        "Deseja mapear/revisar na Fase 2 ('4.1. Metas e Ações'):\n"
+        "  [G] Apenas as GUIAS (planilha '4.1. Metas e Ações' via Toggle + sistema '4. Metas e Planos') [padrão]\n"
+        "  [T] Guias + apontar 1ª linha dos 7 campos de 'Metas e ações'\n"
+        "  [3] Guias + ENSINAR COM 3 LINHAS DE AMOSTRA + BLOQUEAR BLOCO VIZINHO ('4.2')\n"
+        "Escolha [G/T/3, ENTER=G]: "
     ).strip().upper()
     if resp_p4_completo in ("T", "TODOS", "7", "S", "SIM"):
         _configurar_bloco_1_metas_e_acoes_interativo(
@@ -1241,6 +1286,14 @@ def _treinar_versao_completa_conectada(
             planilha_salva=list(planilha_salva),
             dados_raiz=dados_existentes,
         )
+    elif resp_p4_completo == "3":
+        _configurar_guias_planilha_e_sistema_interativo(
+            nome_pagina_atual="4. Metas e Planos Obrigatórios",
+            padrao_atual=padrao_p4,
+            planilha_salva=list(planilha_salva),
+            dados_raiz=dados_existentes,
+        )
+        ensinar_passo_a_passo_3_linhas(bloco_alvo="4.1", dados_existentes=dados_existentes)
     else:
         _configurar_guias_planilha_e_sistema_interativo(
             nome_pagina_atual="4. Metas e Planos Obrigatórios",
@@ -1248,6 +1301,20 @@ def _treinar_versao_completa_conectada(
             planilha_salva=list(planilha_salva),
             dados_raiz=dados_existentes,
         )
+
+    salvar_mapeamento(dados_existentes)
+
+    resp_outros = input(
+        "\n🎓 Deseja aproveitar para ensinar com 3 linhas de amostra mais algum bloco (ex: 4.2, 4.3, 5.1, 5.3 ou 6.1)? "
+        "[Digite o código ex: 4.2, S para abrir o menu, ou ENTER para finalizar]: "
+    ).strip()
+    while resp_outros and resp_outros.upper() not in ("N", "NAO", "NÃO", "0"):
+        alvo_extra = None if resp_outros.upper() in ("S", "SIM", "MENU") else resp_outros
+        ensinar_passo_a_passo_3_linhas(bloco_alvo=alvo_extra, dados_existentes=dados_existentes)
+        salvar_mapeamento(dados_existentes)
+        resp_outros = input(
+            "\n🎓 Deseja ensinar mais algum bloco com 3 linhas de amostra? [Código / S / ENTER para finalizar]: "
+        ).strip()
 
     dados_existentes["pagina_ativa"] = "3. Diagnóstico"
     dados_existentes = sincronizar_padroes_paginas(dados_existentes)

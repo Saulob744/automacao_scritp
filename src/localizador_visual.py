@@ -47,6 +47,408 @@ MAPA_TITULO_PAGINA = {
     "AMEAÇAS": "Ameaças",
 }
 
+# Regras estruturais extraídas do DOM HTML (.wizard-table-card / data-repeater / Bootstrap grid)
+# para limitar a atuação de cada bloco à sua própria <div> e diferenciar os botões Adicionar:
+REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
+    "FORCAS": {
+        "data_repeater": "strengths",
+        "data_repeater_add": "strengths",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-md-6-esq",
+        "x_min_input": 655,
+        "x_max_input": 1165,
+        "x_min_btn_add": 1100,
+        "x_max_btn_add": 1235,
+        "w_min_btn_add": 52,
+        "w_max_btn_add": 108,
+        "tem_bloco_abaixo_mesma_coluna": True,
+    },
+    "FRAQUEZAS": {
+        "data_repeater": "weaknesses",
+        "data_repeater_add": "weaknesses",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-md-6-dir",
+        "x_min_input": 1255,
+        "x_max_input": 1765,
+        "x_min_btn_add": 1700,
+        "x_max_btn_add": 1840,
+        "w_min_btn_add": 52,
+        "w_max_btn_add": 108,
+        "tem_bloco_abaixo_mesma_coluna": True,
+    },
+    "OPORTUNIDADES": {
+        "data_repeater": "opportunities",
+        "data_repeater_add": "opportunities",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-md-6-esq",
+        "x_min_input": 655,
+        "x_max_input": 1165,
+        "x_min_btn_add": 1100,
+        "x_max_btn_add": 1235,
+        "w_min_btn_add": 52,
+        "w_max_btn_add": 108,
+        "tem_bloco_abaixo_mesma_coluna": False,
+        "bloqueado_por_botao_largo_abaixo": True,
+    },
+    "AMEACAS": {
+        "data_repeater": "threats",
+        "data_repeater_add": "threats",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-md-6-dir",
+        "x_min_input": 1255,
+        "x_max_input": 1765,
+        "x_min_btn_add": 1700,
+        "x_max_btn_add": 1840,
+        "w_min_btn_add": 52,
+        "w_max_btn_add": 108,
+        "tem_bloco_abaixo_mesma_coluna": False,
+        "bloqueado_por_botao_largo_abaixo": True,
+    },
+    "DESCRICAO": {
+        "data_repeater": "needs",
+        "data_repeater_add": "needs",
+        "texto_botao": "Adicionar necessidade",
+        "coluna_grid": "col-md-6",
+        "x_min_input": 655,
+        "x_max_input": 1240,
+        "w_min_btn_add": 115,
+        "w_max_btn_add": 230,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "PRIORIDADE": {
+        "data_repeater": "needs",
+        "data_repeater_add": "needs",
+        "texto_botao": "Adicionar necessidade",
+        "coluna_grid": "col-md-2",
+        "x_min_input": 1245,
+        "x_max_input": 1455,
+        "w_min_btn_add": 115,
+        "w_max_btn_add": 230,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "AREA DEMANDANTE": {
+        "data_repeater": "needs",
+        "data_repeater_add": "needs",
+        "texto_botao": "Adicionar necessidade",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 1455,
+        "x_max_input": 1745,
+        "w_min_btn_add": 115,
+        "w_max_btn_add": 230,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "JUSTIFICATIVA": {
+        "data_repeater": "needs",
+        "data_repeater_add": "needs",
+        "texto_botao": "Adicionar necessidade",
+        "coluna_grid": "col-12",
+        "x_min_input": 655,
+        "x_max_input": 1835,
+        "w_min_btn_add": 115,
+        "w_max_btn_add": 230,
+        "ultimo_bloco_da_pagina": True,
+    },
+    # =========================================================================
+    # PÁGINA 4 ('4. Metas e Planos Obrigatórios') — 3 BLOCOS (.wizard-table-card)
+    # Bloco 1: 'Metas e ações' (data-repeater="goals-actions", botão "Adicionar ação")
+    # =========================================================================
+    "ID": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-2",
+        "x_min_input": 675,
+        "x_max_input": 855,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "OBJETIVO ESTRATEGICO": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-5",
+        "x_min_input": 870,
+        "x_max_input": 1330,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "META": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-5",
+        "x_min_input": 1345,
+        "x_max_input": 1805,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "ACAO PRINCIPAL": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-4",
+        "x_min_input": 675,
+        "x_max_input": 1045,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "INDICADOR": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 675,
+        "x_max_input": 1330,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "PRAZO": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 1345,
+        "x_max_input": 1615,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "RESPONSAVEL": {
+        "data_repeater": "goals-actions",
+        "data_repeater_add": "goals-actions",
+        "texto_botao": "Adicionar ação",
+        "coluna_grid": "col-md-12",
+        "x_min_input": 675,
+        "x_max_input": 1805,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    # =========================================================================
+    # Bloco 2: 'Plano orçamentário e de investimentos' (data-repeater="budget-plan", botão "Adicionar linha")
+    # =========================================================================
+    "ACAO (ID)": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-2",
+        "x_min_input": 675,
+        "x_max_input": 840,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "DESCRICAO DO CUSTO": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-6",
+        "x_min_input": 855,
+        "x_max_input": 1360,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "FONTE DE RECURSO": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-4",
+        "x_min_input": 1375,
+        "x_max_input": 1710,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "ANO 1": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 675,
+        "x_max_input": 925,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "ANO 2": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 940,
+        "x_max_input": 1185,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "ANO 3": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 1200,
+        "x_max_input": 1445,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    "ANO 4": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-3",
+        "x_min_input": 1460,
+        "x_max_input": 1710,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
+    # =========================================================================
+    # Bloco 3: 'Plano de gestão de riscos' (data-repeater="risk-plan", botão "Adicionar risco")
+    # =========================================================================
+    "RISCO IDENTIFICADO": {
+        "data_repeater": "risk-plan",
+        "data_repeater_add": "risk-plan",
+        "texto_botao": "Adicionar risco",
+        "coluna_grid": "col-md-4",
+        "x_min_input": 675,
+        "x_max_input": 1045,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "PROBABILIDADE": {
+        "data_repeater": "risk-plan",
+        "data_repeater_add": "risk-plan",
+        "texto_botao": "Adicionar risco",
+        "coluna_grid": "col-md-2",
+        "x_min_input": 1060,
+        "x_max_input": 1235,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "IMPACTO": {
+        "data_repeater": "risk-plan",
+        "data_repeater_add": "risk-plan",
+        "texto_botao": "Adicionar risco",
+        "coluna_grid": "col-md-2",
+        "x_min_input": 1250,
+        "x_max_input": 1425,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "NIVEL": {
+        "data_repeater": "risk-plan",
+        "data_repeater_add": "risk-plan",
+        "texto_botao": "Adicionar risco",
+        "coluna_grid": "col-md-2",
+        "x_min_input": 1440,
+        "x_max_input": 1615,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "ACAO DE MITIGACAO": {
+        "data_repeater": "risk-plan",
+        "data_repeater_add": "risk-plan",
+        "texto_botao": "Adicionar risco",
+        "coluna_grid": "col-md-8",
+        "x_min_input": 675,
+        "x_max_input": 1425,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "RESPONSAVEL PELO RISCO": {
+        "data_repeater": "risk-plan",
+        "data_repeater_add": "risk-plan",
+        "texto_botao": "Adicionar risco",
+        "coluna_grid": "col-md-4",
+        "x_min_input": 1440,
+        "x_max_input": 1805,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+        "ultimo_bloco_da_pagina": True,
+    },
+    # =========================================================================
+    # Página 5: '5. Capacitação, Comunicação e Ações Específicas'
+    # Passo A (2 colunas col-lg-6) + Passo B (3 colunas col-lg-4)
+    # =========================================================================
+    "TREINAMENTOS TECNICOS": {
+        "data_repeater": "technical-trainings",
+        "data_repeater_add": "technical-trainings",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-lg-6",
+        "x_min_input": 675,
+        "x_max_input": 1185,
+        "w_min_btn_add": 68,
+        "w_max_btn_add": 112,
+    },
+    "ACOES DE RETENCAO DE TALENTOS": {
+        "data_repeater": "talent-actions",
+        "data_repeater_add": "talent-actions",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-lg-6",
+        "x_min_input": 1245,
+        "x_max_input": 1795,
+        "w_min_btn_add": 68,
+        "w_max_btn_add": 112,
+    },
+    "ACOES MACRO": {
+        "data_repeater": "macro-actions",
+        "data_repeater_add": "macro-actions",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-lg-4",
+        "x_min_input": 675,
+        "x_max_input": 1005,
+        "w_min_btn_add": 68,
+        "w_max_btn_add": 112,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "ACOES MICRO": {
+        "data_repeater": "micro-actions",
+        "data_repeater_add": "micro-actions",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-lg-4",
+        "x_min_input": 1055,
+        "x_max_input": 1415,
+        "w_min_btn_add": 68,
+        "w_max_btn_add": 112,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "ACOES EXTRAS": {
+        "data_repeater": "extra-actions",
+        "data_repeater_add": "extra-actions",
+        "texto_botao": "Adicionar",
+        "coluna_grid": "col-lg-4",
+        "x_min_input": 1465,
+        "x_max_input": 1805,
+        "w_min_btn_add": 68,
+        "w_max_btn_add": 112,
+        "ultimo_bloco_da_pagina": True,
+    },
+    # =========================================================================
+    # Página 6: '6. Monitoramento, Anexos e Revisão' — 'Indicadores de sucesso (KPIs)'
+    # (data-repeater="kpis", botão "Adicionar KPI", inicia com 3 linhas vazias no HTML)
+    # =========================================================================
+    "FORMULA / DESCRICAO": {
+        "data_repeater": "kpis",
+        "data_repeater_add": "kpis",
+        "texto_botao": "Adicionar KPI",
+        "coluna_grid": "col-md-6",
+        "x_min_input": 1125,
+        "x_max_input": 1710,
+        "w_min_btn_add": 90,
+        "w_max_btn_add": 175,
+        "ultimo_bloco_da_pagina": True,
+    },
+    "FORMULA/DESCRICAO": {
+        "data_repeater": "kpis",
+        "data_repeater_add": "kpis",
+        "texto_botao": "Adicionar KPI",
+        "coluna_grid": "col-md-6",
+        "x_min_input": 1125,
+        "x_max_input": 1710,
+        "w_min_btn_add": 90,
+        "w_max_btn_add": 175,
+        "ultimo_bloco_da_pagina": True,
+    },
+}
+
 SRCCOPY = 0x00CC0020
 CAPTUREBLT = 0x40000000
 DIB_RGB_COLORS = 0
@@ -1105,7 +1507,10 @@ def detectar_botoes_remover_da_coluna(
         if 1 <= w <= 68 and 1 <= h <= 68:
             cx = ox + x + (w // 2)
             cy = oy + y + (h // 2)
-            if abs(cx - (x_btn_add + 15)) <= 105 and y_min_busca <= cy <= limite_y:
+            # Nos cards largos (x_btn_add ~ 1769), o botão '×' de 11 colunas (Metas e Ações / Plano de Riscos)
+            # fica na coluna 11 (cx ~ 1672, distância ~ 97px), enquanto de 12 colunas fica na coluna 12 (cx ~ 1775).
+            tol_x = 148 if int(x_btn_add) >= 1500 else 105
+            if abs(cx - int(x_btn_add)) <= tol_x and y_min_busca <= cy <= limite_y:
                 ys_encontrados.append(int(cy))
 
     ys_encontrados.sort()
@@ -1233,11 +1638,13 @@ def eh_caixa_de_texto_vazia(
     recorte = img_bgr[y1:y2, x1:x2]
     gray = cv2.cvtColor(recorte, cv2.COLOR_BGR2GRAY)
 
-    # Fundo branco do input (#ffffff -> gray >= 242) e ausência de caracteres digitados (#03183C -> gray < 150 / < 175)
+    # Fundo branco do input (#ffffff -> gray >= 242) e ausência de caracteres digitados (#03183C -> gray < 115 / < 138).
+    # Nota: placeholders cinza-claros do HTML (ex: placeholder="A1", "0,00", "Ex.: Tesouro / Convênio") têm gray >= 145
+    # e são ignorados para que a caixa com placeholder continue sendo reconhecida como VAZIA!
     proporcao_branco = float(np.mean(gray >= 242))
-    pixels_muito_escuros = int(np.sum(gray < 148))
-    pixels_escuros = int(np.sum(gray < 175))
-    return proporcao_branco >= 0.88 and pixels_muito_escuros < 10 and pixels_escuros < 22
+    pixels_muito_escuros = int(np.sum(gray < 115))
+    pixels_escuros = int(np.sum(gray < 138))
+    return proporcao_branco >= 0.85 and pixels_muito_escuros < 8 and pixels_escuros < 18
 
 
 def detectar_caixas_de_texto_da_coluna(
@@ -1355,19 +1762,26 @@ def _obter_limite_y_proximo_card(
     x_btn_add: int,
     y_btn_add: int,
     y_limite_extra: Optional[int] = None,
+    y_minimo_abaixo: Optional[int] = None,
 ) -> int:
     """
     Retorna o Y máximo permitido acima do próximo card/bloco vizinho abaixo:
     - Detecta qualquer botão azul na mesma coluna (`abs(b[0] - x_btn_add) <= 180`) OU
       qualquer botão azul largo de bloco de página inteira (`b[2] >= 112`, ex: 'Adicionar necessidade',
       'Adicionar linha' do Plano Orçamentário, 'Adicionar risco' da Gestão de Riscos) que esteja abaixo de `y_btn_add`.
+    - Ignora botões no cabeçalho superior (`b[1] < 260`) para nunca confundir o próprio botão do bloco
+      (quando próximo ao topo após rolagem) com um bloco vizinho abaixo.
     - Respeita também `y_limite_extra` (barreira de bloco vizinho ensinada no treinamento).
     """
+    y_piso = max(260, int(y_btn_add) + 92)
+    if y_minimo_abaixo is not None:
+        y_piso = max(y_piso, int(y_minimo_abaixo))
+
     proximos = [
         b[1]
         for b in todos_botoes
         if (abs(b[0] - x_btn_add) <= 180 or b[2] >= 112)
-        and b[1] > (y_btn_add + 92)
+        and b[1] > y_piso
         and b[1] < 995
     ]
     y_lim = (min(proximos) - 32) if proximos else 1010
@@ -1506,9 +1920,13 @@ def _detectar_par_na_tela_atual(
         if incluir_botoes_largos:
             return 600 <= hx <= 1850
         if x_btn_esperado is not None:
-            if x_btn_esperado >= 1400:
-                return 1150 <= hx <= (x_btn_esperado - 60)
-            return 600 <= hx <= 1120
+            if x_btn_esperado <= 1050:
+                return 600 <= hx <= (x_btn_esperado - 35)
+            if x_btn_esperado <= 1260:
+                return 600 <= hx <= 1120
+            if x_btn_esperado <= 1520:
+                return 1020 <= hx <= (x_btn_esperado - 35)
+            return 1150 <= hx <= (x_btn_esperado - 45)
         return True
 
     laranjas_validos = [d for d in laranjas if _destaque_na_coluna_esperada(d)]
@@ -1590,6 +2008,12 @@ def _buscar_campo_com_ctrl_f(
             break
         if not espera_botao_adicionar and total_dest == 1 and destaque_escolhido is not None:
             break
+        # Se no 1º Ctrl+F o Chrome rolou para cima deixando o destaque escondido atrás da topbar fixa (Y < 198),
+        # sobe a página +3 ticks para revelar o cabeçalho do card abaixo da topbar!
+        if tentativa == 0 and total_dest == 0:
+            rolar_pagina(3, x=x_scroll, y=500)
+            time.sleep(0.32)
+            continue
         if tentativa < 4:
             pressionar_tecla_unica("enter")
             time.sleep(0.25)
@@ -1760,32 +2184,8 @@ def _resolver_caixa1_do_card(
         # 1. Prioriza SEMPRE uma caixa VAZIA do card atual (acima do limite do bloco vizinho y_lim)
         if ys_vazias:
             y_caixa1_real = ys_vazias[0]
-        elif ys_todas and y_btn_real >= 208:
-            # Todas as caixas visíveis deste card já estão preenchidas! Clica 1x em 'Adicionar' para gerar uma caixa VAZIA nova
-            _log_visao(
-                f"_resolver_caixa1_do_card: todas as {len(ys_todas)} caixa(s) existentes já estão preenchidas; "
-                f"clicando em Adicionar ({x_btn_real}, {y_btn_real}) para criar caixa vazia..."
-            )
-            mover_e_clicar(x=x_btn_real, y=y_btn_real, cliques=1, botao="left")
-            time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
-            img2, off2 = capturar_tela_sistema(x_btn_real)
-            if img2 is not None:
-                todos_b2 = detectar_botoes_azuis_adicionar(img2, off2, incluir_botoes_largos=True)
-                y_lim2 = _obter_limite_y_proximo_card(todos_b2, x_btn_real, y_btn_real)
-                ys_vazias2 = detectar_caixas_de_texto_da_coluna(
-                    img2,
-                    off2,
-                    x_guia_caixa=x_caixa_real,
-                    x_btn_add=x_btn_real,
-                    y_btn_add=y_btn_real,
-                    y_limite_inferior=y_lim2,
-                    apenas_vazias=True,
-                )
-                if ys_vazias2:
-                    y_caixa1_real = ys_vazias2[-1]
-                else:
-                    y_caixa1_real = min(y_lim2 - 20, ys_todas[-1] + int(params["passo_y_nova_caixa"]))
-                img, offset_xy = img2, off2
+        elif ys_todas:
+            y_caixa1_real = ys_todas[0]
 
         if img is not None:
             y_caixa1_real = centralizar_y_na_caixa_branca(img, offset_xy, x_caixa_real, y_caixa1_real)
@@ -2008,16 +2408,24 @@ def ajustar_coordenada_para_caixa_vazia(
     zonas_proibidas: Optional[List[Tuple[int, int]]] = None,
     y_limite_bloco_vizinho: Optional[int] = None,
     permitir_avancar_abaixo: bool = True,
+    nome_campo: Optional[str] = None,
 ) -> Tuple[Tuple[int, int], bool, bool]:
     """
     Garante antes de cada colagem que `(cx, cy)`:
-    1. NÃO invada um bloco vizinho abaixo (`y_limite_bloco_vizinho` / próximo botão azul 'Adicionar...' / `zonas_proibidas`).
-    2. Aponte para o centro vertical exato de uma CAIXA DE TEXTO VAZIA (`eh_caixa_de_texto_vazia`).
-    3. Caso a caixa atual já esteja preenchida e exista outra caixa vazia mais abaixo na mesma coluna
+    1. Permaneça estritamente dentro da `<div>` (`.wizard-table-card` / `data-repeater` / coluna Bootstrap) do campo.
+    2. NÃO invada um bloco vizinho abaixo (`y_limite_bloco_vizinho` / próximo botão azul 'Adicionar...' / `zonas_proibidas`).
+    3. Aponte para o centro vertical exato de uma CAIXA DE TEXTO VAZIA (`eh_caixa_de_texto_vazia`).
+    4. Caso a caixa atual já esteja preenchida e exista outra caixa vazia mais abaixo na mesma coluna
        (acima do limite do bloco vizinho), avança automaticamente para a caixa vazia disponível.
     Retorna: `(coord_ajustada, esta_vazia, bloqueado_por_bloco_vizinho)`
     """
-    cx = max(650, min(1760, int(coord_alvo[0])))
+    regra_div = REGRAS_DIV_REPEATER_HTML.get(_norm_chave(nome_campo or "")) if nome_campo else None
+    if regra_div is not None:
+        x_min_div = int(regra_div.get("x_min_input", 650))
+        x_max_div = int(regra_div.get("x_max_input", 1760))
+        cx = max(x_min_div, min(x_max_div, int(coord_alvo[0])))
+    else:
+        cx = max(650, min(1760, int(coord_alvo[0])))
     cy = int(coord_alvo[1])
 
     if _esta_em_zona_proibida(cx, cy, zonas_proibidas):
@@ -2030,11 +2438,27 @@ def ajustar_coordenada_para_caixa_vazia(
         return ((cx, cy), True, False)
 
     todos_botoes = detectar_botoes_azuis_adicionar(img, offset_xy, incluir_botoes_largos=True)
-    if coord_btn_add is not None:
+    if regra_div is not None and regra_div.get("ultimo_bloco_da_pagina"):
+        # Em <div class="wizard-table-card" data-repeater="needs"> (último bloco da página 3),
+        # não existe outro repeater abaixo (apenas o rodapé da página).
+        x_b = int(coord_btn_add[0]) if coord_btn_add is not None else cx
+        y_b = max(65, int(coord_btn_add[1])) if coord_btn_add is not None else max(65, cy - 110)
+        y_lim = int(y_limite_bloco_vizinho) if (y_limite_bloco_vizinho is not None and int(y_limite_bloco_vizinho) > 220) else 965
+    elif coord_btn_add is not None:
         x_b = int(coord_btn_add[0])
-        y_b = max(65, int(coord_btn_add[1]))
+        y_b_raw = int(coord_btn_add[1])
+        y_b = max(65, y_b_raw)
+        botoes_filtrados = todos_botoes
+        if regra_div is not None and regra_div.get("bloqueado_por_botao_largo_abaixo"):
+            # Oportunidades e Ameaças só têm abaixo deles o card 'Inventário de necessidades' (botão largo w >= 115px)
+            botoes_filtrados = [b for b in todos_botoes if b[2] >= 115 and b[1] < 900]
+        y_min_abaixo = (cy + 25) if y_b_raw < 215 else None
         y_lim = _obter_limite_y_proximo_card(
-            todos_botoes, x_b, y_b, y_limite_extra=y_limite_bloco_vizinho
+            botoes_filtrados,
+            x_b,
+            y_b,
+            y_limite_extra=y_limite_bloco_vizinho,
+            y_minimo_abaixo=y_min_abaixo,
         )
     else:
         x_b = cx
@@ -2361,9 +2785,12 @@ def _localizar_botao_adicionar_necessidade_visivel(
     ]
     if candidatos_largos:
         if y_btn_esperado is not None and y_btn_esperado >= 212:
-            candidatos_largos.sort(key=lambda b: abs(b[1] - y_btn_esperado))
-        else:
-            candidatos_largos.sort(key=lambda b: b[1], reverse=(not preferir_topo))
+            perto_esp = [b for b in candidatos_largos if abs(b[1] - y_btn_esperado) <= 80]
+            if perto_esp:
+                perto_esp.sort(key=lambda b: abs(b[1] - y_btn_esperado))
+                return int(perto_esp[0][0]), int(perto_esp[0][1])
+            return None
+        candidatos_largos.sort(key=lambda b: b[1], reverse=(not preferir_topo))
         return int(candidatos_largos[0][0]), int(candidatos_largos[0][1])
 
     # 2. Fallback caso o contorno azul do botão tenha sido segmentado menor, mas na posição exata esperada
@@ -2391,10 +2818,12 @@ def clicar_adicionar_e_avancar_grupo_codependente(
     Para grupos de campos codependentes na mesma linha/bloco:
     - Modo 1 (`ancorado_no_topo=False`, ex: 'Inventário de necessidades' no final da página 3):
       Sobe a página a partir da 2ª caixa para clicar em 'Adicionar necessidade' e rola até o fundo.
-    - Modo 2 (`ancorado_no_topo=True`, ex: 'Metas e ações' ou 'Plano orçamentário' na página 4):
-      Clica no botão 'Adicionar...', desce de forma controlada parando ANTES da barreira do bloco vizinho
-      (`_obter_limite_y_proximo_card` / `y_limite_bloco_vizinho`) e trava exclusivamente no sub-card VAZIO
-      recém-criado (`eh_caixa_de_texto_vazia`).
+    - Modo 2 (`ancorado_no_topo=True`, ex: 'Metas e ações', 'Plano orçamentário e de investimentos'
+      ou 'Plano de gestão de riscos' na página 4):
+      Diferencia os 3 botões ('Adicionar ação', 'Adicionar linha', 'Adicionar risco') e o container
+      `<div>` de cada bloco, clica no botão 'Adicionar...' do próprio bloco, desce de forma controlada
+      parando ANTES da barreira do bloco vizinho (`_obter_limite_y_proximo_card`) e trava exclusivamente
+      no sub-card VAZIO recém-criado (`eh_caixa_de_texto_vazia`).
     """
     if not coords_campos_atuais:
         return [], coord_btn_atual, 0
@@ -2405,41 +2834,93 @@ def clicar_adicionar_e_avancar_grupo_codependente(
     x_scroll = 1230
 
     if ancorado_no_topo:
-        passo_card = int(passo_y_grupo) if (passo_y_grupo and int(passo_y_grupo) >= 120) else 276
-        y_btn_calibrado = y_btn if y_btn >= 208 else 572
+        norm_btn_add = _norm_chave(texto_botao_adicionar)
+        eh_bloco_metas_topo = ("ACAO" in norm_btn_add or "METAS" in norm_btn_add)
+        eh_bloco_orcamento = ("LINHA" in norm_btn_add or "ORCAMENT" in norm_btn_add)
+        eh_bloco_riscos = ("RISCO" in norm_btn_add)
+        eh_bloco_kpis = ("KPI" in norm_btn_add or "INDICADOR" in norm_btn_add)
+
+        passo_padrao = 110 if eh_bloco_kpis else (188 if eh_bloco_riscos else 276)
+        passo_card = int(passo_y_grupo) if (passo_y_grupo and int(passo_y_grupo) >= 85) else passo_padrao
+        y_btn_calibrado = y_btn if y_btn >= 208 else (572 if eh_bloco_metas_topo else 300)
 
         img_antes, off_antes = capturar_tela_sistema(x_btn)
-        btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
-            img_antes,
-            off_antes,
-            x_btn,
-            y_btn_esperado=(y_btn_calibrado if indice_caixa <= 1 else None),
-            preferir_topo=True,
-        )
 
-        ticks_subidos = 0
-        # A partir da 2ª linha (ou se o botão não estiver visível na tela), sobe a página para procurar o botão 'Adicionar ação'
-        if indice_caixa >= 2 or btn_visivel is None or btn_visivel[1] < 235:
-            passos_iniciais_subir = max(4, (indice_caixa * 3) + 2)
-            rolar_pagina(passos_iniciais_subir, x=x_scroll, y=500)
-            ticks_subidos += passos_iniciais_subir
-            time.sleep(0.38)
-            img_up, off_up = capturar_tela_sistema(x_btn)
+        # Caso especial Página 6 ('Indicadores de sucesso (KPIs)', data-repeater="kpis"):
+        # O HTML inicial já vem com 3 linhas vazias pré-existentes (monitoring[kpis][0..2]).
+        # Antes de clicar em 'Adicionar KPI', verifica se já existe uma linha vazia logo abaixo da linha atual!
+        if eh_bloco_kpis and img_antes is not None:
+            y_atual_kpi = int(coords_campos_atuais[-1][1])
+            ys_x_kpi = detectar_botoes_remover_da_coluna(
+                img_antes,
+                off_antes,
+                x_btn_add=x_btn,
+                y_btn_add=max(65, y_btn),
+                y_limite_inferior=965,
+                passo_max_continuo=220,
+            )
+            proximas_kpi_vazias: List[int] = []
+            for yx_k in ys_x_kpi:
+                if (y_atual_kpi + 45) <= yx_k <= 945:
+                    v_ind = eh_caixa_de_texto_vazia(
+                        img_antes, off_antes, int(base_coords[0][0]), int(yx_k), None
+                    )
+                    v_form = eh_caixa_de_texto_vazia(
+                        img_antes, off_antes, int(base_coords[-1][0]), int(yx_k), None
+                    )
+                    if v_ind and v_form:
+                        proximas_kpi_vazias.append(int(yx_k))
+            if proximas_kpi_vazias:
+                proximas_kpi_vazias.sort()
+                y_kpi_escolhido = proximas_kpi_vazias[0]
+                ticks_kpi = 0
+                if y_kpi_escolhido > 860:
+                    ticks_kpi = 2
+                    rolar_pagina(-ticks_kpi, x=x_scroll, y=500)
+                    time.sleep(0.35)
+                    img_k2, off_k2 = capturar_tela_sistema(x_btn)
+                    delta_k = _medir_scroll_por_template(
+                        img_antes, img_k2, off_antes, x_btn, passos_scroll=-ticks_kpi
+                    )
+                    if delta_k is None or delta_k <= 0 or delta_k > 260:
+                        delta_k = ticks_kpi * 94
+                    y_kpi_escolhido = int(y_kpi_escolhido - delta_k)
+                    y_btn = int(y_btn - delta_k)
+                    img_antes, off_antes = img_k2, off_k2
+                novas_coords_kpi: List[Tuple[int, int]] = []
+                for i in range(len(base_coords)):
+                    cx_k = max(650, min(1760, int(base_coords[i][0])))
+                    cy_k = int(y_kpi_escolhido)
+                    if img_antes is not None:
+                        cy_k = centralizar_y_na_caixa_branca(img_antes, off_antes, cx_k, cy_k)
+                    novas_coords_kpi.append((cx_k, cy_k))
+                _log_visao(
+                    f"clicar_adicionar_e_avancar_grupo_codependente [kpis_linha_preexistente] "
+                    f"(aba #{indice_caixa + 1}, sem clicar Adicionar KPI, scroll=-{ticks_kpi}): "
+                    f"novas_coords={novas_coords_kpi}"
+                )
+                return novas_coords_kpi, (x_btn, y_btn), ticks_kpi
+
+        btn_visivel = None
+        if 220 <= y_btn <= 720:
             btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
-                img_up,
-                off_up,
+                img_antes,
+                off_antes,
                 x_btn,
-                y_btn_esperado=572,
+                y_btn_esperado=y_btn,
                 preferir_topo=True,
             )
 
-            for _ in range(18):
-                if btn_visivel is not None and 220 <= btn_visivel[1] <= 680:
-                    break
-                img_prev, off_prev = capturar_tela_sistema(x_btn)
-                rolar_pagina(5, x=x_scroll, y=500)
-                ticks_subidos += 5
-                time.sleep(0.32)
+        ticks_subidos = 0
+        # Se o botão do bloco atual já está visível na tela (220 <= Y <= 720), clica direto sem subir!
+        # Só sobe ou usa Ctrl+F se o botão saiu pelo topo da tela (btn_visivel is None ou Y < 225)
+        if btn_visivel is None or btn_visivel[1] < 225:
+            if eh_bloco_metas_topo:
+                # Bloco 1 ('Metas e ações'): fica no topo absoluto da Página 4 (Y=572 com scroll=0)
+                passos_iniciais_subir = max(4, (indice_caixa * 3) + 2)
+                rolar_pagina(passos_iniciais_subir, x=x_scroll, y=500)
+                ticks_subidos += passos_iniciais_subir
+                time.sleep(0.38)
                 img_up, off_up = capturar_tela_sistema(x_btn)
                 btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
                     img_up,
@@ -2448,11 +2929,55 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                     y_btn_esperado=572,
                     preferir_topo=True,
                 )
-                delta_up = _medir_scroll_por_template(
-                    img_prev, img_up, off_prev, x_btn, passos_scroll=5
+
+                for _ in range(18):
+                    if btn_visivel is not None and 220 <= btn_visivel[1] <= 680:
+                        break
+                    img_prev, off_prev = capturar_tela_sistema(x_btn)
+                    rolar_pagina(5, x=x_scroll, y=500)
+                    ticks_subidos += 5
+                    time.sleep(0.32)
+                    img_up, off_up = capturar_tela_sistema(x_btn)
+                    btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
+                        img_up,
+                        off_up,
+                        x_btn,
+                        y_btn_esperado=572,
+                        preferir_topo=True,
+                    )
+                    delta_up = _medir_scroll_por_template(
+                        img_prev, img_up, off_prev, x_btn, passos_scroll=5
+                    )
+                    if delta_up is not None and abs(delta_up) < 10:
+                        break
+            else:
+                # Blocos intermediários/finais ('Plano orçamentário e de investimentos' / 'Plano de gestão de riscos' / 'Indicadores de sucesso (KPIs)'):
+                # NUNCA sobe até o topo da Página 4 (para não clicar em 'Adicionar ação' por engano)!
+                # Posiciona o cabeçalho e o botão do próprio bloco em Y ~ 240..380 via Ctrl+F
+                termo_cabecalho_bloco = (
+                    "Plano orçamentário e de investimentos"
+                    if eh_bloco_orcamento
+                    else (
+                        "Plano de gestão de riscos"
+                        if eh_bloco_riscos
+                        else (
+                            "Indicadores de sucesso (KPIs)"
+                            if eh_bloco_kpis
+                            else texto_botao_adicionar
+                        )
+                    )
                 )
-                if delta_up is not None and abs(delta_up) < 10:
-                    break
+                btn_cf, dest_cf = _buscar_campo_com_ctrl_f(
+                    termo_busca=termo_cabecalho_bloco,
+                    x_btn_esperado=x_btn,
+                    posicionar_no_topo=True,
+                    espera_botao_adicionar=True,
+                    incluir_botoes_largos=True,
+                )
+                if btn_cf is not None:
+                    btn_visivel = (int(btn_cf[0]), int(btn_cf[1]))
+                elif dest_cf is not None:
+                    btn_visivel = (x_btn, int(dest_cf[1]))
 
             if btn_visivel is None:
                 atalho_teclado("ctrl", "f")
@@ -2470,7 +2995,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 time.sleep(0.35)
                 img_cf, off_cf = capturar_tela_sistema(x_btn)
                 btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
-                    img_cf, off_cf, x_btn, y_btn_esperado=572, preferir_topo=True
+                    img_cf, off_cf, x_btn, y_btn_esperado=None, preferir_topo=True
                 )
                 if btn_visivel is None and img_cf is not None:
                     dest_cf = localizar_destaque_ctrl_f(img_cf, off_cf, ignorar_topo_y=185)
@@ -2480,21 +3005,46 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         if btn_visivel is not None:
             x_clique_btn, y_clique_btn = int(btn_visivel[0]), int(btn_visivel[1])
         else:
-            x_clique_btn, y_clique_btn = x_btn, 572
+            x_clique_btn, y_clique_btn = x_btn, (572 if eh_bloco_metas_topo else max(240, min(600, y_btn_calibrado)))
 
         x_clique_btn = max(650, min(1860, int(x_clique_btn)))
         y_clique_btn = max(208, min(950, int(y_clique_btn)))
         mover_e_clicar(x=x_clique_btn, y=y_clique_btn, cliques=1, botao="left")
         time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
 
-        # Deslocamentos verticais relativos de cada campo até o último campo da linha (ex: RESPONSÁVEL / botão '×')
+        # Deslocamentos verticais relativos de cada campo até o último campo editável do sub-card (base_coords[-1])
         dy_rel_ult = [int(cy - base_coords[-1][1]) for _, cy in base_coords]
+        dy_btn_para_ult_padrao = (
+            115 if eh_bloco_kpis else (199 if (eh_bloco_orcamento or eh_bloco_riscos) else 293)
+        )
         dy_btn_para_ult = int(base_coords[-1][1] - (y_btn_calibrado if 208 <= y_btn_calibrado <= 700 else 572))
         if dy_btn_para_ult < 60 or dy_btn_para_ult > 420:
-            dy_btn_para_ult = 293
+            dy_btn_para_ult = dy_btn_para_ult_padrao
+
+        # Diferença vertical entre o botão vermelho '×' do sub-card (yx) e o último campo editável (base_coords[-1][1]):
+        # - Metas e ações: '×' está na Linha 2 (ao lado de PRAZO, base_coords[5]), enquanto RESPONSÁVEL está na Linha 3 (+89px abaixo do '×').
+        # - Plano orçamentário: no HTML real (col-md-1 align-items-start pt-md-4), '×' está na Linha 1 (base_coords[0]), enquanto ANO 4 está na Linha 2 (+89px abaixo do '×').
+        # - Plano de gestão de riscos: '×' está na Linha 1 (ao lado de NÍVEL, base_coords[0]), enquanto RESPONSÁVEL PELO RISCO está na Linha 2 (+89px abaixo do '×').
+        # - Indicadores de sucesso (KPIs): '×' está na única linha horizontal (dy_x_para_ult = 0).
+        if eh_bloco_kpis:
+            dy_x_para_ult = 0
+        elif eh_bloco_orcamento and len(base_coords) >= 7:
+            dy_x_para_ult = int(base_coords[-1][1] - base_coords[0][1])
+            if dy_x_para_ult < 45 or dy_x_para_ult > 135:
+                dy_x_para_ult = 89
+        elif eh_bloco_metas_topo and len(base_coords) >= 7:
+            dy_x_para_ult = int(base_coords[-1][1] - base_coords[5][1])
+            if dy_x_para_ult < 45 or dy_x_para_ult > 135:
+                dy_x_para_ult = 89
+        elif eh_bloco_riscos and len(base_coords) >= 5:
+            dy_x_para_ult = int(base_coords[-1][1] - base_coords[0][1])
+            if dy_x_para_ult < 45 or dy_x_para_ult > 135:
+                dy_x_para_ult = 89
+        else:
+            dy_x_para_ult = 0
 
         # Se o usuário ensinou o comportamento de 3 linhas (--ensinar), usa o alvo aprendido para Linha 2 e Linha 3+
-        y_alvo_resp = 845
+        y_alvo_resp = 785 if (eh_bloco_orcamento or eh_bloco_riscos or eh_bloco_kpis) else 845
         ticks_ensinado = None
         if isinstance(aprendizado_3_linhas, dict):
             if indice_caixa == 1 and isinstance(aprendizado_3_linhas.get("coords_linha2"), list) and aprendizado_3_linhas["coords_linha2"]:
@@ -2519,13 +3069,13 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         max_iter_scroll = max(4, indice_caixa + 4)
 
         for _ in range(max_iter_scroll):
-            if y_resp_atual <= max(875, y_alvo_resp + 35):
+            if y_resp_atual <= max(855, y_alvo_resp + 30):
                 break
             px_faltantes = y_resp_atual - y_alvo_resp
             ticks_passo = max(1, min(4, int(round(px_faltantes / 95.0))))
             if ticks_descidos_total == 0 and ticks_ensinado is not None and int(ticks_ensinado) > 0:
                 ticks_passo = max(1, min(6, int(ticks_ensinado)))
-            elif indice_caixa == 1 and ticks_descidos_total == 0:
+            elif indice_caixa == 1 and ticks_descidos_total == 0 and eh_bloco_metas_topo:
                 ticks_passo = 3
 
             img_d0, off_d0 = capturar_tela_sistema(x_btn)
@@ -2537,21 +3087,33 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             delta_step = _medir_scroll_por_template(
                 img_d0, img_d1, off_d0, x_btn, passos_scroll=-ticks_passo
             )
-            if delta_step is None or delta_step <= 0:
-                delta_step = ticks_passo * 92
+            esperado_px = ticks_passo * 94
+            if delta_step is not None and abs(delta_step) < 12:
+                # Página encostou no fim absoluto da rolagem
+                delta_step = 0
+            elif delta_step is not None and 12 <= delta_step <= (esperado_px + 45) and (eh_bloco_riscos or eh_bloco_kpis):
+                # No último bloco da página (ex: Riscos ou KPIs), aceita rolagem parcial ao encostar no rodapé
+                delta_step = int(delta_step)
+            elif delta_step is None or delta_step <= 0 or abs(delta_step - esperado_px) > 85:
+                # Evita que sub-cards idênticos repetidos confundam o template matching em múltiplos de 276px
+                delta_step = esperado_px
 
             delta_scroll_total += int(delta_step)
             y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
 
             # Proteção contra invasão do bloco vizinho: se o botão azul do próximo bloco (ex: 'Adicionar linha'
-            # do Plano Orçamentário) já apareceu na parte inferior da tela (Y < 925), para de descer imediatamente!
-            if img_d1 is not None:
+            # ou 'Adicionar risco') já apareceu na parte inferior da tela (Y <= 935), para de descer imediatamente!
+            if img_d1 is not None and not (eh_bloco_riscos or eh_bloco_kpis):
                 todos_b_d1 = detectar_botoes_azuis_adicionar(img_d1, off_d1, incluir_botoes_largos=True)
                 y_btn_topo_d1 = int(y_clique_btn - delta_scroll_total)
                 y_lim_d1 = _obter_limite_y_proximo_card(
-                    todos_b_d1, x_btn, max(70, y_btn_topo_d1), y_limite_extra=y_limite_bloco_vizinho
+                    todos_b_d1,
+                    x_btn,
+                    max(70, y_btn_topo_d1),
+                    y_limite_extra=y_limite_bloco_vizinho,
+                    y_minimo_abaixo=max(380, int(y_btn_topo_d1) + 260),
                 )
-                if y_lim_d1 < 925:
+                if y_lim_d1 <= 935:
                     break
 
             if delta_step < 15:
@@ -2563,24 +3125,37 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         y_lim_vizinho = int(y_limite_bloco_vizinho) if (y_limite_bloco_vizinho and int(y_limite_bloco_vizinho) > 220) else 985
 
         if img_pos is not None:
-            todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
-            y_lim_vizinho = _obter_limite_y_proximo_card(
-                todos_b_pos, x_btn, max(70, y_btn_pos_topo), y_limite_extra=y_limite_bloco_vizinho
-            )
-            # Se o bloco vizinho subiu demais na tela (y_lim_vizinho < 580), sobe +2 ticks para devolver o bloco atual ao centro
-            if y_lim_vizinho < 580 and ticks_descidos_total >= 2:
-                rolar_pagina(2, x=x_scroll, y=500)
-                ticks_descidos_total = max(0, ticks_descidos_total - 2)
-                delta_scroll_total = max(0, delta_scroll_total - 180)
-                y_btn_pos_topo = int(y_clique_btn - delta_scroll_total)
-                y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
-                time.sleep(0.35)
-                img_pos, off_pos = capturar_tela_sistema(x_btn)
-                if img_pos is not None:
-                    todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
-                    y_lim_vizinho = _obter_limite_y_proximo_card(
-                        todos_b_pos, x_btn, max(70, y_btn_pos_topo), y_limite_extra=y_limite_bloco_vizinho
-                    )
+            if eh_bloco_riscos or eh_bloco_kpis:
+                # 'Plano de gestão de riscos' (Página 4) e 'Indicadores de sucesso (KPIs)' (Página 6)
+                y_lim_vizinho = 965
+            else:
+                todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+                y_lim_vizinho = _obter_limite_y_proximo_card(
+                    todos_b_pos,
+                    x_btn,
+                    max(70, y_btn_pos_topo),
+                    y_limite_extra=y_limite_bloco_vizinho,
+                    y_minimo_abaixo=max(380, int(y_btn_pos_topo) + 260),
+                )
+                # Se o bloco vizinho subiu demais na tela (y_lim_vizinho < 640), sobe para devolver o bloco atual ao centro
+                if y_lim_vizinho < 640 and ticks_descidos_total >= 2:
+                    ticks_recuo = min(ticks_descidos_total, max(2, int((680 - y_lim_vizinho) // 90)))
+                    rolar_pagina(ticks_recuo, x=x_scroll, y=500)
+                    ticks_descidos_total = max(0, ticks_descidos_total - ticks_recuo)
+                    delta_scroll_total = max(0, delta_scroll_total - (ticks_recuo * 92))
+                    y_btn_pos_topo = int(y_clique_btn - delta_scroll_total)
+                    y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
+                    time.sleep(0.35)
+                    img_pos, off_pos = capturar_tela_sistema(x_btn)
+                    if img_pos is not None:
+                        todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+                        y_lim_vizinho = _obter_limite_y_proximo_card(
+                            todos_b_pos,
+                            x_btn,
+                            max(70, y_btn_pos_topo),
+                            y_limite_extra=y_limite_bloco_vizinho,
+                            y_minimo_abaixo=max(380, int(y_btn_pos_topo) + 260),
+                        )
 
         y_resp_escolhido = min(y_lim_vizinho - 22, int(y_resp_atual))
         if img_pos is not None:
@@ -2596,15 +3171,19 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 yx
                 for yx in ys_x_pos
                 if yx < y_lim_vizinho
-                and not _esta_em_zona_proibida(int(base_coords[-1][0]), yx, zonas_proibidas)
+                and not _esta_em_zona_proibida(int(base_coords[-1][0]), int(yx + dy_x_para_ult), zonas_proibidas)
             ]
 
-            # Filtra os botões '×' cujo sub-card está VAZIO (verificando o último campo e o 1º campo do sub-card)
-            ys_x_vazios: List[int] = []
+            # Filtra os botões '×' cujo sub-card está VAZIO (verificando o último campo editável e o 1º campo do sub-card).
+            # Nota: passa None como x_btn_add para não cortar o lado direito de campos largos (col-md-12 ou col-md-4 à direita).
+            ys_ult_vazios: List[int] = []
             for yx in ys_x_pos:
+                y_ult_cand = int(yx + dy_x_para_ult)
+                if y_ult_cand < 215 or y_ult_cand >= (y_lim_vizinho - 10):
+                    continue
                 x_ult = int(base_coords[-1][0])
-                vazia_ult = eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, yx, x_btn)
-                y_prim_cand = int(yx + dy_rel_ult[0])
+                vazia_ult = eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, y_ult_cand, None)
+                y_prim_cand = int(y_ult_cand + dy_rel_ult[0])
                 if y_prim_cand >= 212:
                     vazia_prim = eh_caixa_de_texto_vazia(
                         img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
@@ -2613,19 +3192,23 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 else:
                     eh_subcard_vazio = vazia_ult
                 if eh_subcard_vazio:
-                    ys_x_vazios.append(int(yx))
+                    ys_ult_vazios.append(y_ult_cand)
 
-            if ys_x_vazios:
-                # Escolhe o primeiro sub-card VAZIO disponível (ou o mais próximo de y_resp_atual)
-                ys_x_vazios.sort(key=lambda yx: abs(yx - y_resp_atual))
-                y_resp_escolhido = int(ys_x_vazios[0])
+            if ys_ult_vazios:
+                # Escolhe o sub-card VAZIO mais abaixo (ou mais próximo de y_resp_atual se houver múltiplos vazios)
+                ys_ult_vazios.sort(key=lambda yu: abs(yu - y_resp_atual))
+                y_resp_escolhido = int(ys_ult_vazios[0])
             elif ys_x_pos:
-                candidatos_x = [yx for yx in ys_x_pos if abs(yx - y_resp_atual) <= 75]
-                if candidatos_x:
-                    candidatos_x.sort(key=lambda yx: abs(yx - y_resp_atual))
-                    y_resp_escolhido = int(candidatos_x[0])
-                else:
-                    y_resp_escolhido = int(ys_x_pos[-1])
+                # Se a verificação de vazio não achou, considera apenas o último sub-card da coluna (NUNCA volta para um card anterior!)
+                ys_ult_todos = [
+                    int(yx + dy_x_para_ult)
+                    for yx in ys_x_pos
+                    if 215 <= int(yx + dy_x_para_ult) < (y_lim_vizinho - 10)
+                ]
+                if ys_ult_todos:
+                    ult_da_coluna = int(ys_ult_todos[-1])
+                    if abs(ult_da_coluna - y_resp_atual) <= 65 or ult_da_coluna >= y_resp_atual:
+                        y_resp_escolhido = ult_da_coluna
 
         novas_coords_topo: List[Tuple[int, int]] = []
         for i in range(len(base_coords)):

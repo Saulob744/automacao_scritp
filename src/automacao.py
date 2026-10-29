@@ -499,33 +499,30 @@ def _obter_zonas_proibidas_da_pagina(
     coord_atual_ref: Optional[Tuple[int, int]] = None,
 ) -> List[Tuple[int, int]]:
     """
-    Reúne as coordenadas (X, Y) de todas as OUTRAS caixas mapeadas na página atual
-    (incluindo caixas marcadas como bloqueadas/protegidas) para evitar que a coluna/grupo atual
-    cole texto acidentalmente dentro de outra caixa.
+    Reúne apenas as coordenadas (X, Y) de caixas explicitamente marcadas como bloqueadas/protegidas
+    (`tipo == "bloqueada"`). Não inclui coordenadas iniciais estáticas de outros campos repetidores
+    (ex: Oportunidades/Ameaças/Forças/Fraquezas), pois os cards se expandem e a página rola,
+    e a barreira entre blocos vizinhos é calculada dinamicamente em tempo real pelo botão azul do próximo card.
     """
     zonas: List[Tuple[int, int]] = []
     chaves_atuais = {remover_acentos(n) for n in nomes_campos_atuais}
 
     for item_bloq in caixas_bloqueadas or []:
-        coord_b = item_bloq.get("coordenada") if isinstance(item_bloq, dict) else item_bloq
-        if isinstance(coord_b, (list, tuple)) and len(coord_b) >= 2:
-            zonas.append((int(coord_b[0]), int(coord_b[1])))
+        if isinstance(item_bloq, dict) and item_bloq.get("barreira_bloco_vizinho"):
+            coord_b = item_bloq.get("coordenada")
+            if isinstance(coord_b, (list, tuple)) and len(coord_b) >= 2:
+                zonas.append((int(coord_b[0]), int(coord_b[1])))
 
     for outro_nome, info_outro in (campos_detalhados or {}).items():
         if remover_acentos(outro_nome) in chaves_atuais:
             continue
         if not isinstance(info_outro, dict):
             continue
+        if str(info_outro.get("tipo", "")).lower() != "bloqueada":
+            continue
         coord_o = info_outro.get("sistema_campo_linha1")
         if isinstance(coord_o, (list, tuple)) and len(coord_o) >= 2:
-            ox, oy = int(coord_o[0]), int(coord_o[1])
-            if (
-                info_outro.get("tipo") == "bloqueada"
-                or coord_atual_ref is None
-                or abs(oy - int(coord_atual_ref[1])) > 70
-                or abs(ox - int(coord_atual_ref[0])) > 260
-            ):
-                zonas.append((ox, oy))
+            zonas.append((int(coord_o[0]), int(coord_o[1])))
 
     return zonas
 
@@ -583,6 +580,7 @@ def _preencher_ou_selecionar_valor_unico(
             zonas_proibidas=zonas_proibidas,
             y_limite_bloco_vizinho=y_limite_bloco_vizinho,
             permitir_avancar_abaixo=permitir_avancar_abaixo,
+            nome_campo=nome_campo,
         )
         if bloqueado_vizinho:
             print(
@@ -736,10 +734,21 @@ def _executar_passo_grupo_codependente(
         "ORCAMENTARIO" in remover_acentos(nome_grupo)
         or "ORCAMENTARIO" in remover_acentos(termo_card_busca)
     )
+    eh_bloco_riscos = (
+        "RISCO" in remover_acentos(nome_grupo)
+        or "RISCO" in remover_acentos(termo_card_busca)
+    )
+    eh_bloco_kpis = (
+        "KPI" in remover_acentos(nome_grupo)
+        or "INDICADORES DE SUCESSO" in remover_acentos(nome_grupo)
+        or "KPI" in remover_acentos(termo_card_busca)
+    )
     ancorado_no_topo = bool(
         passo.get("ancorado_no_topo", False)
         or eh_bloco_metas
         or eh_bloco_orcamentario
+        or eh_bloco_riscos
+        or eh_bloco_kpis
     )
     y_limite_bloco_vizinho = passo.get("y_limite_bloco_vizinho")
     aprendizado_3_linhas = passo.get("aprendizado_3_linhas")
@@ -754,21 +763,21 @@ def _executar_passo_grupo_codependente(
             nome_campo=termo_card_busca,
             coord_campo_salva=coord_c1_salva,
             coord_btn_salva=coord_btn_grupo,
-            eh_quadrante_inferior=(not eh_bloco_orcamentario),
+            eh_quadrante_inferior=(not (eh_bloco_orcamentario or eh_bloco_riscos or eh_bloco_kpis)),
             ja_rolou_para_baixo=ja_rolou_para_baixo,
             incluir_botoes_largos=True,
-            posicionar_no_topo=eh_bloco_orcamentario,
+            posicionar_no_topo=(eh_bloco_orcamentario or eh_bloco_riscos or eh_bloco_kpis),
         )
 
-        if coord_btn_localizado is not None and coord_btn_grupo is not None:
+        if coord_btn_localizado is not None and coord_btn_grupo is not None and 205 <= int(coord_btn_localizado[1]) <= 860:
             delta_y_inicial = int(coord_btn_localizado[1]) - int(coord_btn_grupo[1])
-            if abs(delta_y_inicial) > 260:
+            if not (eh_bloco_orcamentario or eh_bloco_riscos or eh_bloco_kpis) and abs(delta_y_inicial) > 260:
                 delta_y_inicial = 0
         else:
             delta_y_inicial = 0
 
     coords_atuais: List[Tuple[int, int]] = [
-        (max(650, min(1760, int(cx))), int(cy + delta_y_inicial))
+        (max(650, min(1760, int(cx))), max(218, int(cy + delta_y_inicial)))
         for cx, cy in coords_iniciais
     ]
     if coord_btn_localizado is not None:
@@ -799,7 +808,15 @@ def _executar_passo_grupo_codependente(
 
     nome_botao_html = str(
         passo.get("texto_botao_adicionar")
-        or ("Adicionar ação" if eh_bloco_metas else ("Adicionar linha" if eh_bloco_orcamentario else "Adicionar necessidade"))
+        or (
+            "Adicionar ação"
+            if eh_bloco_metas
+            else (
+                "Adicionar linha"
+                if eh_bloco_orcamentario
+                else ("Adicionar risco" if eh_bloco_riscos else "Adicionar necessidade")
+            )
+        )
     )
     print(
         f"\n🔗 BLOCO CODEPENDENTE '{nome_grupo}' ({len(campos_grupo)} CAMPOS NA SEQUÊNCIA): "
@@ -813,11 +830,17 @@ def _executar_passo_grupo_codependente(
     if coords_atuais and coord_btn_atual is not None:
         img_ini, off_ini = capturar_tela_sistema(coords_atuais[0][0])
         if img_ini is not None:
+            if ancorado_no_topo:
+                coords_atuais = [
+                    (cx, centralizar_y_na_caixa_branca(img_ini, off_ini, cx, cy))
+                    for cx, cy in coords_atuais
+                ]
+                coords_base_fundo = list(coords_atuais)
             vazia_c0 = eh_caixa_de_texto_vazia(
                 img_ini, off_ini, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
             )
             vazia_cn = eh_caixa_de_texto_vazia(
-                img_ini, off_ini, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), int(coord_btn_atual[0])
+                img_ini, off_ini, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), None
             )
             if not vazia_c0 and not vazia_cn:
                 print(
@@ -1623,7 +1646,7 @@ def _executar_roteiro_de_bloco(
         y_lim_bloco_viz_raw = (
             passo.get("y_limite_bloco_vizinho")
             or info_calibrada.get("y_limite_bloco_vizinho")
-            or config_bloco.get("y_limite_bloco_vizinho")
+            or padrao_bloco.get("y_limite_bloco_vizinho")
         )
         y_lim_bloco_viz = int(y_lim_bloco_viz_raw) if y_lim_bloco_viz_raw is not None else None
 
@@ -1634,6 +1657,23 @@ def _executar_roteiro_de_bloco(
                 return False
 
             try:
+                if tipo_campo != "barra_suspensa":
+                    coord_ajustada_col, esta_vazia_col, bloq_col = ajustar_coordenada_para_caixa_vazia(
+                        coord_alvo=coord_caixa_atual,
+                        coord_btn_add=coord_btn_atual,
+                        zonas_proibidas=zonas_proibidas_coluna,
+                        y_limite_bloco_vizinho=y_lim_bloco_viz,
+                        permitir_avancar_abaixo=True,
+                        nome_campo=nome_campo,
+                    )
+                    if not bloq_col:
+                        if abs(int(coord_ajustada_col[1]) - int(coord_caixa_atual[1])) > 25 and esta_vazia_col:
+                            print(
+                                f"  🔍 [SÓ CAIXA VAZIA] Caixa anterior em {coord_caixa_atual} já ocupada; "
+                                f"avançando automaticamente para a caixa vazia em {coord_ajustada_col}!"
+                            )
+                        coord_caixa_atual = coord_ajustada_col
+
                 ok_item = _preencher_ou_selecionar_valor_unico(
                     nome_campo=nome_campo,
                     valor=valor,
@@ -1646,7 +1686,7 @@ def _executar_roteiro_de_bloco(
                     coord_btn_add=coord_btn_atual,
                     zonas_proibidas=zonas_proibidas_coluna,
                     y_limite_bloco_vizinho=y_lim_bloco_viz,
-                    permitir_avancar_abaixo=True,
+                    permitir_avancar_abaixo=False,
                 )
                 if not ok_item:
                     return False
@@ -1850,23 +1890,23 @@ def _garantir_estrutura_blocos_fases_4_5_6(
     if not isinstance(p4.get("bloco_2"), dict) or not (p4["bloco_2"].get("campos")):
         campos_b2_p4: Dict[str, Any] = {}
         definicao_b2_p4 = [
-            ("AÇÃO (ID)", "AÇÃO (ID)", "caixa_texto", None, [730, 620]),
-            ("DESCRIÇÃO DO CUSTO", "DESCRIÇÃO DO CUSTO", "caixa_texto", None, [1080, 620]),
-            ("FONTE DE RECURSO", "FONTE DE RECURSO", "caixa_texto", None, [1580, 620]),
-            ("ANO 1", "ANO 1", "caixa_texto", None, [760, 710]),
-            ("ANO 2", "ANO 2", "caixa_texto", None, [1060, 710]),
-            ("ANO 3", "ANO 3", "caixa_texto", None, [1360, 710]),
-            ("ANO 4", "ANO 4", "caixa_texto", None, [1660, 710]),
+            ("AÇÃO (ID)", "AÇÃO (ID)", "caixa_texto", None, [755, 620]),
+            ("DESCRIÇÃO DO CUSTO", "DESCRIÇÃO DO CUSTO", "caixa_texto", None, [1065, 620]),
+            ("FONTE DE RECURSO", "FONTE DE RECURSO", "caixa_texto", None, [1500, 620]),
+            ("ANO 1", "ANO 1", "caixa_texto", None, [805, 709]),
+            ("ANO 2", "ANO 2", "caixa_texto", None, [1065, 709]),
+            ("ANO 3", "ANO 3", "caixa_texto", None, [1325, 709]),
+            ("ANO 4", "ANO 4", "caixa_texto", None, [1585, 709]),
         ]
         for nome_c, col_plan, tipo_c, opcoes_c, coord_sug in definicao_b2_p4:
             campos_b2_p4[nome_c] = {
                 "coluna_planilha": col_plan,
                 "planilha_linha1": list(coord_cel_p4),
                 "sistema_campo_linha1": list(coord_sug),
-                "botao_adicionar": [1755, 510],
+                "botao_adicionar": [1769, 510],
                 "tipo": tipo_c,
                 "tem_adicionar": True,
-                "passo_y_grupo": 215,
+                "passo_y_grupo": 276,
             }
         p4["bloco_2"] = {
             "nome_bloco": "Plano orçamentário e de investimentos",
@@ -1887,38 +1927,37 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                     "titulo_card_busca": "Plano orçamentário e de investimentos",
                     "texto_botao_adicionar": "Adicionar linha",
                     "data_repeater_add": "budget-plan",
+                    "ancorado_no_topo": True,
                     "campos": list(COLUNAS_PLANO_ORCAMENTARIO),
-                    "botao_adicionar": [1755, 510],
-                    "passo_y_grupo": 215,
+                    "botao_adicionar": [1769, 510],
+                    "passo_y_grupo": 276,
                 }
             ],
         }
 
     # Bloco 3 da Página 4: Guia '4.3. Gestão de Riscos' -> 'Plano de gestão de riscos'
+    # Nota HTML: Todos os 6 campos de risk-plan são <input type="text" class="form-control">!
     blocos_extras_p4 = p4.get("blocos_adicionais")
     if not isinstance(blocos_extras_p4, list) or not blocos_extras_p4:
         campos_b3_p4: Dict[str, Any] = {}
         definicao_b3_p4 = [
-            ("RISCO IDENTIFICADO", "RISCO IDENTIFICADO", "caixa_texto", None, [820, 620]),
-            ("PROBABILIDADE", "PROBABILIDADE", "barra_suspensa", ["Alta", "Média", "Baixa"], [1265, 620]),
-            ("IMPACTO", "IMPACTO", "barra_suspensa", ["Alto", "Médio", "Baixo"], [1495, 620]),
-            ("NÍVEL", "NÍVEL", "barra_suspensa", ["Crítico", "Alto", "Médio", "Baixo"], [1710, 620]),
-            ("AÇÃO DE MITIGAÇÃO", "AÇÃO DE MITIGAÇÃO", "caixa_texto", None, [950, 710]),
-            ("RESPONSÁVEL PELO RISCO", "RESPONSÁVEL PELO RISCO", "caixa_texto", None, [1560, 710]),
+            ("RISCO IDENTIFICADO", "RISCO IDENTIFICADO", "caixa_texto", None, [850, 620]),
+            ("PROBABILIDADE", "PROBABILIDADE", "caixa_texto", None, [1150, 620]),
+            ("IMPACTO", "IMPACTO", "caixa_texto", None, [1340, 620]),
+            ("NÍVEL", "NÍVEL", "caixa_texto", None, [1530, 620]),
+            ("AÇÃO DE MITIGAÇÃO", "AÇÃO DE MITIGAÇÃO", "caixa_texto", None, [1020, 709]),
+            ("RESPONSÁVEL PELO RISCO", "RESPONSÁVEL PELO RISCO", "caixa_texto", None, [1610, 709]),
         ]
         for nome_c, col_plan, tipo_c, opcoes_c, coord_sug in definicao_b3_p4:
             reg_b3: Dict[str, Any] = {
                 "coluna_planilha": col_plan,
                 "planilha_linha1": list(coord_cel_p4),
                 "sistema_campo_linha1": list(coord_sug),
-                "botao_adicionar": [1755, 510],
+                "botao_adicionar": [1769, 510],
                 "tipo": tipo_c,
                 "tem_adicionar": True,
-                "passo_y_grupo": 215,
+                "passo_y_grupo": 188,
             }
-            if opcoes_c:
-                reg_b3["opcoes"] = opcoes_c
-                reg_b3["opcoes_barra_suspensa"] = opcoes_c
             campos_b3_p4[nome_c] = reg_b3
 
         p4["blocos_adicionais"] = [
@@ -1930,7 +1969,8 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                 "coord_toggle_todas_guias": coord_toggle_raiz,
                 "coord_celula_planilha": list(coord_cel_p4),
                 "ir_para_topo_no_inicio": False,
-                "rolar_ate_o_final_no_inicio": True,
+                "rolar_ate_o_final_no_inicio": False,
+                "ancorado_no_topo": True,
                 "campos": campos_b3_p4,
                 "caixas_bloqueadas": [],
                 "passos_pagina": [
@@ -1940,9 +1980,10 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                         "titulo_card_busca": "Plano de gestão de riscos",
                         "texto_botao_adicionar": "Adicionar risco",
                         "data_repeater_add": "risk-plan",
+                        "ancorado_no_topo": True,
                         "campos": list(COLUNAS_GESTAO_RISCOS),
-                        "botao_adicionar": [1755, 510],
-                        "passo_y_grupo": 215,
+                        "botao_adicionar": [1769, 510],
+                        "passo_y_grupo": 188,
                     }
                 ],
             }
