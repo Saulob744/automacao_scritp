@@ -43,10 +43,13 @@ from src.leitor_dados import (
 )
 from src.localizador_visual import (
     _medir_scroll_por_template,
+    ajustar_coordenada_para_caixa_vazia,
     capturar_tela_sistema,
+    centralizar_y_na_caixa_branca,
     clicar_adicionar_e_avancar_caixa,
     clicar_adicionar_e_avancar_grupo_codependente,
     clicar_botao_proxima_etapa_no_sistema,
+    eh_caixa_de_texto_vazia,
     ir_para_topo_da_pagina,
     localizar_card_com_ctrl_f_e_visao,
     obter_mapa_html_campos,
@@ -148,6 +151,7 @@ def salvar_dados_etapa_4_em_memoria(
         )
         val_form = (
             copia.get("FÓRMULA / DESCRIÇÃO")
+            or copia.get("_FORMULA_DESCRICAO_CACHE")
             or copia.get("MÉTRICA / FÓRMULA")
             or copia.get("METRICA / FORMULA")
             or ""
@@ -535,16 +539,29 @@ def _preencher_ou_selecionar_valor_unico(
     num_linha_planilha: int,
     idx_caixa: int,
     total_caixas: int,
+    coord_btn_add: Optional[Tuple[int, int]] = None,
+    zonas_proibidas: Optional[List[Tuple[int, int]]] = None,
+    y_limite_bloco_vizinho: Optional[int] = None,
+    permitir_avancar_abaixo: bool = False,
 ) -> bool:
     """
     Executa a ação em 1 caixa específica (seja caixa de texto com Ctrl+V ou barra suspensa/toggle
-    selecionando a opção vinda da planilha) e registra no log de progresso.
+    selecionando a opção vinda da planilha), verificando antes:
+    1. Se a coordenada não invade um bloco vizinho/caixa bloqueada (`y_limite_bloco_vizinho` / `zonas_proibidas`).
+    2. Se a caixa de texto está VAZIA (`ajustar_coordenada_para_caixa_vazia`), centralizando no `<input>` branco.
     """
     tipo_campo = str(info_calibrada.get("tipo", "caixa_texto")).lower()
     chave_norm = remover_acentos(nome_campo)
     info_h = mapa_html.get(chave_norm)
     if info_h and info_h.get("tag") == "select" and tipo_campo == "caixa_texto":
         tipo_campo = "barra_suspensa"
+
+    if y_limite_bloco_vizinho is not None and int(y_limite_bloco_vizinho) > 220 and int(coord_alvo[1]) >= int(y_limite_bloco_vizinho):
+        print(
+            f"  🛑 [BLOQUEIO DE BLOCO VIZINHO] Coordenada {coord_alvo} de '{nome_campo}' "
+            f"ultrapassou o limite Y={y_limite_bloco_vizinho} do bloco vizinho! Escrita bloqueada com segurança."
+        )
+        return True
 
     if tipo_campo == "barra_suspensa":
         opcoes_lista = info_calibrada.get("opcoes_barra_suspensa") or ["Alta", "Média", "Baixa"]
@@ -560,6 +577,27 @@ def _preencher_ou_selecionar_valor_unico(
             opcoes_coordenadas=opcoes_coords,
         )
     else:
+        coord_ajustada, esta_vazia, bloqueado_vizinho = ajustar_coordenada_para_caixa_vazia(
+            coord_alvo=coord_alvo,
+            coord_btn_add=coord_btn_add,
+            zonas_proibidas=zonas_proibidas,
+            y_limite_bloco_vizinho=y_limite_bloco_vizinho,
+            permitir_avancar_abaixo=permitir_avancar_abaixo,
+        )
+        if bloqueado_vizinho:
+            print(
+                f"  🛑 [BLOQUEIO DE BLOCO VIZINHO] Coordenada {coord_alvo} de '{nome_campo}' "
+                "atingiu a barreira do bloco vizinho / caixa bloqueada! Protegendo para NÃO escrever no bloco vizinho."
+            )
+            return True
+
+        if abs(int(coord_ajustada[1]) - int(coord_alvo[1])) > 25 and esta_vazia:
+            print(
+                f"  🔍 [SÓ CAIXA VAZIA] Caixa anterior em {coord_alvo} já ocupada; "
+                f"avançando automaticamente para a caixa vazia em {coord_ajustada}!"
+            )
+        coord_alvo = coord_ajustada
+
         print(
             f"  ✍️  [{nome_campo} — Item {idx_caixa}/{total_caixas} (Linha {num_linha_planilha})] "
             f"Colando na caixa #{idx_caixa} {coord_alvo} -> '{valor}'"
@@ -687,16 +725,26 @@ def _executar_passo_grupo_codependente(
             passo_y_grupo = int(info_c["passo_y_grupo"])
 
     # Localiza o cabeçalho do bloco (ex: 'Inventário de necessidades' no final da página 3,
-    # ou 'Metas e ações' no topo da página 4)
+    # ou 'Metas e ações' / 'Plano orçamentário' na página 4)
     termo_card_busca = str(passo.get("titulo_card_busca") or nome_grupo)
     coord_c1_salva = coords_iniciais[0]
-    ancorado_no_topo = bool(
-        passo.get("ancorado_no_topo", False)
-        or "METAS" in remover_acentos(nome_grupo)
+    eh_bloco_metas = (
+        "METAS" in remover_acentos(nome_grupo)
         or "METAS" in remover_acentos(termo_card_busca)
     )
+    eh_bloco_orcamentario = (
+        "ORCAMENTARIO" in remover_acentos(nome_grupo)
+        or "ORCAMENTARIO" in remover_acentos(termo_card_busca)
+    )
+    ancorado_no_topo = bool(
+        passo.get("ancorado_no_topo", False)
+        or eh_bloco_metas
+        or eh_bloco_orcamentario
+    )
+    y_limite_bloco_vizinho = passo.get("y_limite_bloco_vizinho")
+    aprendizado_3_linhas = passo.get("aprendizado_3_linhas")
 
-    if ancorado_no_topo:
+    if eh_bloco_metas:
         # Como 'Metas e ações' já começa no topo da página 4 (ir_para_topo_no_inicio=True),
         # usa diretamente as coordenadas calibradas no topo sem deslocar a página com Ctrl+F
         coord_btn_localizado = coord_btn_grupo
@@ -706,10 +754,10 @@ def _executar_passo_grupo_codependente(
             nome_campo=termo_card_busca,
             coord_campo_salva=coord_c1_salva,
             coord_btn_salva=coord_btn_grupo,
-            eh_quadrante_inferior=True,
-            ja_rolou_para_baixo=True,
+            eh_quadrante_inferior=(not eh_bloco_orcamentario),
+            ja_rolou_para_baixo=ja_rolou_para_baixo,
             incluir_botoes_largos=True,
-            posicionar_no_topo=False,
+            posicionar_no_topo=eh_bloco_orcamentario,
         )
 
         if coord_btn_localizado is not None and coord_btn_grupo is not None:
@@ -736,6 +784,13 @@ def _executar_passo_grupo_codependente(
         caixas_bloqueadas=caixas_bloqueadas_pagina,
         coord_atual_ref=coords_atuais[0],
     )
+    if y_limite_bloco_vizinho is None:
+        for item_bloq in caixas_bloqueadas_pagina or []:
+            if isinstance(item_bloq, dict) and item_bloq.get("barreira_bloco_vizinho"):
+                coord_b = item_bloq.get("coordenada")
+                if isinstance(coord_b, (list, tuple)) and len(coord_b) >= 2:
+                    y_limite_bloco_vizinho = int(coord_b[1]) - 18
+                    break
 
     resumo_tipos = []
     for idx_res, (c_nome, info_c) in enumerate(zip(campos_grupo, infos_campos), start=1):
@@ -744,7 +799,7 @@ def _executar_passo_grupo_codependente(
 
     nome_botao_html = str(
         passo.get("texto_botao_adicionar")
-        or ("Adicionar ação" if ancorado_no_topo else "Adicionar necessidade")
+        or ("Adicionar ação" if eh_bloco_metas else ("Adicionar linha" if eh_bloco_orcamentario else "Adicionar necessidade"))
     )
     print(
         f"\n🔗 BLOCO CODEPENDENTE '{nome_grupo}' ({len(campos_grupo)} CAMPOS NA SEQUÊNCIA): "
@@ -753,6 +808,37 @@ def _executar_passo_grupo_codependente(
 
     coords_base_fundo = list(coords_atuais)
     ticks_rolados = 0
+
+    # Verifica se a 1ª linha visível na tela já está preenchida (para NUNCA sobrescrever caixas que já tenham texto!)
+    if coords_atuais and coord_btn_atual is not None:
+        img_ini, off_ini = capturar_tela_sistema(coords_atuais[0][0])
+        if img_ini is not None:
+            vazia_c0 = eh_caixa_de_texto_vazia(
+                img_ini, off_ini, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
+            )
+            vazia_cn = eh_caixa_de_texto_vazia(
+                img_ini, off_ini, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), int(coord_btn_atual[0])
+            )
+            if not vazia_c0 and not vazia_cn:
+                print(
+                    f"  🔍 [SÓ CAIXA VAZIA] A 1ª linha de '{nome_grupo}' já possui dados preenchidos; "
+                    f"clicando em '{nome_botao_html}' para abrir uma nova linha VAZIA..."
+                )
+                coords_atuais, coord_btn_atual, ticks_ini = clicar_adicionar_e_avancar_grupo_codependente(
+                    coords_campos_atuais=coords_atuais,
+                    coord_btn_atual=coord_btn_atual,
+                    passo_y_grupo=int(passo_y_grupo) if passo_y_grupo else None,
+                    zonas_proibidas=zonas_proibidas,
+                    forcar_scroll_padrao=True,
+                    indice_caixa=1,
+                    coords_base_fundo=coords_base_fundo,
+                    ancorado_no_topo=ancorado_no_topo,
+                    texto_botao_adicionar=nome_botao_html,
+                    y_limite_bloco_vizinho=y_limite_bloco_vizinho,
+                    aprendizado_3_linhas=aprendizado_3_linhas,
+                )
+                ticks_rolados += ticks_ini
+
     for idx_bloco, (num_linha_planilha, valores_linha) in enumerate(linhas_grupo):
         if verificar_aborto():
             return False, ja_rolou_para_baixo
@@ -822,6 +908,10 @@ def _executar_passo_grupo_codependente(
                 num_linha_planilha=num_linha_planilha,
                 idx_caixa=idx_bloco + 1,
                 total_caixas=len(linhas_grupo),
+                coord_btn_add=coord_btn_atual,
+                zonas_proibidas=zonas_proibidas,
+                y_limite_bloco_vizinho=y_limite_bloco_vizinho,
+                permitir_avancar_abaixo=False,
             )
             if not ok:
                 return False, ja_rolou_para_baixo
@@ -849,6 +939,8 @@ def _executar_passo_grupo_codependente(
                     coords_base_fundo=coords_base_fundo,
                     ancorado_no_topo=ancorado_no_topo,
                     texto_botao_adicionar=nome_botao_html,
+                    y_limite_bloco_vizinho=y_limite_bloco_vizinho,
+                    aprendizado_3_linhas=aprendizado_3_linhas,
                 )
             )
             ticks_rolados += ticks_passo
@@ -867,8 +959,9 @@ def _montar_roteiro_passos_da_pagina(
 ) -> List[Dict[str, Any]]:
     """
     Combina os `passos_pagina` salvos no treinamento da página com as colunas presentes na planilha:
-    - Mantém a ordem exata dos passos ensinados (`coluna_independente`, `grupo_codependente`, `campo_unico`).
-    - Inclui ao final qualquer coluna adicional da planilha que ainda não estivesse nos passos salvos.
+    - Quando `passos_pagina` já está definido no bloco, respeita estritamente os passos ensinados
+      (impedindo que colunas extras da planilha vazem para um bloco vizinho na mesma página!).
+    - Apenas quando `passos_pagina` está vazio monta um roteiro automático pelas colunas da planilha.
     """
     passos_salvos = padrao_pagina.get("passos_pagina") or []
     roteiro: List[Dict[str, Any]] = []
@@ -884,6 +977,9 @@ def _montar_roteiro_passos_da_pagina(
         for c_nome in lista_c:
             campos_cobertos.add(remover_acentos(c_nome))
             campos_cobertos.add(_resolver_chave_sinonimo(c_nome))
+
+    if roteiro:
+        return roteiro
 
     for nome_col, _ in colunas_com_itens:
         chave_col = remover_acentos(nome_col)
@@ -1524,6 +1620,13 @@ def _executar_roteiro_de_bloco(
         if tipo_passo == "campo_unico" or info_calibrada.get("tem_adicionar") is False:
             coord_btn_atual = None
 
+        y_lim_bloco_viz_raw = (
+            passo.get("y_limite_bloco_vizinho")
+            or info_calibrada.get("y_limite_bloco_vizinho")
+            or config_bloco.get("y_limite_bloco_vizinho")
+        )
+        y_lim_bloco_viz = int(y_lim_bloco_viz_raw) if y_lim_bloco_viz_raw is not None else None
+
         ticks_rolados_na_coluna = 0
 
         for idx_item, (num_linha_planilha, valor) in enumerate(itens_coluna):
@@ -1540,6 +1643,10 @@ def _executar_roteiro_de_bloco(
                     num_linha_planilha=num_linha_planilha,
                     idx_caixa=idx_item + 1,
                     total_caixas=len(itens_coluna),
+                    coord_btn_add=coord_btn_atual,
+                    zonas_proibidas=zonas_proibidas_coluna,
+                    y_limite_bloco_vizinho=y_lim_bloco_viz,
+                    permitir_avancar_abaixo=True,
                 )
                 if not ok_item:
                     return False
@@ -1769,7 +1876,8 @@ def _garantir_estrutura_blocos_fases_4_5_6(
             "coord_toggle_todas_guias": coord_toggle_raiz,
             "coord_celula_planilha": list(coord_cel_p4),
             "ir_para_topo_no_inicio": False,
-            "rolar_ate_o_final_no_inicio": True,
+            "rolar_ate_o_final_no_inicio": False,
+            "ancorado_no_topo": True,
             "campos": campos_b2_p4,
             "caixas_bloqueadas": [],
             "passos_pagina": [
@@ -2175,7 +2283,7 @@ def _executar_pagina_4_metas_e_planos(
         nome_guia=nome_guia_p4,
         rotulo_etapa=rotulo_etapa,
         linhas_atuais=None if forcar_clique_guia_planilha else linhas_iniciais,
-        verificar_aba_aberta_na_planilha=True,
+        verificar_aba_aberta_na_planilha=not forcar_clique_guia_planilha,
     )
 
     if not linhas_p4:
@@ -2296,8 +2404,8 @@ def executar_preenchimento_completo_por_coluna(
             mapa_html=mapa_html,
             nome_pagina_p4=nome_pagina_ativa,
             padrao_p4=padrao_pagina,
-            linhas_iniciais=linhas,
-            forcar_clique_guia_planilha=forcar_clique_guia_inicial or not tem_itens_metas_acoes,
+            linhas_iniciais=None,
+            forcar_clique_guia_planilha=True,
             rotulo_etapa="PASSO INICIAL — GUIA '4.1. Metas e Ações'",
         )
 
@@ -2315,7 +2423,7 @@ def executar_preenchimento_completo_por_coluna(
             nome_guia=nome_guia_p3,
             rotulo_etapa="1ª FASE ('3. Diagnóstico' - BLOCO 1) — GUIA '3.1. Análise SWOT'",
             linhas_atuais=None if forcar_clique_guia_inicial else (linhas if tem_itens_bloco_1 else None),
-            verificar_aba_aberta_na_planilha=True,
+            verificar_aba_aberta_na_planilha=not forcar_clique_guia_inicial,
         )
         tem_itens_bloco_1 = _confirmar_correspondencia_guia_planilha(
             linhas, list(COLUNAS_PADRAO_SWOT), nome_guia_p3
@@ -2371,7 +2479,7 @@ def executar_preenchimento_completo_por_coluna(
                 nome_guia=nome_guia_2,
                 rotulo_etapa="1ª FASE ('3. Diagnóstico' - BLOCO 2) — GUIA '3.2. Inventário de necessidades'",
                 linhas_atuais=linhas if (apenas_bloco_2 and tem_itens_bloco_2_ja_copiados and not tem_itens_bloco_1) else None,
-                verificar_aba_aberta_na_planilha=True,
+                verificar_aba_aberta_na_planilha=False,
             )
 
             # Verifica no sistema se está na guia '3. Diagnóstico' antes de colar o Bloco 2
@@ -2459,6 +2567,15 @@ def executar_bloco_ou_pagina_especifica(alvo: str) -> bool:
     padroes = mapeamento.get("padroes_paginas") or {}
     chave = alvo.strip().lower().replace(",", ".")
 
+    if chave in ("tudo", "completo", "sequencia", "all"):
+        return executar_preenchimento_completo_por_coluna(
+            [],
+            pagina_forcada="3. Diagnóstico",
+            apenas_bloco_2=False,
+            forcar_clique_guia_inicial=True,
+            executar_ligacao_proxima_pagina=True,
+        )
+
     # Mapeamento de atalhos de páginas inteiras
     if chave in ("pagina3", "p3", "3", "diagnostico"):
         return executar_preenchimento_completo_por_coluna(
@@ -2480,7 +2597,7 @@ def executar_bloco_ou_pagina_especifica(alvo: str) -> bool:
             nome_guia="4.1. Metas e Ações",
             rotulo_etapa="PÁGINA 4 — BLOCO 1 ('4.1. Metas e Ações')",
             linhas_atuais=None,
-            verificar_aba_aberta_na_planilha=True,
+            verificar_aba_aberta_na_planilha=False,
         )
         if not linhas_41:
             return False
@@ -2637,7 +2754,7 @@ def executar_bloco_ou_pagina_especifica(alvo: str) -> bool:
             nome_guia="4.1. Metas e Ações",
             rotulo_etapa="BLOCO 4.1 — '4.1. Metas e Ações'",
             linhas_atuais=None,
-            verificar_aba_aberta_na_planilha=True,
+            verificar_aba_aberta_na_planilha=False,
         )
         if not linhas_41:
             return False

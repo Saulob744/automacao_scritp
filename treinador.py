@@ -26,9 +26,10 @@ from src.driver_windows import (
     obter_posicao_mouse,
     tecla_pressionada,
 )
-from src.automacao import COLUNAS_PADRAO_SWOT
+from src.automacao import COLUNAS_PADRAO_SWOT, _garantir_estrutura_blocos_fases_4_5_6
 from src.localizador_visual import (
     inspecionar_caixa_vazia_no_ponto,
+    obter_parametros_calibrados,
     selecionar_guia_planilha_via_toggle_e_nome,
 )
 
@@ -1338,9 +1339,12 @@ def calibrar_parametros_rapido(modo_completo: bool = False) -> Dict[str, Any]:
         print(
             "  [9] Treinar VERSÃO COMPLETA CONECTADA (Fase 1: '3.1. SWOT' + '3.2. Inventário' -> Fase 2: '4.1. Metas e Ações')"
         )
+        print(
+            "  [10] 🎓 ENSINAR PASSO A PASSO COM 3 LINHAS DE AMOSTRA + BLOQUEAR BLOCO VIZINHO (Aprende o ritmo e depois faz TODAS as linhas)"
+        )
         print("  [0] Salvar tudo e sair (ou aperte [ENTER])")
 
-        opcao = input("\nEscolha uma opção [0/1/2/3/4/5/6/7/8/9]: ").strip()
+        opcao = input("\nEscolha uma opção [0/1/2/3/4/5/6/7/8/9/10]: ").strip()
 
         if opcao in ("", "0"):
             break
@@ -1482,6 +1486,13 @@ def calibrar_parametros_rapido(modo_completo: bool = False) -> Dict[str, Any]:
             _treinar_versao_completa_conectada(dados_existentes, list(planilha_salva))
             nome_pagina_atual = "3. Diagnóstico"
 
+        elif opcao == "10":
+            ensinar_passo_a_passo_3_linhas(
+                bloco_alvo=None,
+                dados_existentes=dados_existentes,
+            )
+            salvar_mapeamento(dados_existentes)
+
     # Sincroniza campos da página ativa com a raiz e salva o JSON final
     dados_existentes["pagina_ativa"] = nome_pagina_atual
     dados_existentes["planilha"] = list(planilha_salva)
@@ -1522,8 +1533,369 @@ def calibrar_parametros_rapido(modo_completo: bool = False) -> Dict[str, Any]:
     return dados_existentes
 
 
+def ensinar_passo_a_passo_3_linhas(
+    bloco_alvo: Optional[str] = None,
+    dados_existentes: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Modo 'Ensinar Passo a Passo com 3 Linhas de Amostra + Bloqueio de Bloco Vizinho':
+    - O usuário demonstra 3 linhas de amostra (Linha 1 -> Adicionar -> Linha 2 -> Adicionar/Scroll -> Linha 3)
+      e aponta opcionalmente o bloco vizinho de baixo com [F8] para bloqueá-lo.
+    - O robô aprende:
+      1. Coordenadas exatas dos campos da Linha 1 (validando se a caixa está vazia);
+      2. Coordenada do botão 'Adicionar';
+      3. Distância vertical real (`passo_y` / `passo_y_grupo`) entre a Linha 1 -> Linha 2 -> Linha 3;
+      4. Ticks de scroll necessários a partir da 3ª linha;
+      5. Barreira `y_limite_bloco_vizinho` para NUNCA escrever em um bloco vizinho abaixo.
+    - Depois de ensinado com 3 linhas, na execução normal o robô preenche TODAS as linhas da planilha sozinho!
+    """
+    salvar_no_final = False
+    if dados_existentes is None:
+        dados_existentes = carregar_mapeamento()
+        salvar_no_final = True
+
+    dados_existentes = sincronizar_padroes_paginas(dados_existentes)
+    params_cal = obter_parametros_calibrados(dados_existentes)
+    _garantir_estrutura_blocos_fases_4_5_6(dados_existentes, params_cal)
+    padroes = dados_existentes.setdefault("padroes_paginas", {})
+    planilha_salva = list(
+        (dados_existentes.get("parametros_referencia") or {}).get("planilha")
+        or dados_existentes.get("planilha")
+        or [-1534, 588]
+    )
+
+    catalogo_blocos = [
+        {
+            "codigo": "3.1",
+            "pagina": "3. Diagnóstico",
+            "chave_bloco": "raiz",
+            "titulo": "3.1. Análise SWOT (Página 3 - Bloco 1: 4 Colunas Independentes)",
+            "guia": "3.1. SWOT",
+        },
+        {
+            "codigo": "3.2",
+            "pagina": "3. Diagnóstico",
+            "chave_bloco": "bloco_2",
+            "titulo": "3.2. Inventário de necessidades (Página 3 - Bloco 2: 3 Campos por Linha)",
+            "guia": "3.2. Inventário de necessidades",
+        },
+        {
+            "codigo": "4.1",
+            "pagina": "4. Metas e Planos Obrigatórios",
+            "chave_bloco": "raiz",
+            "titulo": "4.1. Metas e Ações (Página 4 - Bloco 1: 7 Campos por Linha)",
+            "guia": "4.1. Metas e Ações",
+        },
+        {
+            "codigo": "4.2",
+            "pagina": "4. Metas e Planos Obrigatórios",
+            "chave_bloco": "bloco_2",
+            "titulo": "4.2. Plano Orçamentário (Página 4 - Bloco 2: 7 Campos por Linha)",
+            "guia": "4.2. Plano Orçamentário",
+        },
+        {
+            "codigo": "4.3",
+            "pagina": "4. Metas e Planos Obrigatórios",
+            "chave_bloco": "bloco_3",
+            "titulo": "4.3. Gestão de Riscos (Página 4 - Bloco 3: 6 Campos por Linha)",
+            "guia": "4.3. Gestão de Riscos",
+        },
+        {
+            "codigo": "5.1",
+            "pagina": "5. Capacitação, Comunicação e Ações Específicas",
+            "chave_bloco": "raiz",
+            "titulo": "5.1. Capacitação (Página 5 - Bloco 1: 2 Colunas Repeater)",
+            "guia": "5.1. Capacitação",
+        },
+        {
+            "codigo": "5.3",
+            "pagina": "5. Capacitação, Comunicação e Ações Específicas",
+            "chave_bloco": "bloco_2",
+            "titulo": "5.3. Ações Específicas (Página 5 - Bloco 2: 3 Colunas Repeater)",
+            "guia": "5.3. Ações Específicas",
+        },
+        {
+            "codigo": "6.1",
+            "pagina": "6. Monitoramento, Anexos e Revisão",
+            "chave_bloco": "raiz",
+            "titulo": "6.1. Indicadores de sucesso / KPIs (Página 6 - Bloco 1: 6 Campos por Linha)",
+            "guia": "MEMORIA_ETAPA_4",
+        },
+    ]
+
+    print("\n" + "=" * 82)
+    print("🎓 MODO ENSINAR PASSO A PASSO (3 LINHAS DE AMOSTRA + BLOQUEIO DE BLOCO VIZINHO)")
+    print("=" * 82)
+    print("Como funciona:")
+    print("  1. Você demonstra o caminho com 3 linhas de amostra (Linha 1 -> Linha 2 -> Linha 3).")
+    print("  2. O robô verifica se cada caixa apontada está VAZIA e aprende a distância exata e o scroll.")
+    print("  3. Você aponta o bloco vizinho de baixo com [F8] para criar uma BARREIRA INTRANSPONÍVEL.")
+    print("  4. Ao rodar a automação normal depois, o robô faz TODAS as linhas da planilha sozinho!")
+    print("-" * 82)
+
+    item_escolhido: Optional[Dict[str, Any]] = None
+    if bloco_alvo and bloco_alvo.strip().lower() not in ("menu", ""):
+        alvo_norm = bloco_alvo.strip().upper()
+        for item_cat in catalogo_blocos:
+            if (
+                alvo_norm == item_cat["codigo"].upper()
+                or alvo_norm in item_cat["titulo"].upper()
+                or alvo_norm in item_cat["guia"].upper()
+            ):
+                item_escolhido = item_cat
+                break
+
+    if item_escolhido is None:
+        print("\nQual bloco você deseja ensinar com 3 linhas de amostra?")
+        for idx_c, item_cat in enumerate(catalogo_blocos, start=1):
+            print(f"  [{idx_c}] ({item_cat['codigo']}) {item_cat['titulo']}")
+        print("  [0] Voltar / Cancelar")
+        resp_b = input("\nEscolha o número ou código (ex: 3 ou 4.1): ").strip()
+        if not resp_b or resp_b == "0":
+            return dados_existentes
+        if resp_b.isdigit() and 1 <= int(resp_b) <= len(catalogo_blocos):
+            item_escolhido = catalogo_blocos[int(resp_b) - 1]
+        else:
+            for item_cat in catalogo_blocos:
+                if resp_b.upper() in (item_cat["codigo"].upper(), item_cat["guia"].upper()):
+                    item_escolhido = item_cat
+                    break
+
+    if item_escolhido is None:
+        print("⚠️ Bloco não identificado.")
+        return dados_existentes
+
+    pagina_info = padroes.setdefault(item_escolhido["pagina"], {"nome_pagina": item_escolhido["pagina"], "campos": {}})
+    chave_b = item_escolhido["chave_bloco"]
+    if chave_b == "raiz":
+        bloco_dict = pagina_info
+    elif chave_b == "bloco_2":
+        bloco_dict = pagina_info.setdefault("bloco_2", {"campos": {}, "ativo": True})
+        bloco_dict["ativo"] = True
+    else:
+        blocos_adic = pagina_info.setdefault("blocos_adicionais", [{}])
+        if not blocos_adic:
+            blocos_adic.append({"campos": {}, "ativo": True})
+        bloco_dict = blocos_adic[0]
+        bloco_dict["ativo"] = True
+
+    campos_bloco = bloco_dict.setdefault("campos", {})
+    passos_bloco = bloco_dict.setdefault("passos_pagina", [])
+    caixas_bloq = bloco_dict.setdefault("caixas_bloqueadas", [])
+
+    print("\n" + "-" * 82)
+    print(f"🎯 Bloco selecionado: {item_escolhido['titulo']}")
+    print("👉 Antes de começar, deixe a tela do navegador visível no início deste bloco (com caixas vazias).")
+    print("-" * 82)
+
+    # Identifica se é grupo codependente ou colunas independentes
+    passo_grupo = next((p for p in passos_bloco if p.get("tipo_passo") == "grupo_codependente"), None)
+
+    if passo_grupo is not None:
+        nomes_campos = list(passo_grupo.get("campos") or list(campos_bloco.keys()))
+        print(f"\n📋 [AMOSTRA 1/3 — LINHA 1 DO BLOCO] Vamos apontar os {len(nomes_campos)} campos da 1ª linha vazia:")
+        coords_l1: Dict[str, List[int]] = {}
+        for idx_f, nome_f in enumerate(nomes_campos, start=1):
+            reg_f = campos_bloco.setdefault(nome_f, {"coluna_planilha": nome_f, "tipo": "caixa_texto", "tem_adicionar": True})
+            coord_at = reg_f.get("sistema_campo_linha1")
+            cx, cy, _ = aguardar_captura_ponto_f8(
+                mensagem_instrucao=f"[Linha 1 - Campo {idx_f}/{len(nomes_campos)}] Aponte a 1ª caixa VAZIA de '{nome_f}' e aperte [F8]",
+                coord_atual=coord_at,
+                permitir_sem_ponto=False,
+            )
+            if cx is None or cy is None:
+                print("⏹️ Ensino interrompido.")
+                return dados_existentes
+            inspecionar_caixa_vazia_no_ponto(int(cx), int(cy), nome_f)
+            reg_f["sistema_campo_linha1"] = [int(cx), int(cy)]
+            reg_f["planilha_linha1"] = list(planilha_salva)
+            coords_l1[nome_f] = [int(cx), int(cy)]
+
+        btn_atual = passo_grupo.get("botao_adicionar")
+        bx, by, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao="Aponte o botão azul 'Adicionar...' deste bloco e aperte [F8]",
+            coord_atual=btn_atual,
+            permitir_sem_ponto=False,
+        )
+        if bx is not None and by is not None:
+            passo_grupo["botao_adicionar"] = [int(bx), int(by)]
+            for nome_f in nomes_campos:
+                campos_bloco[nome_f]["botao_adicionar"] = [int(bx), int(by)]
+
+        primeiro_campo = nomes_campos[0]
+        y1_ref = int(coords_l1[primeiro_campo][1])
+
+        print("\n" + "-" * 82)
+        print("📋 [AMOSTRA 2/3 — LINHA 2 DO BLOCO]")
+        resp_clicar_2 = input(
+            "Deseja que o robô clique agora no botão 'Adicionar' para abrir a 2ª linha vazia? [S/n]: "
+        ).strip().lower()
+        if resp_clicar_2 != "n" and passo_grupo.get("botao_adicionar"):
+            b_add = passo_grupo["botao_adicionar"]
+            mover_e_clicar(int(b_add[0]), int(b_add[1]))
+            time.sleep(0.55)
+
+        passo_y_atual = int(passo_grupo.get("passo_y_grupo") or 215)
+        coord_sug_l2 = [int(coords_l1[primeiro_campo][0]), y1_ref + passo_y_atual]
+        cx2, cy2, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao=f"[Linha 2] Aponte o 1º campo ('{primeiro_campo}') da 2ª LINHA VAZIA e aperte [F8]",
+            coord_atual=coord_sug_l2,
+            permitir_sem_ponto=False,
+        )
+        y2_ref = int(cy2) if cy2 is not None else (y1_ref + passo_y_atual)
+        dy_1_2 = max(35, y2_ref - y1_ref)
+        print(f"   📐 Distância aprendida da Linha 1 -> Linha 2: +{dy_1_2}px (Y={y1_ref} -> Y={y2_ref})")
+
+        print("\n" + "-" * 82)
+        print("📋 [AMOSTRA 3/3 — LINHA 3 DO BLOCO + SCROLL]")
+        resp_clicar_3 = input(
+            "Deseja que o robô clique no botão 'Adicionar' para abrir a 3ª linha vazia? [S/n]: "
+        ).strip().lower()
+        if resp_clicar_3 != "n" and passo_grupo.get("botao_adicionar"):
+            b_add = passo_grupo["botao_adicionar"]
+            mover_e_clicar(int(b_add[0]), int(b_add[1]))
+            time.sleep(0.55)
+
+        ticks_l3_str = input(
+            "Se a 3ª linha ficou baixa na tela, quantos ticks de scroll para baixo deseja aplicar antes de apontar? (0 = sem scroll, padrão = 5): "
+        ).strip()
+        ticks_l3 = int(ticks_l3_str) if ticks_l3_str.isdigit() else 0
+        if ticks_l3 > 0:
+            from src.driver_windows import rolar_pagina
+
+            mover_e_clicar(int(coords_l1[primeiro_campo][0]), y2_ref)
+            for _ in range(ticks_l3):
+                rolar_pagina(-120)
+                time.sleep(0.08)
+            time.sleep(0.35)
+
+        coord_sug_l3 = [int(coords_l1[primeiro_campo][0]), min(860, y2_ref + dy_1_2)]
+        cx3, cy3, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao=f"[Linha 3] Aponte o 1º campo ('{primeiro_campo}') da 3ª LINHA VAZIA e aperte [F8]",
+            coord_atual=coord_sug_l3,
+            permitir_sem_ponto=False,
+        )
+        y3_ref = int(cy3) if cy3 is not None else coord_sug_l3[1]
+
+        passo_grupo["passo_y_grupo"] = int(dy_1_2)
+        passo_grupo["aprendizado_3_linhas"] = {
+            "linha_1_y": int(y1_ref),
+            "linha_2_y": int(y2_ref),
+            "linha_3_y": int(y3_ref),
+            "passo_y_aprendido": int(dy_1_2),
+            "ticks_scroll_apos_linha_2": int(ticks_l3),
+        }
+        for nome_f in nomes_campos:
+            campos_bloco[nome_f]["passo_y_grupo"] = int(dy_1_2)
+
+        print("\n" + "-" * 82)
+        print("🛡️ [BARREIRA ANTI-INVASÃO DE BLOCO VIZINHO]")
+        print("Se existir outro bloco logo abaixo na mesma página (ex: 'Plano orçamentário' abaixo de 'Metas e ações'),")
+        print("aponte o TÍTULO ou o botão 'Adicionar' do bloco vizinho de baixo com [F8] para bloquear qualquer escrita nele!")
+        coord_viz_atual = (
+            [int(bx or 1200), int(passo_grupo["y_limite_bloco_vizinho"])]
+            if passo_grupo.get("y_limite_bloco_vizinho")
+            else None
+        )
+        vx, vy, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao="Aponte o cabeçalho/botão do BLOCO VIZINHO DE BAIXO com [F8] (ou [ENTER] para barreira visual automática)",
+            coord_atual=coord_viz_atual,
+            permitir_sem_ponto=True,
+        )
+        if vy is not None:
+            passo_grupo["y_limite_bloco_vizinho"] = int(vy)
+            bloco_dict["y_limite_bloco_vizinho"] = int(vy)
+            for nome_f in nomes_campos:
+                campos_bloco[nome_f]["y_limite_bloco_vizinho"] = int(vy)
+            caixas_bloq.append(
+                {
+                    "nome": f"BARREIRA_BLOCO_VIZINHO_{item_escolhido['codigo']}",
+                    "coordenada": [int(vx or 1200), int(vy)],
+                }
+            )
+            print(f"   🛡️ Barreira de bloco vizinho travada em Y={vy}! O robô NUNCA clicará em Y >= {vy}.")
+        else:
+            print("   🛡️ Barreira visual automática de botões azuis vizinhos mantida ativa!")
+
+    else:
+        nomes_colunas = list(campos_bloco.keys())
+        print(f"\n📋 Este bloco possui {len(nomes_colunas)} coluna(s) independente(s): {', '.join(nomes_colunas)}")
+        for idx_col, nome_col in enumerate(nomes_colunas, start=1):
+            print(f"\n--- Coluna {idx_col}/{len(nomes_colunas)}: '{nome_col}' (Amostra de 3 Linhas) ---")
+            reg_c = campos_bloco.setdefault(nome_col, {"coluna_planilha": nome_col, "tipo": "caixa_texto", "tem_adicionar": True})
+            cx1, cy1, _ = aguardar_captura_ponto_f8(
+                mensagem_instrucao=f"[{nome_col} - Linha 1/3] Aponte a 1ª caixa VAZIA e aperte [F8]",
+                coord_atual=reg_c.get("sistema_campo_linha1"),
+                permitir_sem_ponto=False,
+            )
+            if cx1 is None or cy1 is None:
+                continue
+            inspecionar_caixa_vazia_no_ponto(int(cx1), int(cy1), nome_col)
+            reg_c["sistema_campo_linha1"] = [int(cx1), int(cy1)]
+
+            bx, by, _ = aguardar_captura_ponto_f8(
+                mensagem_instrucao=f"[{nome_col}] Aponte o botão 'Adicionar' desta coluna e aperte [F8]",
+                coord_atual=reg_c.get("botao_adicionar"),
+                permitir_sem_ponto=False,
+            )
+            if bx is not None and by is not None:
+                reg_c["botao_adicionar"] = [int(bx), int(by)]
+
+            passo_y_col = int(reg_c.get("passo_y") or 76)
+            cx2, cy2, _ = aguardar_captura_ponto_f8(
+                mensagem_instrucao=f"[{nome_col} - Linha 2/3] Clique em Adicionar (se necessário) e aponte a 2ª caixa VAZIA com [F8]",
+                coord_atual=[int(cx1), int(cy1) + passo_y_col],
+                permitir_sem_ponto=False,
+            )
+            dy_c = max(32, (int(cy2) - int(cy1))) if cy2 is not None else passo_y_col
+            cx3, cy3, _ = aguardar_captura_ponto_f8(
+                mensagem_instrucao=f"[{nome_col} - Linha 3/3] Clique em Adicionar (se necessário) e aponte a 3ª caixa VAZIA com [F8]",
+                coord_atual=[int(cx1), int(cy2 or (cy1 + dy_c)) + dy_c],
+                permitir_sem_ponto=False,
+            )
+            reg_c["passo_y"] = int(dy_c)
+            reg_c["aprendizado_3_linhas"] = {
+                "linha_1_y": int(cy1),
+                "linha_2_y": int(cy2 or (cy1 + dy_c)),
+                "linha_3_y": int(cy3 or (cy1 + 2 * dy_c)),
+                "passo_y_aprendido": int(dy_c),
+            }
+            print(f"   ✅ Coluna '{nome_col}' aprendida com passo_y={dy_c}px!")
+
+        vx, vy, _ = aguardar_captura_ponto_f8(
+            mensagem_instrucao="🛡️ [Opcional] Aponte o bloco vizinho de baixo com [F8] para bloquear (ou [ENTER] para automático)",
+            coord_atual=None,
+            permitir_sem_ponto=True,
+        )
+        if vy is not None:
+            bloco_dict["y_limite_bloco_vizinho"] = int(vy)
+            for reg_c in campos_bloco.values():
+                reg_c["y_limite_bloco_vizinho"] = int(vy)
+            caixas_bloq.append(
+                {
+                    "nome": f"BARREIRA_BLOCO_VIZINHO_{item_escolhido['codigo']}",
+                    "coordenada": [int(vx or 1200), int(vy)],
+                }
+            )
+
+    dados_existentes = sincronizar_padroes_paginas(dados_existentes)
+    if salvar_no_final:
+        salvar_mapeamento(dados_existentes)
+    print("\n" + "=" * 82)
+    print(f"🎉 ENSINO DE 3 LINHAS CONCLUÍDO PARA: {item_escolhido['titulo']}")
+    print("   Agora o robô já conhece o ritmo das caixas vazias e a barreira do bloco vizinho")
+    print("   e fará TODAS as linhas da planilha automaticamente quando você executar!")
+    print("=" * 82)
+    return dados_existentes
+
+
 def main() -> None:
     modo_completo_cli = "--completo" in sys.argv or "--tudo" in sys.argv
+    if "--ensinar" in sys.argv:
+        idx_e = sys.argv.index("--ensinar")
+        alvo_e = sys.argv[idx_e + 1] if (idx_e + 1) < len(sys.argv) and not sys.argv[idx_e + 1].startswith("-") else None
+        ensinar_passo_a_passo_3_linhas(bloco_alvo=alvo_e)
+        return
     calibrar_parametros_rapido(modo_completo=modo_completo_cli)
     print("▶️ Agora basta rodar: python main.py")
 

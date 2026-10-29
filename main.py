@@ -32,7 +32,7 @@ from src.driver_windows import (
     tecla_pressionada,
 )
 from src.localizador_visual import obter_parametros_calibrados
-from treinador import calibrar_parametros_rapido
+from treinador import calibrar_parametros_rapido, ensinar_passo_a_passo_3_linhas
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,10 +54,21 @@ def parse_args() -> argparse.Namespace:
         help="Abre o treinamento guiado da versão completa conectada (Fases 3, 4, 5 e 6).",
     )
     parser.add_argument(
+        "--ensinar",
+        "--ensinar-3-linhas",
+        dest="ensinar",
+        nargs="?",
+        const="menu",
+        default=None,
+        help="Modo Ensinar Passo a Passo com 3 linhas de amostra + bloqueio de bloco vizinho (ex: --ensinar ou --ensinar 4.1).",
+    )
+    parser.add_argument(
         "--bloco",
+        "--executar",
+        dest="bloco",
         type=str,
         default=None,
-        help="Executa isoladamente um bloco específico: '3.1', '3.2', '4.1', '4.2', '4.3', '5.1', '5.3' ou '6.1'.",
+        help="Executa um bloco, página ou 'tudo': 'tudo', 'pagina3', 'pagina4', 'pagina5', 'pagina6', '3.1', '3.2', '4.1', '4.2', '4.3', '5.1', '5.3' ou '6.1'.",
     )
     parser.add_argument(
         "--bloco1",
@@ -186,7 +197,21 @@ def main() -> None:
     args = parse_args()
 
     mapeamento = carregar_mapeamento()
-    if args.treinar_completo:
+    if args.ensinar is not None:
+        mapeamento = ensinar_passo_a_passo_3_linhas(
+            bloco_alvo=None if args.ensinar == "menu" else args.ensinar,
+            dados_existentes=mapeamento,
+        )
+        salvar_mapeamento(mapeamento)
+        if not (args.bloco or args.bloco1 or args.bloco2 or args.pagina3 or args.pagina4 or args.pagina5 or args.pagina6 or args.tudo):
+            resp_rodar = input(
+                "\n▶️ Deseja executar agora o preenchimento completo com o padrão aprendido? [s/N]: "
+            ).strip().lower()
+            if resp_rodar not in ("s", "sim", "y"):
+                return
+            if args.ensinar != "menu":
+                args.bloco = args.ensinar
+    elif args.treinar_completo:
         mapeamento = calibrar_parametros_rapido(modo_completo=True)
     elif args.calibrar or (not mapeamento.get("parametros_referencia") and not mapeamento.get("campos_detalhados")):
         mapeamento = calibrar_parametros_rapido()

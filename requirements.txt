@@ -1,7 +1,15 @@
-pyautogui>=0.9.54
-pyperclip>=1.9.0
-pandas>=2.2.0
-openpyxl>=3.1.5
-keyboard>=0.13.5
+# Bibliotecas principais de Visão Computacional e Processamento de Imagem
+numpy>=1.26.0
 pillow>=10.4.0
 opencv-python>=4.10.0
+
+# Leitura e manipulação de Planilhas Excel (.xlsx) e Tabelas
+pandas>=2.2.0
+openpyxl>=3.1.5
+
+# Automação de Interface, Teclado, Mouse e OCR (opcionais / complementares ao driver nativo Win32)
+pyautogui>=0.9.54
+pyperclip>=1.9.0
+keyboard>=0.13.5
+pytesseract>=0.3.10
+

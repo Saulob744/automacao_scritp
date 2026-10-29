@@ -382,6 +382,8 @@ def _celula_corresponde_coluna(celula: str, nome_esperado: str) -> bool:
     chave_canon = _resolver_chave_sinonimo(nome_esperado)
 
     if chave_canon in SINONIMOS_SWOT:
+        if chave_canon == "OBJETIVO ESTRATÉGICO" and "FINAL" in cel_sem:
+            return False
         sinonimos = SINONIMOS_SWOT[chave_canon]
         if cel_norm in sinonimos or cel_sem in sinonimos:
             return True
@@ -736,6 +738,30 @@ def _detectar_mapa_por_ambiente_interno_externo(
     return -1, {}
 
 
+def _parsear_linhas_tsv_seguro(texto_limpo: str) -> List[List[str]]:
+    """
+    Lê linhas TSV do clipboard com proteção contra `_csv.Error` ('new-line character seen in unquoted field'
+    ou aspas simples/duplas abertas dentro de células da planilha).
+    """
+    try:
+        return list(csv.reader(io.StringIO(texto_limpo), delimiter="\t"))
+    except csv.Error:
+        texto_norm = texto_limpo.replace("\r\n", "\n").replace("\r", " ")
+        try:
+            return list(csv.reader(io.StringIO(texto_norm), delimiter="\t"))
+        except csv.Error:
+            try:
+                return list(
+                    csv.reader(
+                        io.StringIO(texto_norm),
+                        delimiter="\t",
+                        quoting=csv.QUOTE_NONE,
+                    )
+                )
+            except csv.Error:
+                return [linha.split("\t") for linha in texto_norm.split("\n")]
+
+
 def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) -> List[Dict[str, Any]]:
     """
     Converte o texto copiado da planilha (separado por TAB) em uma lista de dicionários.
@@ -750,8 +776,7 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
     if "AUTOMAÇÃO INTELIGENTE" in texto_limpo or "PS C:\\" in texto_limpo:
         return []
 
-    leitor = csv.reader(io.StringIO(texto_limpo), delimiter="\t")
-    todas_linhas = list(leitor)
+    todas_linhas = _parsear_linhas_tsv_seguro(texto_limpo)
     linhas_brutas = [linha for linha in todas_linhas if any(celula.strip() for celula in linha)]
     if not linhas_brutas:
         return []
@@ -805,7 +830,8 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             if len(melhor_encontrados) == len(nomes_colunas_esperados):
                 break
 
-    if len(melhor_encontrados) >= 1:
+    min_colunas_cabecalho = min(2, len(nomes_colunas_esperados)) if nomes_colunas_esperados else 1
+    if len(melhor_encontrados) >= min_colunas_cabecalho:
         indice_linha_cabecalho = melhor_idx_cabecalho
         usou_linha_abaixo_no_cabecalho = melhor_usou_abaixo
         mapa_coluna_para_indice = dict(melhor_encontrados)
@@ -848,6 +874,20 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
     # 3. Se não é cabeçalho SWOT, verifica se é uma tabela de outra aba/página com cabeçalhos dinâmicos
     if indice_linha_cabecalho == -1:
         texto_up = remover_acentos(texto_limpo)
+        esperados_sem = [remover_acentos(n) for n in nomes_colunas_esperados]
+        espera_metas_acoes = any("OBJETIVO ESTRATEGICO" in e or "ACAO PRINCIPAL" in e for e in esperados_sem)
+        if espera_metas_acoes and any(
+            termo in texto_up
+            for termo in (
+                "INVENTARIO DE NECESSIDADES",
+                "DESCRICAO SUSCINTA",
+                "AREA DEMANDANTE",
+                "MATRIZ SWOT",
+                "AMBIENTE INTERNO",
+            )
+        ):
+            return []
+
         parece_swot_sem_cabecalho = any(
             termo in texto_up for termo in ("MATRIZ SWOT", "AMBIENTE INTERNO", "AMBIENTE EXTERNO")
         )
@@ -886,13 +926,18 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
 
     # Regra de Memória da Etapa 4 -> Etapa 6:
     # Quando estamos lendo a guia '4.1. Metas e Ações' (que possui 'INDICADOR'), localiza também
-    # a coluna 'MÉTRICA / FÓRMULA' na linha de cabeçalho para deixá-la salva em memória para a Etapa 6!
+    # a coluna 'MÉTRICA / FÓRMULA' na linha de cabeçalho para deixá-la salva em memória ('_FORMULA_DESCRICAO_CACHE')
+    # para a Etapa 6, SEM adicioná-la como coluna visível da Página 4!
     tem_indicador_no_bloco = any(
         _resolver_chave_sinonimo(k) == "INDICADOR" for k in mapa_coluna_para_indice.keys()
+    )
+    espera_formula_explicita = any(
+        _resolver_chave_sinonimo(n) == "FÓRMULA / DESCRIÇÃO" for n in nomes_colunas_esperados
     )
     ja_tem_formula_no_bloco = any(
         _resolver_chave_sinonimo(k) == "FÓRMULA / DESCRIÇÃO" for k in mapa_coluna_para_indice.keys()
     )
+    col_formula_cache: int = -1
     if tem_indicador_no_bloco and not ja_tem_formula_no_bloco and 0 <= indice_linha_cabecalho < len(todas_linhas):
         linha_cab_m = todas_linhas[indice_linha_cabecalho]
         prox_cab_m = (
@@ -912,7 +957,10 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 or _celula_corresponde_coluna(cel_m2, "FÓRMULA / DESCRIÇÃO")
                 or _celula_corresponde_coluna(comb_m, "FÓRMULA / DESCRIÇÃO")
             ):
-                mapa_coluna_para_indice["FÓRMULA / DESCRIÇÃO"] = idx_col_m
+                if espera_formula_explicita:
+                    mapa_coluna_para_indice["FÓRMULA / DESCRIÇÃO"] = idx_col_m
+                else:
+                    col_formula_cache = idx_col_m
                 break
 
     # Coleta TODAS as linhas de dados abaixo do cabeçalho (sem parar em linhas vazias intermediárias)
@@ -1009,6 +1057,11 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 if remover_acentos(valor_celula) in SINONIMOS_SWOT.get(chave_canon, set()):
                     valor_celula = ""
             item[nome_campo] = valor_celula
+
+        if col_formula_cache != -1 and col_formula_cache < len(linha):
+            val_form_cache = " ".join(linha[col_formula_cache].strip().splitlines()).strip()
+            if val_form_cache:
+                item["_FORMULA_DESCRICAO_CACHE"] = val_form_cache
 
         # Regra especial da aba '4.1. Metas e Ações':
         # Em 'OBJETIVO ESTRATÉGICO', corta o prefixo do ID (ex: 'OE.TIC.1 - ') pois já vai no campo 'ID'

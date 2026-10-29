@@ -593,6 +593,7 @@ def _executar_ocr_windows_na_regiao(
         caminho_ps = str(caminho_temp.resolve()).replace("'", "''")
 
         ps_script = f"""
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
 $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Foundation, ContentType = WindowsRuntime]
@@ -632,6 +633,8 @@ $stream.Dispose()
             ["powershell", "-NoProfile", "-EncodedCommand", encoded],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=8,
         )
         ox, oy = offset_xy
@@ -664,8 +667,13 @@ def _corresponde_nome_guia_ocr(texto_ocr: str, nome_guia_referencia: str) -> Tup
     if not t_norm or not ref_norm:
         return False, 0
 
+    if "BANCO" in t_norm and "BANCO" not in ref_norm:
+        return False, 0
+
     if t_norm == ref_norm:
         return True, 100
+    if "4.1" in ref_norm and "METAS" in ref_norm and "4.1" in t_norm and "METAS E A" in t_norm:
+        return True, 98
     if ref_norm in t_norm or (len(t_norm) >= 5 and t_norm in ref_norm):
         return True, 90
 
@@ -1118,6 +1126,46 @@ def detectar_botoes_remover_da_coluna(
     return ys_agrupados
 
 
+def centralizar_y_na_caixa_branca(
+    img_bgr: np.ndarray,
+    offset_xy: Tuple[int, int],
+    x_caixa: int,
+    y_caixa: int,
+) -> int:
+    """
+    Ajusta verticalmente `y_caixa` (em uma janela de ±18px) para o centro exato da caixa
+    de texto branca (<input class="form-control">) sob `x_caixa`.
+    """
+    ox, oy = offset_xy
+    h_img, w_img = img_bgr.shape[:2]
+    x1 = max(0, int(x_caixa) - ox - 35)
+    x2 = min(w_img, int(x_caixa) - ox + 55)
+    if (x2 - x1) < 25:
+        return int(y_caixa)
+
+    melhor_y = int(y_caixa)
+    melhor_score = -1.0
+    for dy in range(-18, 19, 2):
+        yc_abs = int(y_caixa) + dy
+        y_sup1 = max(0, yc_abs - oy - 13)
+        y_sup2 = min(h_img, yc_abs - oy - 7)
+        y_inf1 = max(0, yc_abs - oy + 7)
+        y_inf2 = min(h_img, yc_abs - oy + 13)
+        if (y_sup2 - y_sup1) < 3 or (y_inf2 - y_inf1) < 3:
+            continue
+        faixa_sup = cv2.cvtColor(img_bgr[y_sup1:y_sup2, x1:x2], cv2.COLOR_BGR2GRAY)
+        faixa_inf = cv2.cvtColor(img_bgr[y_inf1:y_inf2, x1:x2], cv2.COLOR_BGR2GRAY)
+        branco_sup = float(np.mean(faixa_sup >= 243))
+        branco_inf = float(np.mean(faixa_inf >= 243))
+        penalidade_dist = abs(dy) * 0.004
+        score = min(branco_sup, branco_inf) * 0.7 + ((branco_sup + branco_inf) * 0.15) - penalidade_dist
+        if score > melhor_score and branco_sup >= 0.75 and branco_inf >= 0.75:
+            melhor_score = score
+            melhor_y = yc_abs
+
+    return int(melhor_y)
+
+
 def eh_caixa_de_texto_vazia(
     img_bgr: np.ndarray,
     offset_xy: Tuple[int, int],
@@ -1128,33 +1176,68 @@ def eh_caixa_de_texto_vazia(
     """
     Verifica visualmente se a coordenada `(x_caixa, y_caixa)` aponta para o interior de uma
     CAIXA DE TEXTO VAZIA (<input class="form-control"> com fundo #ffffff e sem texto escuro #03183C).
+    Detecta automaticamente as bordas esquerda/direita da caixa ao redor de `x_caixa` para funcionar
+    tanto em colunas largas (SWOT) quanto em blocos com vários campos lado a lado (Página 4: ID, Prazo, etc.).
     """
     ox, oy = offset_xy
     h_img, w_img = img_bgr.shape[:2]
 
-    # Analisa a faixa interna da caixa de texto (sem encostar na borda esquerda do input, mesmo se x_caixa for próximo à borda)
-    if x_btn_add is not None:
-        x_esq_abs = max(ox + 650, int(x_btn_add) - 445)
-        x_dir_abs = min(ox + w_img - 40, int(x_btn_add) - 115)
-    else:
-        x_esq_abs = max(ox + 650, int(x_caixa) - 60)
-        x_dir_abs = min(ox + w_img - 40, int(x_caixa) + 120)
+    y_centro = centralizar_y_na_caixa_branca(img_bgr, offset_xy, x_caixa, y_caixa)
+    yc_rel = int(y_centro) - oy
+    xc_rel = int(x_caixa) - ox
+    if yc_rel - 12 < 0 or yc_rel + 12 >= h_img or xc_rel < 10 or xc_rel >= (w_img - 10):
+        return False
 
-    x1 = max(0, x_esq_abs - ox)
-    x2 = min(w_img, x_dir_abs - ox)
-    y1 = max(0, int(y_caixa) - oy - 9)
-    y2 = min(h_img, int(y_caixa) - oy + 9)
+    # Delimita as bordas horizontais [x_esq_rel, x_dir_rel] da caixa branca que contém `x_caixa`
+    # usando o percentil 85 vertical (que permanece >= 242 no padding branco superior/inferior mesmo se houver texto,
+    # mas cai < 238 na linha vertical da borda esquerda/direita do <input>)
+    x_busca_min = max(max(0, 650 - ox), xc_rel - 360)
+    x_busca_max = min(w_img - 10, xc_rel + 280)
+    if x_btn_add is not None and int(x_btn_add) > int(x_caixa) + 60:
+        x_busca_max = min(x_busca_max, max(xc_rel + 25, int(x_btn_add) - ox - 68))
 
-    if (x2 - x1) < 40 or (y2 - y1) < 8:
+    faixa_input = cv2.cvtColor(
+        img_bgr[yc_rel - 12 : yc_rel + 12, x_busca_min:x_busca_max],
+        cv2.COLOR_BGR2GRAY,
+    )
+    if faixa_input.size == 0:
+        return False
+
+    perfil_branco_x = np.percentile(faixa_input, 85, axis=0)
+    idx_xc = max(0, min(len(perfil_branco_x) - 1, xc_rel - x_busca_min))
+
+    # Se nem o próprio ponto (x_caixa, y_centro) tem interior branco, não é uma caixa de texto branca
+    if float(np.mean(perfil_branco_x[max(0, idx_xc - 8) : min(len(perfil_branco_x), idx_xc + 9)])) < 240.0:
+        return False
+
+    idx_esq = idx_xc
+    while idx_esq > 0 and perfil_branco_x[idx_esq - 1] >= 240:
+        idx_esq -= 1
+
+    idx_dir = idx_xc
+    while idx_dir < (len(perfil_branco_x) - 1) and perfil_branco_x[idx_dir + 1] >= 240:
+        idx_dir += 1
+
+    # Recorta o miolo interno da caixa começando logo após a borda esquerda (onde qualquer texto digitado começa!)
+    x1 = x_busca_min + idx_esq + 7
+    x2 = min(x_busca_min + idx_dir - 7, x1 + 290)
+    if (x2 - x1) < 28:
+        x1 = max(0, xc_rel - 45)
+        x2 = min(w_img, xc_rel + 85)
+
+    y1 = max(0, yc_rel - 9)
+    y2 = min(h_img, yc_rel + 9)
+    if (x2 - x1) < 24 or (y2 - y1) < 8:
         return False
 
     recorte = img_bgr[y1:y2, x1:x2]
     gray = cv2.cvtColor(recorte, cv2.COLOR_BGR2GRAY)
 
-    # Fundo branco do input (#ffffff -> gray >= 242) e ausência de caracteres escuros (#03183C -> gray < 175)
+    # Fundo branco do input (#ffffff -> gray >= 242) e ausência de caracteres digitados (#03183C -> gray < 150 / < 175)
     proporcao_branco = float(np.mean(gray >= 242))
+    pixels_muito_escuros = int(np.sum(gray < 148))
     pixels_escuros = int(np.sum(gray < 175))
-    return proporcao_branco >= 0.90 and pixels_escuros < 25
+    return proporcao_branco >= 0.88 and pixels_muito_escuros < 10 and pixels_escuros < 22
 
 
 def detectar_caixas_de_texto_da_coluna(
@@ -1271,14 +1354,26 @@ def _obter_limite_y_proximo_card(
     todos_botoes: List[Tuple[int, int, int, int]],
     x_btn_add: int,
     y_btn_add: int,
+    y_limite_extra: Optional[int] = None,
 ) -> int:
-    """Retorna o Y acima do próximo botão azul na mesma coluna (para isolar as caixas do card atual)."""
+    """
+    Retorna o Y máximo permitido acima do próximo card/bloco vizinho abaixo:
+    - Detecta qualquer botão azul na mesma coluna (`abs(b[0] - x_btn_add) <= 180`) OU
+      qualquer botão azul largo de bloco de página inteira (`b[2] >= 112`, ex: 'Adicionar necessidade',
+      'Adicionar linha' do Plano Orçamentário, 'Adicionar risco' da Gestão de Riscos) que esteja abaixo de `y_btn_add`.
+    - Respeita também `y_limite_extra` (barreira de bloco vizinho ensinada no treinamento).
+    """
     proximos = [
         b[1]
         for b in todos_botoes
-        if abs(b[0] - x_btn_add) <= 180 and b[1] > (y_btn_add + 95) and b[1] < 940
+        if (abs(b[0] - x_btn_add) <= 180 or b[2] >= 112)
+        and b[1] > (y_btn_add + 92)
+        and b[1] < 995
     ]
-    return min(proximos) - 28 if proximos else 1010
+    y_lim = (min(proximos) - 32) if proximos else 1010
+    if y_limite_extra is not None and int(y_limite_extra) > 220:
+        y_lim = min(y_lim, int(y_limite_extra))
+    return int(y_lim)
 
 
 def _medir_scroll_por_template(
@@ -1662,11 +1757,38 @@ def _resolver_caixa1_do_card(
             y_limite_inferior=y_lim,
             apenas_vazias=False,
         )
-        # 1. Prioriza a primeira caixa VAZIA logo abaixo do botão Adicionar do card
-        if ys_vazias and 42 <= (ys_vazias[0] - y_btn_real) <= 120:
+        # 1. Prioriza SEMPRE uma caixa VAZIA do card atual (acima do limite do bloco vizinho y_lim)
+        if ys_vazias:
             y_caixa1_real = ys_vazias[0]
-        elif ys_todas and 42 <= (ys_todas[0] - y_btn_real) <= 120:
-            y_caixa1_real = ys_todas[0]
+        elif ys_todas and y_btn_real >= 208:
+            # Todas as caixas visíveis deste card já estão preenchidas! Clica 1x em 'Adicionar' para gerar uma caixa VAZIA nova
+            _log_visao(
+                f"_resolver_caixa1_do_card: todas as {len(ys_todas)} caixa(s) existentes já estão preenchidas; "
+                f"clicando em Adicionar ({x_btn_real}, {y_btn_real}) para criar caixa vazia..."
+            )
+            mover_e_clicar(x=x_btn_real, y=y_btn_real, cliques=1, botao="left")
+            time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
+            img2, off2 = capturar_tela_sistema(x_btn_real)
+            if img2 is not None:
+                todos_b2 = detectar_botoes_azuis_adicionar(img2, off2, incluir_botoes_largos=True)
+                y_lim2 = _obter_limite_y_proximo_card(todos_b2, x_btn_real, y_btn_real)
+                ys_vazias2 = detectar_caixas_de_texto_da_coluna(
+                    img2,
+                    off2,
+                    x_guia_caixa=x_caixa_real,
+                    x_btn_add=x_btn_real,
+                    y_btn_add=y_btn_real,
+                    y_limite_inferior=y_lim2,
+                    apenas_vazias=True,
+                )
+                if ys_vazias2:
+                    y_caixa1_real = ys_vazias2[-1]
+                else:
+                    y_caixa1_real = min(y_lim2 - 20, ys_todas[-1] + int(params["passo_y_nova_caixa"]))
+                img, offset_xy = img2, off2
+
+        if img is not None:
+            y_caixa1_real = centralizar_y_na_caixa_branca(img, offset_xy, x_caixa_real, y_caixa1_real)
 
     _log_visao(
         f"_resolver_caixa1_do_card: btn=({x_btn_real}, {y_btn_real}), "
@@ -1880,6 +2002,86 @@ def _esta_em_zona_proibida(
     return False
 
 
+def ajustar_coordenada_para_caixa_vazia(
+    coord_alvo: Tuple[int, int],
+    coord_btn_add: Optional[Tuple[int, int]] = None,
+    zonas_proibidas: Optional[List[Tuple[int, int]]] = None,
+    y_limite_bloco_vizinho: Optional[int] = None,
+    permitir_avancar_abaixo: bool = True,
+) -> Tuple[Tuple[int, int], bool, bool]:
+    """
+    Garante antes de cada colagem que `(cx, cy)`:
+    1. NÃO invada um bloco vizinho abaixo (`y_limite_bloco_vizinho` / próximo botão azul 'Adicionar...' / `zonas_proibidas`).
+    2. Aponte para o centro vertical exato de uma CAIXA DE TEXTO VAZIA (`eh_caixa_de_texto_vazia`).
+    3. Caso a caixa atual já esteja preenchida e exista outra caixa vazia mais abaixo na mesma coluna
+       (acima do limite do bloco vizinho), avança automaticamente para a caixa vazia disponível.
+    Retorna: `(coord_ajustada, esta_vazia, bloqueado_por_bloco_vizinho)`
+    """
+    cx = max(650, min(1760, int(coord_alvo[0])))
+    cy = int(coord_alvo[1])
+
+    if _esta_em_zona_proibida(cx, cy, zonas_proibidas):
+        return ((cx, cy), False, True)
+    if y_limite_bloco_vizinho is not None and int(y_limite_bloco_vizinho) > 220 and cy >= int(y_limite_bloco_vizinho):
+        return ((cx, cy), False, True)
+
+    img, offset_xy = capturar_tela_sistema(cx)
+    if img is None:
+        return ((cx, cy), True, False)
+
+    todos_botoes = detectar_botoes_azuis_adicionar(img, offset_xy, incluir_botoes_largos=True)
+    if coord_btn_add is not None:
+        x_b = int(coord_btn_add[0])
+        y_b = max(65, int(coord_btn_add[1]))
+        y_lim = _obter_limite_y_proximo_card(
+            todos_botoes, x_b, y_b, y_limite_extra=y_limite_bloco_vizinho
+        )
+    else:
+        x_b = cx
+        y_b = max(65, cy - 110)
+        y_lim = (
+            int(y_limite_bloco_vizinho)
+            if (y_limite_bloco_vizinho is not None and int(y_limite_bloco_vizinho) > 220)
+            else 1010
+        )
+
+    if cy >= y_lim:
+        return ((cx, cy), False, True)
+
+    cy_cent = centralizar_y_na_caixa_branca(img, offset_xy, cx, cy)
+    if cy_cent >= y_lim or _esta_em_zona_proibida(cx, cy_cent, zonas_proibidas):
+        return ((cx, cy), False, True)
+
+    vazia_atual = eh_caixa_de_texto_vazia(
+        img, offset_xy, cx, cy_cent, x_b if coord_btn_add is not None else None
+    )
+    if vazia_atual:
+        return ((cx, int(cy_cent)), True, False)
+
+    if permitir_avancar_abaixo and coord_btn_add is not None:
+        ys_vazias = detectar_caixas_de_texto_da_coluna(
+            img,
+            offset_xy,
+            x_guia_caixa=cx,
+            x_btn_add=x_b,
+            y_btn_add=y_b,
+            y_limite_inferior=y_lim,
+            apenas_vazias=True,
+        )
+        vazias_abaixo = [
+            yx
+            for yx in ys_vazias
+            if yx > (cy + 36)
+            and yx < y_lim
+            and not _esta_em_zona_proibida(cx, yx, zonas_proibidas)
+        ]
+        if vazias_abaixo:
+            y_nova = centralizar_y_na_caixa_branca(img, offset_xy, cx, int(vazias_abaixo[0]))
+            return ((cx, int(y_nova)), True, False)
+
+    return ((cx, int(cy_cent)), False, False)
+
+
 def _procurar_nova_caixa_surgida(
     img_depois: Optional[np.ndarray],
     offset_xy: Tuple[int, int],
@@ -1915,7 +2117,7 @@ def _procurar_nova_caixa_surgida(
     ys_todas = [
         yx
         for yx in ys_todas_bruto
-        if not _esta_em_zona_proibida(x_caixa, yx, zonas_proibidas)
+        if yx < y_lim and not _esta_em_zona_proibida(x_caixa, yx, zonas_proibidas)
     ]
 
     # Calcula o passo vertical real desta coluna na escala/zoom atual do navegador (ex: 76px em 90%, 84px em 100%)
@@ -1927,7 +2129,7 @@ def _procurar_nova_caixa_surgida(
     passo_real = (
         int(round(float(np.median(diffs_col)))) if diffs_col else int(passo_y_padrao)
     )
-    y_esperado = y_caixa_anterior + passo_real
+    y_esperado = min(y_lim - 20, y_caixa_anterior + passo_real)
 
     ys_vazias = [
         yx
@@ -1935,18 +2137,27 @@ def _procurar_nova_caixa_surgida(
         if eh_caixa_de_texto_vazia(img_depois, offset_xy, x_caixa, yx, x_btn)
     ]
 
-    # 1. Prioriza uma caixa VAZIA estritamente 1 passo abaixo de y_caixa_anterior (48..106px)
+    # 1. Prioriza uma caixa VAZIA estritamente 1 passo abaixo de y_caixa_anterior (45..112px)
     # Isso impede que o algoritmo pule +176px para dentro de outra caixa abaixo (ex: Inventário de necessidades)
     vazias_abaixo = [
-        yx for yx in ys_vazias if (y_caixa_anterior + 48) <= yx <= (y_caixa_anterior + 106)
+        yx for yx in ys_vazias if (y_caixa_anterior + 45) <= yx <= (y_caixa_anterior + 112)
     ]
     if vazias_abaixo:
         vazias_abaixo.sort(key=lambda yx: abs(yx - y_esperado))
-        return int(vazias_abaixo[0]), ys_todas
+        y_esc = centralizar_y_na_caixa_branca(img_depois, offset_xy, x_caixa, int(vazias_abaixo[0]))
+        return int(y_esc), ys_todas
 
-    # 2. Caso contrário, procura qualquer caixa com botão '×' da mesma coluna 1 passo abaixo (48..106px)
+    # 2. Se a caixa imediatamente abaixo já estava preenchida, pega a próxima caixa VAZIA disponível abaixo na mesma coluna
+    vazias_mais_abaixo = [
+        yx for yx in ys_vazias if yx > (y_caixa_anterior + 45) and yx < y_lim
+    ]
+    if vazias_mais_abaixo:
+        y_esc = centralizar_y_na_caixa_branca(img_depois, offset_xy, x_caixa, int(vazias_mais_abaixo[0]))
+        return int(y_esc), ys_todas
+
+    # 3. Caso contrário, procura qualquer caixa com botão '×' da mesma coluna 1 passo abaixo (45..112px)
     candidatos_abaixo = [
-        yx for yx in ys_todas if (y_caixa_anterior + 48) <= yx <= (y_caixa_anterior + 106)
+        yx for yx in ys_todas if (y_caixa_anterior + 45) <= yx <= (y_caixa_anterior + 112)
     ]
     if candidatos_abaixo:
         candidatos_abaixo.sort(key=lambda yx: abs(yx - y_esperado))
@@ -2173,16 +2384,17 @@ def clicar_adicionar_e_avancar_grupo_codependente(
     coords_base_fundo: Optional[List[Tuple[int, int]]] = None,
     ancorado_no_topo: bool = False,
     texto_botao_adicionar: str = "Adicionar necessidade",
+    y_limite_bloco_vizinho: Optional[int] = None,
+    aprendizado_3_linhas: Optional[Dict[str, Any]] = None,
 ) -> Tuple[List[Tuple[int, int]], Tuple[int, int], int]:
     """
     Para grupos de campos codependentes na mesma linha/bloco:
     - Modo 1 (`ancorado_no_topo=False`, ex: 'Inventário de necessidades' no final da página 3):
       Sobe a página a partir da 2ª caixa para clicar em 'Adicionar necessidade' e rola até o fundo.
-    - Modo 2 (`ancorado_no_topo=True`, ex: 'Metas e ações' no topo da página 4, com 7 campos por aba):
-      Na 1ª linha clica em 'Adicionar ação' e baixa um pouco a página (-3 ticks) para colar a 2ª linha;
-      da 2ª linha em diante, sobe a página até o topo para procurar e clicar no botão 'Adicionar ação'
-      e depois desce de forma controlada (medindo o scroll por template + botão '×') até posicionar
-      os 7 novos campos na tela.
+    - Modo 2 (`ancorado_no_topo=True`, ex: 'Metas e ações' ou 'Plano orçamentário' na página 4):
+      Clica no botão 'Adicionar...', desce de forma controlada parando ANTES da barreira do bloco vizinho
+      (`_obter_limite_y_proximo_card` / `y_limite_bloco_vizinho`) e trava exclusivamente no sub-card VAZIO
+      recém-criado (`eh_caixa_de_texto_vazia`).
     """
     if not coords_campos_atuais:
         return [], coord_btn_atual, 0
@@ -2275,25 +2487,45 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         mover_e_clicar(x=x_clique_btn, y=y_clique_btn, cliques=1, botao="left")
         time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
 
-        # Calcula a posição inicial (antes de descer) dos 7 campos da nova aba criada:
-        # Cada aba fica a `indice_caixa * passo_card` pixels abaixo da 1ª aba (base_coords)
+        # Deslocamentos verticais relativos de cada campo até o último campo da linha (ex: RESPONSÁVEL / botão '×')
+        dy_rel_ult = [int(cy - base_coords[-1][1]) for _, cy in base_coords]
+        dy_btn_para_ult = int(base_coords[-1][1] - (y_btn_calibrado if 208 <= y_btn_calibrado <= 700 else 572))
+        if dy_btn_para_ult < 60 or dy_btn_para_ult > 420:
+            dy_btn_para_ult = 293
+
+        # Se o usuário ensinou o comportamento de 3 linhas (--ensinar), usa o alvo aprendido para Linha 2 e Linha 3+
+        y_alvo_resp = 845
+        ticks_ensinado = None
+        if isinstance(aprendizado_3_linhas, dict):
+            if indice_caixa == 1 and isinstance(aprendizado_3_linhas.get("coords_linha2"), list) and aprendizado_3_linhas["coords_linha2"]:
+                ult_c2 = aprendizado_3_linhas["coords_linha2"][-1]
+                if isinstance(ult_c2, (list, tuple)) and len(ult_c2) >= 2:
+                    y_alvo_resp = int(ult_c2[1])
+                ticks_ensinado = aprendizado_3_linhas.get("ticks_scroll_linha2")
+            elif indice_caixa >= 2 and isinstance(aprendizado_3_linhas.get("coords_linha3"), list) and aprendizado_3_linhas["coords_linha3"]:
+                ult_c3 = aprendizado_3_linhas["coords_linha3"][-1]
+                if isinstance(ult_c3, (list, tuple)) and len(ult_c3) >= 2:
+                    y_alvo_resp = int(ult_c3[1])
+                ticks_ensinado = aprendizado_3_linhas.get("ticks_scroll_linha3")
+
         ys_card_novo_antes = [
-            int(y_clique_btn + (cy - 572) + (indice_caixa * passo_card))
-            for _, cy in base_coords
+            int(y_clique_btn + dy_btn_para_ult + dy_rel_ult[i] + (indice_caixa * passo_card))
+            for i in range(len(base_coords))
         ]
         y_resp_atual = ys_card_novo_antes[-1]
-        y_alvo_resp = 845
 
         delta_scroll_total = 0
         ticks_descidos_total = 0
         max_iter_scroll = max(4, indice_caixa + 4)
 
         for _ in range(max_iter_scroll):
-            if y_resp_atual <= 890:
+            if y_resp_atual <= max(875, y_alvo_resp + 35):
                 break
             px_faltantes = y_resp_atual - y_alvo_resp
             ticks_passo = max(1, min(4, int(round(px_faltantes / 95.0))))
-            if indice_caixa == 1 and ticks_descidos_total == 0:
+            if ticks_descidos_total == 0 and ticks_ensinado is not None and int(ticks_ensinado) > 0:
+                ticks_passo = max(1, min(6, int(ticks_ensinado)))
+            elif indice_caixa == 1 and ticks_descidos_total == 0:
                 ticks_passo = 3
 
             img_d0, off_d0 = capturar_tela_sistema(x_btn)
@@ -2311,38 +2543,104 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             delta_scroll_total += int(delta_step)
             y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
 
+            # Proteção contra invasão do bloco vizinho: se o botão azul do próximo bloco (ex: 'Adicionar linha'
+            # do Plano Orçamentário) já apareceu na parte inferior da tela (Y < 925), para de descer imediatamente!
+            if img_d1 is not None:
+                todos_b_d1 = detectar_botoes_azuis_adicionar(img_d1, off_d1, incluir_botoes_largos=True)
+                y_btn_topo_d1 = int(y_clique_btn - delta_scroll_total)
+                y_lim_d1 = _obter_limite_y_proximo_card(
+                    todos_b_d1, x_btn, max(70, y_btn_topo_d1), y_limite_extra=y_limite_bloco_vizinho
+                )
+                if y_lim_d1 < 925:
+                    break
+
             if delta_step < 15:
                 break
 
-        # Refinamento visual pelo botão '×' da linha 'Responsável' da nova aba criada
-        dy_snap = 0
+        # Refinamento visual pelo botão '×' + verificação de CAIXA VAZIA + BARREIRA DE BLOCO VIZINHO
+        y_btn_pos_topo = int(y_clique_btn - delta_scroll_total)
         img_pos, off_pos = capturar_tela_sistema(x_btn)
+        y_lim_vizinho = int(y_limite_bloco_vizinho) if (y_limite_bloco_vizinho and int(y_limite_bloco_vizinho) > 220) else 985
+
+        if img_pos is not None:
+            todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+            y_lim_vizinho = _obter_limite_y_proximo_card(
+                todos_b_pos, x_btn, max(70, y_btn_pos_topo), y_limite_extra=y_limite_bloco_vizinho
+            )
+            # Se o bloco vizinho subiu demais na tela (y_lim_vizinho < 580), sobe +2 ticks para devolver o bloco atual ao centro
+            if y_lim_vizinho < 580 and ticks_descidos_total >= 2:
+                rolar_pagina(2, x=x_scroll, y=500)
+                ticks_descidos_total = max(0, ticks_descidos_total - 2)
+                delta_scroll_total = max(0, delta_scroll_total - 180)
+                y_btn_pos_topo = int(y_clique_btn - delta_scroll_total)
+                y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
+                time.sleep(0.35)
+                img_pos, off_pos = capturar_tela_sistema(x_btn)
+                if img_pos is not None:
+                    todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+                    y_lim_vizinho = _obter_limite_y_proximo_card(
+                        todos_b_pos, x_btn, max(70, y_btn_pos_topo), y_limite_extra=y_limite_bloco_vizinho
+                    )
+
+        y_resp_escolhido = min(y_lim_vizinho - 22, int(y_resp_atual))
         if img_pos is not None:
             ys_x_pos = detectar_botoes_remover_da_coluna(
                 img_pos,
                 off_pos,
                 x_btn_add=x_btn,
-                y_btn_add=65,
-                y_limite_inferior=985,
+                y_btn_add=max(65, y_btn_pos_topo),
+                y_limite_inferior=y_lim_vizinho,
                 passo_max_continuo=380,
             )
-            candidatos_x = [yx for yx in ys_x_pos if abs(yx - y_resp_atual) <= 46]
-            if candidatos_x:
-                candidatos_x.sort(key=lambda yx: abs(yx - y_resp_atual))
-                dy_snap = int(candidatos_x[0] - y_resp_atual)
+            ys_x_pos = [
+                yx
+                for yx in ys_x_pos
+                if yx < y_lim_vizinho
+                and not _esta_em_zona_proibida(int(base_coords[-1][0]), yx, zonas_proibidas)
+            ]
 
-        novas_coords_topo = [
-            (
-                max(650, min(1760, int(base_coords[i][0]))),
-                max(220, min(975, int(ys_card_novo_antes[i] - delta_scroll_total + dy_snap))),
-            )
-            for i in range(len(base_coords))
-        ]
-        y_btn_pos_topo = int(y_clique_btn - delta_scroll_total)
+            # Filtra os botões '×' cujo sub-card está VAZIO (verificando o último campo e o 1º campo do sub-card)
+            ys_x_vazios: List[int] = []
+            for yx in ys_x_pos:
+                x_ult = int(base_coords[-1][0])
+                vazia_ult = eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, yx, x_btn)
+                y_prim_cand = int(yx + dy_rel_ult[0])
+                if y_prim_cand >= 212:
+                    vazia_prim = eh_caixa_de_texto_vazia(
+                        img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
+                    )
+                    eh_subcard_vazio = vazia_ult and vazia_prim
+                else:
+                    eh_subcard_vazio = vazia_ult
+                if eh_subcard_vazio:
+                    ys_x_vazios.append(int(yx))
+
+            if ys_x_vazios:
+                # Escolhe o primeiro sub-card VAZIO disponível (ou o mais próximo de y_resp_atual)
+                ys_x_vazios.sort(key=lambda yx: abs(yx - y_resp_atual))
+                y_resp_escolhido = int(ys_x_vazios[0])
+            elif ys_x_pos:
+                candidatos_x = [yx for yx in ys_x_pos if abs(yx - y_resp_atual) <= 75]
+                if candidatos_x:
+                    candidatos_x.sort(key=lambda yx: abs(yx - y_resp_atual))
+                    y_resp_escolhido = int(candidatos_x[0])
+                else:
+                    y_resp_escolhido = int(ys_x_pos[-1])
+
+        novas_coords_topo: List[Tuple[int, int]] = []
+        for i in range(len(base_coords)):
+            cx_i = max(650, min(1760, int(base_coords[i][0])))
+            cy_i = max(218, min(y_lim_vizinho - 18, int(y_resp_escolhido + dy_rel_ult[i])))
+            if img_pos is not None:
+                cy_i = centralizar_y_na_caixa_branca(img_pos, off_pos, cx_i, cy_i)
+                cy_i = max(218, min(y_lim_vizinho - 18, int(cy_i)))
+            novas_coords_topo.append((cx_i, cy_i))
+
+        dy_snap = int(y_resp_escolhido - y_resp_atual)
         _log_visao(
             f"clicar_adicionar_e_avancar_grupo_codependente [ancorado_no_topo] (aba #{indice_caixa + 1}, "
             f"subiu=+{ticks_subidos}, btn_clicado=({x_clique_btn}, {y_clique_btn}), "
-            f"desceu=-{ticks_descidos_total} [{delta_scroll_total}px], snap={dy_snap}px): "
+            f"desceu=-{ticks_descidos_total} [{delta_scroll_total}px], snap={dy_snap}px, y_lim_viz={y_lim_vizinho}): "
             f"novas_coords={novas_coords_topo}"
         )
         return novas_coords_topo, (x_btn, y_btn_pos_topo), ticks_descidos_total
@@ -2415,13 +2713,13 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         if btn_visivel is None:
             atalho_teclado("ctrl", "f")
             time.sleep(0.20)
-            copiar_para_clipboard("Adicionar necessidade")
+            copiar_para_clipboard(texto_botao_adicionar or "Adicionar necessidade")
             time.sleep(0.08)
             atalho_teclado("ctrl", "v")
             time.sleep(0.42)
             pressionar_tecla_unica("esc")
             time.sleep(0.12)
-            # Sobe +4 ticks para que o botão 'Adicionar necessidade' saia de trás da topbar fixa (Y < 200)
+            # Sobe +4 ticks para que o botão 'Adicionar...' saia de trás da topbar fixa (Y < 200)
             rolar_pagina(4, x=x_scroll, y=500)
             ticks_subidos += 4
             time.sleep(0.38)
@@ -2442,7 +2740,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
     mover_e_clicar(x=x_clique_btn, y=y_clique_btn, cliques=1, botao="left")
     time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
 
-    # Agora desce a página de volta até o final para posicionar os 4 campos da nova caixa criada!
+    # Agora desce a página de volta até o final para posicionar os campos da nova caixa criada!
     ticks_descer = ticks_subidos + 6
     rolar_pagina(-ticks_descer, x=x_scroll, y=500)
     time.sleep(0.38)
@@ -2455,6 +2753,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
     btn_pos = _localizar_botao_adicionar_necessidade_visivel(img_pos, off_pos, x_btn)
     y_btn_pos = int(btn_pos[1]) if btn_pos is not None else -100
 
+    y_lim_fundo = int(y_limite_bloco_vizinho) if (y_limite_bloco_vizinho and int(y_limite_bloco_vizinho) > 220) else 1010
     dy_ajuste = 0
     if img_pos is not None and ys_x_antes:
         ys_x_pos = detectar_botoes_remover_da_coluna(
@@ -2462,7 +2761,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             off_pos,
             x_btn_add=x_btn,
             y_btn_add=65,
-            y_limite_inferior=1010,
+            y_limite_inferior=y_lim_fundo,
             passo_max_continuo=380,
         )
         if ys_x_pos:
@@ -2470,10 +2769,14 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             if abs(diff_ult) <= 35:
                 dy_ajuste = diff_ult
 
-    novas_coords_pos = [
-        (max(650, min(1760, int(cx))), int(cy + dy_ajuste))
-        for cx, cy in base_coords
-    ]
+    novas_coords_pos: List[Tuple[int, int]] = []
+    for cx, cy in base_coords:
+        cx_i = max(650, min(1760, int(cx)))
+        cy_i = min(y_lim_fundo - 18, int(cy + dy_ajuste))
+        if img_pos is not None:
+            cy_i = centralizar_y_na_caixa_branca(img_pos, off_pos, cx_i, cy_i)
+        novas_coords_pos.append((cx_i, cy_i))
+
     _log_visao(
         f"clicar_adicionar_e_avancar_grupo_codependente (caixa #{indice_caixa}, subiu=+{ticks_subidos}, "
         f"btn_clicado=({x_clique_btn}, {y_clique_btn}), desceu=-{ticks_descer}, ajuste={dy_ajuste}px): "

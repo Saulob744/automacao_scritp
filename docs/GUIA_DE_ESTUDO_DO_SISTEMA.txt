@@ -1,0 +1,284 @@
+================================================================================
+GUIA DE ESTUDO COMPLETO DO SISTEMA DE AUTOMACAO RPA (PDTIC)
+Arquivo de estudo: docs/GUIA_DE_ESTUDO_DO_SISTEMA.txt
+================================================================================
+
+OBJETIVO DESTE DOCUMENTO
+------------------------
+Este arquivo de texto foi escrito de forma didatica para voce estudar, com calma,
+toda a engenharia por tras do robo que construimos juntos: o que cada arquivo
+faz, como eles se conectam, quais problemas reais de automacao cada modulo
+resolve e como toda a inteligencia visual e de memoria funciona por dentro.
+
+
+================================================================================
+1. MAPA GERAL DOS ARQUIVOS (QUEM E QUEM NO PROJETO)
+================================================================================
+
+Estrutura de pastas do projeto:
+
+automacao/
+│
+├── main.py                      -> Porta de entrada (CLI) que interpreta os comandos
+├── treinador.py                 -> Treinador interativo ([F8], modo --ensinar 3 linhas)
+├── requirements.txt             -> Lista de bibliotecas Python necessarias
+├── pagina_atual.html            -> Snapshot opcional do HTML da pagina para apoio de DOM
+│
+├── dados/
+│   └── mapeamento_campos.json   -> "Cerebro/Memoria" salva em disco (coordenadas, blocos,
+│                                   passo_y, barreiras de blocos vizinhos e guias)
+│
+├── docs/
+│   ├── GUIA_DE_ESTUDO_DO_SISTEMA.txt  -> Este guia completo em texto simples
+│   └── FLUXO_E_DFD_SISTEMA.md         -> Diagramas de fluxo (Mermaid/Markdown)
+│
+└── src/
+    ├── config.py                -> Carrega/salva o JSON e sincroniza padroes de paginas
+    ├── driver_windows.py        -> Controle nativo do Windows (mouse, teclado, clipboard,
+    │                               scroll e parada de emergencia imediata com ESC/F12)
+    ├── leitor_dados.py          -> Interpreta os dados copiados da planilha (TSV/Excel),
+    │                               ordena linhas e prepara a memoria da Etapa 4 para a 6
+    ├── localizador_visual.py    -> Visao Computacional (OpenCV + Numpy + PIL): detecta
+    │                               caixas brancas, verifica se a caixa esta VAZIA, acha
+    │                               botoes azuis "Adicionar", botoes vermelhos "x" e
+    │                               barreiras de blocos vizinhos
+    └── automacao.py             -> Orquestrador principal: conecta leitura da planilha,
+                                    troca de abas, preenchimento de colunas/grupos,
+                                    scroll dinamico e transicao entre as Paginas 3, 4, 5 e 6
+
+
+================================================================================
+2. COMO OS ARQUIVOS SE CONECTAM (FLUXO DE EXECUCAO PASSO A PASSO)
+================================================================================
+
+Veja o caminho completo que uma execucao percorre do momento em que voce roda o
+comando no terminal ate o preenchimento no navegador:
+
+PASSO 1 -> [main.py]
+   Voce executa um comando no PowerShell, por exemplo:
+     .\.venv\Scripts\python.exe main.py --pagina4 --limite 5
+   ou:
+     .\.venv\Scripts\python.exe main.py --ensinar 4.1
+
+   O `main.py`:
+   a) Le os argumentos da linha de comando (`parse_args()`).
+   b) Chama `carregar_mapeamento()` do `src/config.py`, que le o arquivo
+      `dados/mapeamento_campos.json`.
+   c) Se voce pediu `--ensinar`, ele desvia para `ensinar_passo_a_passo_3_linhas()`
+      dentro do `treinador.py`.
+   d) Se for execucao normal, aplica o limite de linhas (`definir_limite_linhas_teste`)
+      se voce usou `--limite`, inicia a contagem de 3 segundos, ativa o monitor
+      de parada de emergencia (`iniciar_monitor_parada_emergencia()` do
+      `src/driver_windows.py`) e chama o orquestrador em `src/automacao.py`.
+
+PASSO 2 -> [src/automacao.py -> Planilha]
+   O orquestrador (`executar_preenchimento_completo_por_coluna` ou
+   `executar_bloco_ou_pagina_especifica`):
+   a) Verifica qual guia da planilha aquele bloco exige (ex: "4.1. Metas e Acoes").
+   b) Chama `garantir_guia_correta_na_planilha_e_copiar()`:
+      - Clica na celula da planilha usando `src/driver_windows.py`.
+      - Envia `ESC` (para fechar qualquer lista suspensa aberta na planilha),
+        seguido de `Ctrl+A` e `Ctrl+C`.
+      - Le o texto copiado do Clipboard (`ler_do_clipboard()`) e passa para
+        `extrair_tabela_de_texto_tsv()` em `src/leitor_dados.py`.
+      - Se os cabecalhos copiados NAO baterem com a guia esperada, o robo clica
+        automaticamente no botao Toggle de abas da planilha ("Todas as paginas")
+        e seleciona a guia correta usando `selecionar_guia_planilha_via_toggle_e_nome()`
+        do `src/localizador_visual.py`.
+
+PASSO 3 -> [src/leitor_dados.py -> Limpeza, Ordenacao e Memoria]
+   Quando o texto copiado da planilha chega no `src/leitor_dados.py`:
+   a) Ele usa o leitor TSV com suporte a aspas (`quotechar='"'`) para que celulas
+      que possuem quebra de linha (`Enter` dentro da celula do Excel/Google Sheets)
+      nao quebrem a estrutura de colunas nem gerem erro de CSV.
+   b) Na guia `3.2. Inventario de necessidades`, ele le a coluna `ORDEM SEQUENCIAL`
+      e ordena todas as linhas em ordem crescente (1, 2, 3...) antes de devolver
+      para a automacao.
+   c) Na guia `4.1. Metas e Acoes`, ele guarda a coluna `METRICA / FORMULA` em um
+      campo oculto de cache (`_FORMULA_DESCRICAO_CACHE`). Por que? Porque na Pagina 4
+      existem apenas 7 campos na tela (ID, OBJETIVO, META, ACAO, INDICADOR, PRAZO,
+      RESPONSAVEL), mas na Pagina 6 (KPIs) o sistema pede tambem a Formula/Descricao!
+      Assim, ela fica salva em memoria sem criar um 8o clique indevido na Pagina 4.
+
+PASSO 4 -> [src/automacao.py + src/localizador_visual.py -> Preenchimento no Sistema]
+   Com as linhas prontas em memoria, o `src/automacao.py` monta o roteiro do bloco
+   (`_montar_roteiro_passos_da_pagina`) e executa cada passo:
+   - Se o bloco for de COLUNAS INDEPENDENTES (ex: 3.1 SWOT, 5.1 Capacitacao,
+     5.3 Acoes Especificas), ele preenche todos os itens de uma coluna clicando em
+     `Adicionar` a cada item e depois passa para a proxima coluna.
+   - Se o bloco for um GRUPO CODEPENDENTE (ex: 3.2 Inventario, 4.1 Metas e Acoes,
+     4.2 Plano Orcamentario, 4.3 Gestao de Riscos, 6.1 KPIs), ele preenche todos os
+     campos da Linha 1 juntos, clica em `Adicionar` uma unica vez para fazer nascer
+     o sub-card da Linha 2, avanca todas as coordenadas do grupo e repete.
+
+
+================================================================================
+3. DETALHAMENTO PROFUNDO DE CADA MODULO E SUAS TECNICAS
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1. `src/driver_windows.py` (Camada Fisica de Sistema Operacional)
+--------------------------------------------------------------------------------
+Em vez de depender apenas do PyAutoGUI (que pode ser lento ou falhar em teclados
+ABNT2 com acentos), este arquivo conversa diretamente com a API `user32.dll` e
+`kernel32.dll` do Windows via `ctypes`:
+- Movimentacao de mouse multi-monitor: suporta coordenadas negativas (ex: quando
+  a planilha esta no monitor da esquerda em X = -1649 e o sistema web esta no
+  monitor principal/direito).
+- Escrita via Clipboard (`colar_texto`): coloca o texto no Clipboard do Windows
+  em Unicode (`CF_UNICODETEXT`), da foco na caixa (`Ctrl+A` -> `Backspace` se
+  necessario) e envia `Ctrl+V`. Isso garante que acentos ("Ação", "Orçamentário")
+  sejam digitados instantaneamente e sem erros.
+- Thread de Parada de Emergencia (`iniciar_monitor_parada_emergencia`): roda em
+  segundo plano vigiando as teclas `ESC` e `F12` a cada 15ms. Se voce apertar
+  qualquer uma delas, o processo inteiro encerra na mesma hora (`os._exit(1)`).
+
+--------------------------------------------------------------------------------
+3.2. `src/localizador_visual.py` (Camada de Visao Computacional)
+--------------------------------------------------------------------------------
+Este e o modulo mais inteligente do projeto. Ele tira capturas de tela da janela
+do navegador e analisa os pixels com `NumPy` e `OpenCV`:
+
+A) COMO ELE SABE SE UMA CAIXA ESTA VAZIA (`eh_caixa_de_texto_vazia`):
+   1. Primeiro, `centralizar_y_na_caixa_branca()` encontra o topo e a base da
+      caixa branca `<input>` na coordenada `(x, y)` e ajusta o `Y` exatamente
+      para o meio vertical da caixa (onde as letras ficam).
+   2. Em seguida, ele caminha para a esquerda e para a direita a partir de `X`
+      calculando o percentil 85 de brilho vertical para achar as BORDAS LATERAIS
+      EXATAS daquela caixa `<input>`.
+      - Isso resolve um problema classico: campos estreitos como `ID` ou `PRAZO`
+        tem apenas 150px de largura, enquanto `ACAO PRINCIPAL` tem 400px. Ao
+        descobrir a borda real da caixa, o robo nao confunde a borda cinza do
+        campo com texto escrito!
+   3. Dentro do miolo util da caixa, ele conta os pixels escuros de tinta de
+      fonte (`luminancia < 155`) e o contraste local em blocos de 24px.
+      - Mesmo que uma caixa tenha apenas 1 caractere (ex: ID = "1"), aquele bloco
+        de 24px tera densidade de tinta suficiente para o robo saber:
+        "OPA! Esta caixa JA ESTA PREENCHIDA!"
+
+B) COMO ELE ESCOLHE APENAS CAIXAS VAZIAS (`ajustar_coordenada_para_caixa_vazia`
+   e `_resolver_caixa1_do_card`):
+   - Antes de colar qualquer valor em `(x, y)`, o robo pergunta para
+     `eh_caixa_de_texto_vazia(x, y)`.
+   - Se a caixa ja estiver preenchida, ele escaneia as caixas brancas na mesma
+     coluna `X` logo abaixo (respeitando o limite do bloco vizinho).
+   - Se encontrar uma caixa vazia abaixo, muda a mira para ela automaticamente.
+   - Em grupos codependentes (como na Pagina 4), ele localiza os botoes vermelhos
+     de exclusao (`x`) de cada sub-card e verifica quais sub-cards estao vazios
+     (`ys_x_vazios`), travando sempre no primeiro sub-card vazio!
+
+C) COMO ELE BLOQUEIA A ESCRITA EM UM BLOCO VIZINHO (`_obter_limite_y_proximo_card`
+   e `y_limite_bloco_vizinho`):
+   Na Pagina 4, existem 3 blocos empilhados verticalmente:
+     - Bloco 1: Metas e acoes (botao azul "Adicionar acao")
+     - Bloco 2: Plano orcamentario (botao azul "Adicionar linha")
+     - Bloco 3: Plano de gestao de riscos (botao azul "Adicionar risco")
+   Para impedir que o preenchimento do Bloco 1 desca demais e escreva dentro do
+   Bloco 2:
+   1. Barreira Visual Automatica: `_obter_limite_y_proximo_card()` detecta na tela
+      qualquer botao azul de cabecalho (`Adicionar...`) que esteja abaixo do botao
+      do bloco atual e cria um teto `y_limite = Y_botao_vizinho - 15px`.
+   2. Freio de Scroll: Quando o robo rola a pagina para baixo apos clicar em
+      `Adicionar`, se o botao azul do bloco vizinho subir demais na tela, o robo
+      para de rolar imediatamente para nao empurrar os campos do bloco atual para
+      cima do bloco vizinho.
+   3. Barreira Ensinada (`y_limite_bloco_vizinho` e `caixas_bloqueadas`): No modo
+      `--ensinar`, voce pode apontar com `[F8]` o bloco vizinho de baixo e gravar
+      uma linha intransponivel no JSON.
+
+--------------------------------------------------------------------------------
+3.3. `treinador.py` e o Modo "Ensinar com 3 Linhas de Amostra" (`--ensinar`)
+--------------------------------------------------------------------------------
+O `treinador.py` permite calibrar qualquer parte do sistema sem mexer em codigo.
+A funcao `ensinar_passo_a_passo_3_linhas()` (opcao `[10]` do menu ou flag
+`--ensinar`) implementa o aprendizado por demonstracao com 3 linhas:
+- Amostra 1 (Linha 1): Voce aponta as caixas vazias da 1a linha e o botao
+  `Adicionar` com `[F8]`. O robo inspeciona visualmente se cada caixa esta vazia.
+- Amostra 2 (Linha 2): O robo clica em `Adicionar` para criar a 2a linha e voce
+  aponta o 1o campo da Linha 2 com `[F8]`. Com isso, o robo subtrai `Y_linha2 - Y_linha1`
+  e aprende o `passo_y` / `passo_y_grupo` real daquele bloco!
+- Amostra 3 (Linha 3 + Scroll): O robo clica novamente em `Adicionar`, aplica o
+  scroll necessario e voce aponta o 1o campo da Linha 3 com `[F8]`.
+- Bloqueio do Bloco Vizinho: Voce aponta o cabecalho/botao do bloco de baixo com
+  `[F8]` (ou `[ENTER]` para usar a barreira visual automatica).
+Tudo fica salvo em `dados/mapeamento_campos.json`. Quando voce roda a automacao
+completa depois, ela usa esse padrao aprendido nas 3 linhas para preencher 10,
+20 ou 50 linhas sozinha!
+
+
+================================================================================
+4. ESTRUTURA DO ARQUIVO `dados/mapeamento_campos.json`
+================================================================================
+
+Quando voce abrir o arquivo `dados/mapeamento_campos.json`, vera as seguintes
+chaves principais:
+
+- `"planilha"`: `[x, y]` da celula onde o robo clica para dar `Ctrl+A` e `Ctrl+C`.
+- `"coord_toggle_todas_guias"`: `[x, y]` do botao de menu ("Todas as paginas") no
+  rodape da planilha para trocar de aba.
+- `"pagina_ativa"`: Nome da pagina selecionada por padrao no treinamento.
+- `"padroes_paginas"`: Dicionario com a configuracao completa de cada pagina:
+  - `"3. Diagnostico"`:
+    - `campos` e `passos_pagina`: Bloco 1 (`3.1. SWOT`)
+    - `bloco_2`: Bloco 2 (`3.2. Inventario de necessidades`)
+  - `"4. Metas e Planos Obrigatorios"`:
+    - `campos` e `passos_pagina`: Bloco 1 (`4.1. Metas e Acoes`)
+    - `bloco_2`: Bloco 2 (`4.2. Plano Orcamentario`)
+    - `blocos_adicionais[0]`: Bloco 3 (`4.3. Gestao de Riscos`)
+  - `"5. Capacitacao, Comunicacao e Acoes Especificas"`:
+    - `campos` e `passos_pagina`: Passo A (`5.1. Capacitacao`)
+    - `bloco_2`: Passo B (`5.3. Acoes Especificas`)
+  - `"6. Monitoramento, Anexos e Revisao"`:
+    - `campos` e `passos_pagina`: Bloco de KPIs (`MEMORIA_ETAPA_4`)
+
+Dentro de cada passo ou campo, ficam guardados:
+  - `"sistema_campo_linha1"`: `[x, y]` da 1a caixa vazia
+  - `"botao_adicionar"`: `[x, y]` do botao azul `Adicionar`
+  - `"passo_y"` / `"passo_y_grupo"`: Distancia vertical entre uma linha e a proxima
+  - `"aprendizado_3_linhas"`: Dados gravados pelo modo `--ensinar`
+  - `"y_limite_bloco_vizinho"`: Coordenada Y maxima permitida para nao invadir o
+    bloco vizinho abaixo
+  - `"caixas_bloqueadas"`: Lista de zonas protegidas onde o robo nunca cola texto
+
+
+================================================================================
+5. GUIA RAPIDO DE COMANDOS (PARA ESTUDO E USO DIARIO)
+================================================================================
+
+1) INSTALAR TODAS AS BIBLIOTECAS DO PROJETO:
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+2) ENSINAR UM BLOCO PASSO A PASSO COM 3 LINHAS DE AMOSTRA + BARREIRA DE VIZINHO:
+   .\.venv\Scripts\python.exe main.py --ensinar
+   .\.venv\Scripts\python.exe main.py --ensinar 4.1
+   .\.venv\Scripts\python.exe main.py --ensinar 4.2
+   .\.venv\Scripts\python.exe main.py --ensinar 4.3
+
+3) ABRIR O MENU COMPLETO DO TREINADOR INTERATIVO:
+   .\.venv\Scripts\python.exe main.py --calibrar
+
+4) TESTAR APENAS UM BLOCO COM LIMITE DE LINHAS (EX: 3 OU 5 LINHAS):
+   .\.venv\Scripts\python.exe main.py --bloco 3.1 --limite 5
+   .\.venv\Scripts\python.exe main.py --bloco 3.2 --limite 5
+   .\.venv\Scripts\python.exe main.py --bloco 4.1 --limite 3
+   .\.venv\Scripts\python.exe main.py --bloco 4.2 --limite 3
+   .\.venv\Scripts\python.exe main.py --bloco 4.3 --limite 3
+   .\.venv\Scripts\python.exe main.py --bloco 5.1 --limite 3
+   .\.venv\Scripts\python.exe main.py --bloco 5.3 --limite 3
+
+5) TESTAR UMA PAGINA INTEIRA (COM LIMITE OU TODAS AS LINHAS):
+   .\.venv\Scripts\python.exe main.py --pagina3 --limite 5
+   .\.venv\Scripts\python.exe main.py --pagina4 --limite 5
+   .\.venv\Scripts\python.exe main.py --pagina5 --limite 5
+   .\.venv\Scripts\python.exe main.py --pagina6 --limite 5
+
+6) RODAR A SEQUENCIA COMPLETA (PAGINAS 3 -> 4 -> 5 -> 6):
+   Com limite de 5 linhas por bloco (para teste rapido):
+     .\.venv\Scripts\python.exe main.py --tudo --limite 5
+
+   Sem limite (preenche TODAS as linhas da planilha):
+     .\.venv\Scripts\python.exe main.py --tudo
+
+7) PARADA DE EMERGENCIA A QUALQUER MOMENTO:
+   Aperte [ESC] ou [F12] uma unica vez em qualquer tela.
+================================================================================
