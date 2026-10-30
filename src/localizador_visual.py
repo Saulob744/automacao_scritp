@@ -1595,8 +1595,9 @@ def eh_caixa_de_texto_vazia(
 
     # Delimita as bordas horizontais [x_esq_rel, x_dir_rel] da caixa branca que contém `x_caixa`
     # usando o percentil 85 vertical (que permanece >= 242 no padding branco superior/inferior mesmo se houver texto,
-    # mas cai < 238 na linha vertical da borda esquerda/direita do <input>)
-    x_busca_min = max(max(0, 650 - ox), xc_rel - 360)
+    # mas cai < 238 na linha vertical da borda esquerda/direita do <input>).
+    # Usa alcance esquerdo de até 540px para alcançar a borda esquerda real (X ~ 675) mesmo em caixas largas col-md-12/col-md-8.
+    x_busca_min = max(max(0, 650 - ox), xc_rel - 540)
     x_busca_max = min(w_img - 10, xc_rel + 280)
     if x_btn_add is not None and int(x_btn_add) > int(x_caixa) + 60:
         x_busca_max = min(x_busca_max, max(xc_rel + 25, int(x_btn_add) - ox - 68))
@@ -1638,13 +1639,13 @@ def eh_caixa_de_texto_vazia(
     recorte = img_bgr[y1:y2, x1:x2]
     gray = cv2.cvtColor(recorte, cv2.COLOR_BGR2GRAY)
 
-    # Fundo branco do input (#ffffff -> gray >= 242) e ausência de caracteres digitados (#03183C -> gray < 115 / < 138).
-    # Nota: placeholders cinza-claros do HTML (ex: placeholder="A1", "0,00", "Ex.: Tesouro / Convênio") têm gray >= 145
-    # e são ignorados para que a caixa com placeholder continue sendo reconhecida como VAZIA!
+    # Fundo branco do input (#ffffff -> gray >= 242) e ausência de caracteres digitados reais (#212529 / #03183C -> gray < 78 / < 94).
+    # Nota: placeholders do Bootstrap 5 (ex: placeholder="A1", "0,00", "Ex.: Tesouro / Convênio") têm cor #6c757d (gray ~ 108..125)
+    # e NÃO possuem pixels < 78 nem < 94, garantindo que caixas vazias com placeholder sejam reconhecidas como VAZIAS!
     proporcao_branco = float(np.mean(gray >= 242))
-    pixels_muito_escuros = int(np.sum(gray < 115))
-    pixels_escuros = int(np.sum(gray < 138))
-    return proporcao_branco >= 0.85 and pixels_muito_escuros < 8 and pixels_escuros < 18
+    pixels_texto_forte = int(np.sum(gray < 78))
+    pixels_texto_medio = int(np.sum(gray < 94))
+    return proporcao_branco >= 0.82 and pixels_texto_forte < 6 and pixels_texto_medio < 14
 
 
 def detectar_caixas_de_texto_da_coluna(
@@ -2840,8 +2841,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         eh_bloco_riscos = ("RISCO" in norm_btn_add)
         eh_bloco_kpis = ("KPI" in norm_btn_add or "INDICADOR" in norm_btn_add)
 
-        passo_padrao = 110 if eh_bloco_kpis else (188 if eh_bloco_riscos else 276)
-        passo_card = int(passo_y_grupo) if (passo_y_grupo and int(passo_y_grupo) >= 85) else passo_padrao
+        passo_padrao = 110 if eh_bloco_kpis else (188 if (eh_bloco_orcamento or eh_bloco_riscos) else 276)
+        if eh_bloco_orcamento or eh_bloco_riscos:
+            passo_card = 188 if (not passo_y_grupo or int(passo_y_grupo) >= 240) else int(passo_y_grupo)
+        else:
+            passo_card = int(passo_y_grupo) if (passo_y_grupo and int(passo_y_grupo) >= 85) else passo_padrao
         y_btn_calibrado = y_btn if y_btn >= 208 else (572 if eh_bloco_metas_topo else 300)
 
         img_antes, off_antes = capturar_tela_sistema(x_btn)
@@ -3015,10 +3019,13 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         # Deslocamentos verticais relativos de cada campo até o último campo editável do sub-card (base_coords[-1])
         dy_rel_ult = [int(cy - base_coords[-1][1]) for _, cy in base_coords]
         dy_btn_para_ult_padrao = (
-            115 if eh_bloco_kpis else (199 if (eh_bloco_orcamento or eh_bloco_riscos) else 293)
+            115 if eh_bloco_kpis else (199 if (eh_bloco_orcamento or eh_bloco_riscos) else 289)
         )
-        dy_btn_para_ult = int(base_coords[-1][1] - (y_btn_calibrado if 208 <= y_btn_calibrado <= 700 else 572))
-        if dy_btn_para_ult < 60 or dy_btn_para_ult > 420:
+        if indice_caixa == 1 and ticks_subidos == 0 and 208 <= y_btn_calibrado <= 700:
+            dy_btn_para_ult = int(base_coords[-1][1] - y_btn_calibrado)
+            if dy_btn_para_ult < 60 or dy_btn_para_ult > 360:
+                dy_btn_para_ult = dy_btn_para_ult_padrao
+        else:
             dy_btn_para_ult = dy_btn_para_ult_padrao
 
         # Diferença vertical entre o botão vermelho '×' do sub-card (yx) e o último campo editável (base_coords[-1][1]):
@@ -3102,7 +3109,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
 
             # Proteção contra invasão do bloco vizinho: se o botão azul do próximo bloco (ex: 'Adicionar linha'
-            # ou 'Adicionar risco') já apareceu na parte inferior da tela (Y <= 935), para de descer imediatamente!
+            # ou 'Adicionar risco') já apareceu na parte inferior da tela (Y <= 890), para de descer imediatamente!
             if img_d1 is not None and not (eh_bloco_riscos or eh_bloco_kpis):
                 todos_b_d1 = detectar_botoes_azuis_adicionar(img_d1, off_d1, incluir_botoes_largos=True)
                 y_btn_topo_d1 = int(y_clique_btn - delta_scroll_total)
@@ -3113,7 +3120,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                     y_limite_extra=y_limite_bloco_vizinho,
                     y_minimo_abaixo=max(380, int(y_btn_topo_d1) + 260),
                 )
-                if y_lim_d1 <= 935:
+                if y_lim_d1 <= 890:
                     break
 
             if delta_step < 15:
@@ -3174,40 +3181,49 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 and not _esta_em_zona_proibida(int(base_coords[-1][0]), int(yx + dy_x_para_ult), zonas_proibidas)
             ]
 
-            # Filtra os botões '×' cujo sub-card está VAZIO (verificando o último campo editável e o 1º campo do sub-card).
-            # Nota: passa None como x_btn_add para não cortar o lado direito de campos largos (col-md-12 ou col-md-4 à direita).
+            # Filtra os botões '×' cujo sub-card está VAZIO E inteiramente visível abaixo da topbar (y_prim_cand >= 222).
+            # Nunca seleciona um sub-card cuja Linha 1 (y_prim_cand) esteja escondida atrás do cabeçalho fixo (Y < 222),
+            # e nunca dá saltos > 115px para um card anterior acima!
+            max_desvio_snap = max(95, int(passo_card * 0.45))
             ys_ult_vazios: List[int] = []
             for yx in ys_x_pos:
                 y_ult_cand = int(yx + dy_x_para_ult)
-                if y_ult_cand < 215 or y_ult_cand >= (y_lim_vizinho - 10):
+                y_prim_cand = int(y_ult_cand + dy_rel_ult[0])
+                if y_prim_cand < 222 or y_ult_cand < 222 or y_ult_cand >= (y_lim_vizinho - 10):
+                    continue
+                if abs(y_ult_cand - y_resp_atual) > max_desvio_snap:
                     continue
                 x_ult = int(base_coords[-1][0])
                 vazia_ult = eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, y_ult_cand, None)
-                y_prim_cand = int(y_ult_cand + dy_rel_ult[0])
-                if y_prim_cand >= 212:
+                vazia_prim = eh_caixa_de_texto_vazia(
+                    img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
+                )
+                if not vazia_prim and len(base_coords) >= 2 and abs(dy_rel_ult[1] - dy_rel_ult[0]) <= 18:
                     vazia_prim = eh_caixa_de_texto_vazia(
-                        img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
+                        img_pos,
+                        off_pos,
+                        int(base_coords[1][0]),
+                        int(y_ult_cand + dy_rel_ult[1]),
+                        None,
                     )
-                    eh_subcard_vazio = vazia_ult and vazia_prim
-                else:
-                    eh_subcard_vazio = vazia_ult
-                if eh_subcard_vazio:
+                if vazia_ult and vazia_prim:
                     ys_ult_vazios.append(y_ult_cand)
 
             if ys_ult_vazios:
-                # Escolhe o sub-card VAZIO mais abaixo (ou mais próximo de y_resp_atual se houver múltiplos vazios)
-                ys_ult_vazios.sort(key=lambda yu: abs(yu - y_resp_atual))
+                # Escolhe o sub-card VAZIO mais próximo de y_resp_atual (e em caso de empate, o mais abaixo)
+                ys_ult_vazios.sort(key=lambda yu: (abs(yu - y_resp_atual), -yu))
                 y_resp_escolhido = int(ys_ult_vazios[0])
             elif ys_x_pos:
-                # Se a verificação de vazio não achou, considera apenas o último sub-card da coluna (NUNCA volta para um card anterior!)
+                # Se a verificação de vazio não achou, considera apenas o último sub-card inteiramente visível da coluna
                 ys_ult_todos = [
                     int(yx + dy_x_para_ult)
                     for yx in ys_x_pos
-                    if 215 <= int(yx + dy_x_para_ult) < (y_lim_vizinho - 10)
+                    if int(yx + dy_x_para_ult + dy_rel_ult[0]) >= 222
+                    and 222 <= int(yx + dy_x_para_ult) < (y_lim_vizinho - 10)
                 ]
                 if ys_ult_todos:
                     ult_da_coluna = int(ys_ult_todos[-1])
-                    if abs(ult_da_coluna - y_resp_atual) <= 65 or ult_da_coluna >= y_resp_atual:
+                    if abs(ult_da_coluna - y_resp_atual) <= max_desvio_snap:
                         y_resp_escolhido = ult_da_coluna
 
         novas_coords_topo: List[Tuple[int, int]] = []

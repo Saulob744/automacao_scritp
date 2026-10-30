@@ -636,7 +636,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     },
                     "DESCRIÇÃO DO CUSTO": {
                         "coluna_planilha": "DESCRIÇÃO DO CUSTO",
@@ -654,7 +654,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     },
                     "FONTE DE RECURSO": {
                         "coluna_planilha": "FONTE DE RECURSO",
@@ -672,7 +672,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     },
                     "ANO 1": {
                         "coluna_planilha": "ANO 1",
@@ -690,7 +690,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     },
                     "ANO 2": {
                         "coluna_planilha": "ANO 2",
@@ -708,7 +708,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     },
                     "ANO 3": {
                         "coluna_planilha": "ANO 3",
@@ -726,7 +726,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     },
                     "ANO 4": {
                         "coluna_planilha": "ANO 4",
@@ -744,7 +744,7 @@
                         ],
                         "tipo": "caixa_texto",
                         "tem_adicionar": true,
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     }
                 },
                 "caixas_bloqueadas": [],
@@ -769,7 +769,7 @@
                             1769,
                             510
                         ],
-                        "passo_y_grupo": 276
+                        "passo_y_grupo": 188
                     }
                 ]
             },
@@ -798,7 +798,7 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                850,
+                                815,
                                 620
                             ],
                             "botao_adicionar": [
@@ -816,7 +816,7 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                1150,
+                                1055,
                                 620
                             ],
                             "botao_adicionar": [
@@ -834,7 +834,7 @@
                                 588
                             ],
                             "sistema_campo_linha1": [
-                                1340,
+                                1245,
                                 620
                             ],
                             "botao_adicionar": [

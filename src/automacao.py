@@ -49,6 +49,7 @@ from src.localizador_visual import (
     clicar_adicionar_e_avancar_caixa,
     clicar_adicionar_e_avancar_grupo_codependente,
     clicar_botao_proxima_etapa_no_sistema,
+    detectar_botoes_remover_da_coluna,
     eh_caixa_de_texto_vazia,
     ir_para_topo_da_pagina,
     localizar_card_com_ctrl_f_e_visao,
@@ -831,10 +832,32 @@ def _executar_passo_grupo_codependente(
         img_ini, off_ini = capturar_tela_sistema(coords_atuais[0][0])
         if img_ini is not None:
             if ancorado_no_topo:
-                coords_atuais = [
-                    (cx, centralizar_y_na_caixa_branca(img_ini, off_ini, cx, cy))
-                    for cx, cy in coords_atuais
-                ]
+                if eh_bloco_orcamentario or eh_bloco_riscos or eh_bloco_kpis:
+                    ys_x_ini = detectar_botoes_remover_da_coluna(
+                        img_ini, off_ini, int(coord_btn_atual[0]), min_y=int(coord_btn_atual[1]) + 20, max_y=920
+                    )
+                    if ys_x_ini:
+                        y_x1 = ys_x_ini[0]
+                        y_prim_base = int(coords_iniciais[0][1])
+                        coords_atuais = [
+                            (
+                                cx,
+                                centralizar_y_na_caixa_branca(
+                                    img_ini, off_ini, cx, y_x1 + int(cy_orig - y_prim_base)
+                                ),
+                            )
+                            for (cx, _), (_, cy_orig) in zip(coords_atuais, coords_iniciais)
+                        ]
+                    else:
+                        coords_atuais = [
+                            (cx, centralizar_y_na_caixa_branca(img_ini, off_ini, cx, cy))
+                            for cx, cy in coords_atuais
+                        ]
+                else:
+                    coords_atuais = [
+                        (cx, centralizar_y_na_caixa_branca(img_ini, off_ini, cx, cy))
+                        for cx, cy in coords_atuais
+                    ]
                 coords_base_fundo = list(coords_atuais)
             vazia_c0 = eh_caixa_de_texto_vazia(
                 img_ini, off_ini, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
@@ -1906,7 +1929,7 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                 "botao_adicionar": [1769, 510],
                 "tipo": tipo_c,
                 "tem_adicionar": True,
-                "passo_y_grupo": 276,
+                "passo_y_grupo": 188,
             }
         p4["bloco_2"] = {
             "nome_bloco": "Plano orçamentário e de investimentos",
@@ -1930,7 +1953,7 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                     "ancorado_no_topo": True,
                     "campos": list(COLUNAS_PLANO_ORCAMENTARIO),
                     "botao_adicionar": [1769, 510],
-                    "passo_y_grupo": 276,
+                    "passo_y_grupo": 188,
                 }
             ],
         }
@@ -1941,9 +1964,9 @@ def _garantir_estrutura_blocos_fases_4_5_6(
     if not isinstance(blocos_extras_p4, list) or not blocos_extras_p4:
         campos_b3_p4: Dict[str, Any] = {}
         definicao_b3_p4 = [
-            ("RISCO IDENTIFICADO", "RISCO IDENTIFICADO", "caixa_texto", None, [850, 620]),
-            ("PROBABILIDADE", "PROBABILIDADE", "caixa_texto", None, [1150, 620]),
-            ("IMPACTO", "IMPACTO", "caixa_texto", None, [1340, 620]),
+            ("RISCO IDENTIFICADO", "RISCO IDENTIFICADO", "caixa_texto", None, [815, 620]),
+            ("PROBABILIDADE", "PROBABILIDADE", "caixa_texto", None, [1055, 620]),
+            ("IMPACTO", "IMPACTO", "caixa_texto", None, [1245, 620]),
             ("NÍVEL", "NÍVEL", "caixa_texto", None, [1530, 620]),
             ("AÇÃO DE MITIGAÇÃO", "AÇÃO DE MITIGAÇÃO", "caixa_texto", None, [1020, 709]),
             ("RESPONSÁVEL PELO RISCO", "RESPONSÁVEL PELO RISCO", "caixa_texto", None, [1610, 709]),
