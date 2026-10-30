@@ -3181,44 +3181,74 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 and not _esta_em_zona_proibida(int(base_coords[-1][0]), int(yx + dy_x_para_ult), zonas_proibidas)
             ]
 
-            # Filtra os botões '×' cujo sub-card está VAZIO E inteiramente visível abaixo da topbar (y_prim_cand >= 222).
-            # Nunca seleciona um sub-card cuja Linha 1 (y_prim_cand) esteja escondida atrás do cabeçalho fixo (Y < 222),
-            # e nunca dá saltos > 115px para um card anterior acima!
-            max_desvio_snap = max(95, int(passo_card * 0.45))
-            ys_ult_vazios: List[int] = []
+            # Mede a distância real entre sub-cards consecutivos pelos botões '×' visíveis (Lei da Distância Constante ΔY)
+            if len(ys_x_pos) >= 2:
+                ult_dy_x = int(ys_x_pos[-1] - ys_x_pos[-2])
+                if abs(ult_dy_x - passo_card) <= 32:
+                    passo_card = ult_dy_x
+
+            # Identifica a posição na tela da CAIXA ANTERIOR já preenchida (max_y_preenchido):
+            # Pela regra de distância constante a partir da caixa anterior, a nova caixa recém-criada
+            # surge SEMPRE em (max_y_preenchido + passo_card) e NUNCA acima de uma caixa já preenchida!
+            max_y_preenchido = -1
+            status_vazio_por_yx: List[Tuple[int, int, bool]] = []
             for yx in ys_x_pos:
                 y_ult_cand = int(yx + dy_x_para_ult)
                 y_prim_cand = int(y_ult_cand + dy_rel_ult[0])
-                if y_prim_cand < 222 or y_ult_cand < 222 or y_ult_cand >= (y_lim_vizinho - 10):
-                    continue
-                if abs(y_ult_cand - y_resp_atual) > max_desvio_snap:
+                if y_ult_cand >= (y_lim_vizinho - 10):
                     continue
                 x_ult = int(base_coords[-1][0])
-                vazia_ult = eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, y_ult_cand, None)
-                vazia_prim = eh_caixa_de_texto_vazia(
-                    img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
+                vazia_ult = (
+                    eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, y_ult_cand, None)
+                    if y_ult_cand >= 222
+                    else False
                 )
-                if not vazia_prim and len(base_coords) >= 2 and abs(dy_rel_ult[1] - dy_rel_ult[0]) <= 18:
+                if y_prim_cand >= 222:
                     vazia_prim = eh_caixa_de_texto_vazia(
-                        img_pos,
-                        off_pos,
-                        int(base_coords[1][0]),
-                        int(y_ult_cand + dy_rel_ult[1]),
-                        None,
+                        img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
                     )
-                if vazia_ult and vazia_prim:
-                    ys_ult_vazios.append(y_ult_cand)
+                    if not vazia_prim and len(base_coords) >= 2 and abs(dy_rel_ult[1] - dy_rel_ult[0]) <= 18:
+                        vazia_prim = eh_caixa_de_texto_vazia(
+                            img_pos,
+                            off_pos,
+                            int(base_coords[1][0]),
+                            int(y_ult_cand + dy_rel_ult[1]),
+                            None,
+                        )
+                else:
+                    vazia_prim = False
+
+                card_vazio = bool(vazia_ult and vazia_prim and y_prim_cand >= 222 and y_ult_cand >= 222)
+                if not card_vazio and y_ult_cand >= 222:
+                    max_y_preenchido = max(max_y_preenchido, y_ult_cand)
+                status_vazio_por_yx.append((yx, y_ult_cand, card_vazio))
+
+            # Se encontrou a caixa anterior preenchida na tela, a nova caixa está exatamente a +passo_card abaixo dela!
+            if max_y_preenchido >= 222:
+                y_esperado_pela_anterior = int(max_y_preenchido + passo_card)
+                if 222 <= y_esperado_pela_anterior < (y_lim_vizinho - 10):
+                    y_resp_atual = y_esperado_pela_anterior
+
+            max_desvio_snap = max(95, int(passo_card * 0.45))
+            ys_ult_vazios: List[int] = [
+                y_ult_cand
+                for _, y_ult_cand, card_vazio in status_vazio_por_yx
+                if card_vazio
+                and y_ult_cand > max_y_preenchido
+                and abs(y_ult_cand - y_resp_atual) <= max_desvio_snap
+            ]
 
             if ys_ult_vazios:
-                # Escolhe o sub-card VAZIO mais próximo de y_resp_atual (e em caso de empate, o mais abaixo)
+                # Escolhe o sub-card VAZIO abaixo da caixa anterior mais próximo de (max_y_preenchido + passo_card)
                 ys_ult_vazios.sort(key=lambda yu: (abs(yu - y_resp_atual), -yu))
                 y_resp_escolhido = int(ys_ult_vazios[0])
             elif ys_x_pos:
-                # Se a verificação de vazio não achou, considera apenas o último sub-card inteiramente visível da coluna
+                # Se a verificação de vazio não achou, considera apenas o último sub-card abaixo de max_y_preenchido
                 ys_ult_todos = [
                     int(yx + dy_x_para_ult)
                     for yx in ys_x_pos
                     if int(yx + dy_x_para_ult + dy_rel_ult[0]) >= 222
+                    and int(yx + dy_x_para_ult) > max_y_preenchido
                     and 222 <= int(yx + dy_x_para_ult) < (y_lim_vizinho - 10)
                 ]
                 if ys_ult_todos:

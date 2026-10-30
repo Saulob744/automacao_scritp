@@ -1803,15 +1803,34 @@ def ensinar_passo_a_passo_3_linhas(
             time.sleep(0.55)
 
         passo_y_atual = int(passo_grupo.get("passo_y_grupo") or 215)
-        coord_sug_l2 = [int(coords_l1[primeiro_campo][0]), y1_ref + passo_y_atual]
+        coord_sug_l2 = [int(coords_l1[primeiro_campo][0]), min(860, y1_ref + passo_y_atual)]
+        print(
+            "   💡 Dica: Se a 2ª caixa nasceu abaixo da tela, você pode rolar um pouco a página antes de apertar [F8]"
+            " (deixe a 1ª e a 2ª caixas visíveis na tela para medir a distância exata entre elas!)."
+        )
         cx2, cy2, _ = aguardar_captura_ponto_f8(
-            mensagem_instrucao=f"[Linha 2] Aponte o 1º campo ('{primeiro_campo}') da 2ª LINHA VAZIA e aperte [F8]",
+            mensagem_instrucao=f"[Linha 2] Aponte o 1º campo ('{primeiro_campo}') da 2ª CAIXA VAZIA e aperte [F8]",
             coord_atual=coord_sug_l2,
             permitir_sem_ponto=False,
         )
         y2_ref = int(cy2) if cy2 is not None else (y1_ref + passo_y_atual)
-        dy_1_2 = max(35, y2_ref - y1_ref)
-        print(f"   📐 Distância aprendida da Linha 1 -> Linha 2: +{dy_1_2}px (Y={y1_ref} -> Y={y2_ref})")
+        dy_1_2 = y2_ref - y1_ref
+        if dy_1_2 < 85:
+            # O usuário rolou a tela para ver a 2ª caixa! Mede na MESMA tela onde está o 1º campo da 1ª caixa:
+            print(
+                "   🔍 Como a página foi rolada, aponte agora na MESMA tela (sem rolar) o 1º campo da 1ª CAIXA acima para medir a distância exata:"
+            )
+            _, cy1_mesma_tela, _ = aguardar_captura_ponto_f8(
+                mensagem_instrucao=f"[Referência na mesma tela] Aponte o 1º campo ('{primeiro_campo}') da 1ª CAIXA acima e aperte [F8]",
+                coord_atual=[int(coords_l1[primeiro_campo][0]), max(230, y2_ref - passo_y_atual)],
+                permitir_sem_ponto=False,
+            )
+            if cy1_mesma_tela is not None and (y2_ref - int(cy1_mesma_tela)) >= 60:
+                dy_1_2 = int(y2_ref - int(cy1_mesma_tela))
+            else:
+                dy_1_2 = passo_y_atual
+        dy_1_2 = max(45, int(dy_1_2))
+        print(f"   📐 Distância exata aprendida entre caixas consecutivas (ΔY): +{dy_1_2}px!")
 
         print("\n" + "-" * 82)
         print("📋 [AMOSTRA 3/3 — LINHA 3 DO BLOCO + SCROLL]")
@@ -1958,6 +1977,15 @@ def ensinar_passo_a_passo_3_linhas(
 
 def main() -> None:
     modo_completo_cli = "--completo" in sys.argv or "--tudo" in sys.argv
+    if "--pagina4" in sys.argv or "--p4" in sys.argv:
+        print("\n🎯 TREINAMENTO POR DISTÂNCIA DE CAIXAS — SOMENTE PÁGINA 4 (SEM MEXER NA PLANILHA)")
+        print("  [1] 4.1. Metas e Ações (7 campos + Adicionar ação)")
+        print("  [2] 4.2. Plano Orçamentário (7 campos + Adicionar linha)")
+        print("  [3] 4.3. Gestão de Riscos (6 campos + Adicionar risco)")
+        esc_p4 = input("Qual bloco da Página 4 deseja calibrar agora? [1/2/3, ENTER=1]: ").strip() or "1"
+        mapa_p4 = {"1": "4.1", "2": "4.2", "3": "4.3", "4.1": "4.1", "4.2": "4.2", "4.3": "4.3"}
+        ensinar_passo_a_passo_3_linhas(bloco_alvo=mapa_p4.get(esc_p4, "4.1"))
+        return
     if "--ensinar" in sys.argv:
         idx_e = sys.argv.index("--ensinar")
         alvo_e = sys.argv[idx_e + 1] if (idx_e + 1) < len(sys.argv) and not sys.argv[idx_e + 1].startswith("-") else None

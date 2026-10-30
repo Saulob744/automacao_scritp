@@ -899,6 +899,48 @@ def _executar_passo_grupo_codependente(
             f"\n  🧩 [{rotulo_item} {idx_bloco + 1}/{len(linhas_grupo)} ({info_ordem_seq}Linha {num_linha_planilha} da planilha)] "
             f"Preenchendo os {len(campos_grupo)} campos na sequência antes de clicar em '{nome_botao_html}'..."
         )
+
+        # AUTOCORREÇÃO PRÉ-COLAGEM (a partir da 2ª caixa):
+        # Confere se o sub-card mirado está realmente vazio antes de colar o 1º campo;
+        # se tiver caído em um card anterior já preenchido, avança automaticamente +ΔY (passo_y_grupo) para a caixa vazia abaixo!
+        if idx_bloco >= 1 and coords_atuais:
+            img_pre, off_pre = capturar_tela_sistema(coords_atuais[0][0])
+            if img_pre is not None:
+                v_prim_pre = eh_caixa_de_texto_vazia(
+                    img_pre, off_pre, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
+                )
+                if not v_prim_pre and len(coords_atuais) >= 2 and abs(coords_atuais[1][1] - coords_atuais[0][1]) <= 18:
+                    v_prim_pre = eh_caixa_de_texto_vazia(
+                        img_pre, off_pre, int(coords_atuais[1][0]), int(coords_atuais[1][1]), None
+                    )
+                v_ult_pre = eh_caixa_de_texto_vazia(
+                    img_pre, off_pre, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), None
+                )
+                if not v_prim_pre and not v_ult_pre:
+                    passo_corr = int(
+                        passo_y_grupo
+                        or (188 if (eh_bloco_orcamentario or eh_bloco_riscos) else (110 if eh_bloco_kpis else 276))
+                    )
+                    print(
+                        f"  🛠️ [AUTOCORREÇÃO PRÉ-COLAGEM] Caixa alvo em Y={coords_atuais[0][1]} já estava ocupada! "
+                        f"Avançando +{passo_corr}px (distância ΔY da caixa anterior) para a caixa vazia abaixo..."
+                    )
+                    if int(coords_atuais[-1][1]) + passo_corr > 865:
+                        ticks_c = max(2, min(4, int(round(passo_corr / 94.0))))
+                        rolar_pagina(-ticks_c, x=1230, y=500)
+                        time.sleep(0.35)
+                        img_pre, off_pre = capturar_tela_sistema(coords_atuais[0][0])
+                    else:
+                        coords_atuais = [
+                            (
+                                cx,
+                                centralizar_y_na_caixa_branca(img_pre, off_pre, cx, int(cy + passo_corr))
+                                if img_pre is not None
+                                else int(cy + passo_corr),
+                            )
+                            for cx, cy in coords_atuais
+                        ]
+
         campos_preenchidos_na_linha = 0
         for idx_c, c_nome in enumerate(campos_grupo):
             if verificar_aborto():
@@ -961,6 +1003,30 @@ def _executar_passo_grupo_codependente(
             )
             if not ok:
                 return False, ja_rolou_para_baixo
+
+            # AUTOCORREÇÃO PÓS-COLAGEM no 1º campo da caixa:
+            # Se após colar no 1º campo a caixa continuou 100% em branco (ex: perda de foco),
+            # centraliza novamente na caixa branca e repete o clique + Ctrl+V!
+            if idx_c == 0 and info_c.get("tipo") != "barra_suspensa":
+                img_pos_c, off_pos_c = capturar_tela_sistema(coords_atuais[0][0])
+                if img_pos_c is not None and eh_caixa_de_texto_vazia(
+                    img_pos_c, off_pos_c, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
+                ):
+                    cy_retry = centralizar_y_na_caixa_branca(
+                        img_pos_c, off_pos_c, int(coords_atuais[0][0]), int(coords_atuais[0][1])
+                    )
+                    print(
+                        f"  🛠️ [AUTOCORREÇÃO PÓS-COLAGEM] Reforçando foco e colagem em '{c_nome}' "
+                        f"em ({coords_atuais[0][0]}, {cy_retry})..."
+                    )
+                    copiar_para_clipboard(valor_c)
+                    mover_e_clicar(int(coords_atuais[0][0]), int(cy_retry))
+                    time.sleep(0.08)
+                    atalho_teclado("ctrl", "a")
+                    time.sleep(0.04)
+                    atalho_teclado("ctrl", "v")
+                    time.sleep(0.12)
+
             campos_preenchidos_na_linha += 1
 
         tem_proximo_bloco = (idx_bloco + 1) < len(linhas_grupo)
