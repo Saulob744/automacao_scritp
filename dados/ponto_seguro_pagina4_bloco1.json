@@ -1,0 +1,175 @@
+{
+    "descricao": "Ponto de retorno seguro validado da Página 4 — Bloco 1 ('4.1. Metas e Ações' / 'Metas e ações'). Não alterar a lógica nem coordenadas deste bloco.",
+    "commit_referencia": "a5ed19e",
+    "pagina": "4. Metas e Planos Obrigatórios",
+    "bloco_1": {
+        "nome_pagina": "4. Metas e Planos Obrigatórios",
+        "nome_bloco_1": "4. Metas e Planos Obrigatórios — Bloco 1 (Metas e ações)",
+        "nome_guia_planilha": "4.1. Metas e Ações",
+        "coord_celula_planilha": [
+            -1534,
+            588
+        ],
+        "nome_guia_sistema": "4. Metas e Planos",
+        "step_index_sistema": 3,
+        "coord_guia_sistema": [
+            426,
+            563
+        ],
+        "coord_toggle_todas_guias": [
+            -1812,
+            1012
+        ],
+        "campos": {
+            "ID": {
+                "coluna_planilha": "ID OE.TIC",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    748,
+                    687
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "OBJETIVO ESTRATÉGICO": {
+                "coluna_planilha": "OBJETIVO ESTRATÉGICO DE TIC",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    1053,
+                    685
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "META": {
+                "coluna_planilha": "META",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    1496,
+                    690
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "AÇÃO PRINCIPAL": {
+                "coluna_planilha": "RESULTADO-CHAVE (KR) ESPERADO (AÇÃO PRINCIPAL)",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    798,
+                    776
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "INDICADOR": {
+                "coluna_planilha": "INDICADOR-CHAVE DE DESEMPENHO (KPI)",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    1156,
+                    775
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "PRAZO": {
+                "coluna_planilha": "PRAZO (QUADRANTE + ANO)",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    1428,
+                    781
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "RESPONSÁVEL": {
+                "coluna_planilha": "RESPONSÁVEL",
+                "planilha_linha1": [
+                    -1534,
+                    588
+                ],
+                "sistema_campo_linha1": [
+                    1136,
+                    865
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            }
+        },
+        "passos_pagina": [
+            {
+                "tipo_passo": "grupo_codependente",
+                "nome_passo": "Metas e ações",
+                "titulo_card_busca": "Metas e ações",
+                "texto_botao_adicionar": "Adicionar ação",
+                "ancorado_no_topo": true,
+                "campos": [
+                    "ID",
+                    "OBJETIVO ESTRATÉGICO",
+                    "META",
+                    "AÇÃO PRINCIPAL",
+                    "INDICADOR",
+                    "PRAZO",
+                    "RESPONSÁVEL"
+                ],
+                "botao_adicionar": [
+                    1769,
+                    572
+                ],
+                "passo_y_grupo": 286
+            }
+        ]
+    }
+}

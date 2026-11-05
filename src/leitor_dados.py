@@ -149,6 +149,10 @@ SINONIMOS_SWOT = {
         "DESCRICAO DA DESPESA",
         "DESCRIÇÃO DA DESPESA",
         "DESPESA",
+        "DESCRICAO DA INICIATIVA",
+        "DESCRIÇÃO DA INICIATIVA",
+        "DESCRICAO DA ACAO",
+        "DESCRIÇÃO DA AÇÃO",
     },
     "FONTE DE RECURSO": {
         "FONTE DE RECURSO",
@@ -507,7 +511,10 @@ def _celula_corresponde_coluna(celula: str, nome_esperado: str) -> bool:
         ):
             return True
         if chave_canon == "DESCRIÇÃO DO CUSTO" and (
-            "CUSTO" in cel_sem or "DESPESA" in cel_sem
+            "CUSTO" in cel_sem
+            or "DESPESA" in cel_sem
+            or "DESCRICAO DA INICIATIVA" in cel_sem
+            or "DESCRICAO DA ACAO" in cel_sem
         ):
             return True
         if chave_canon == "FONTE DE RECURSO" and "FONTE" in cel_sem:
@@ -862,7 +869,7 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 idx_min_ano = 0
                 for chave_ant in ("FONTE DE RECURSO", "DESCRIÇÃO DO CUSTO", "AÇÃO (ID)"):
                     for k_map, v_map in mapa_coluna_para_indice.items():
-                        if normalizar_nome_coluna(k_map) == chave_ant:
+                        if _resolver_chave_sinonimo(k_map) == chave_ant:
                             idx_min_ano = max(idx_min_ano, v_map + 1)
                 cols_anos_detectadas: List[int] = []
                 for idx_c in range(idx_min_ano, max_cols_cab):
@@ -870,17 +877,25 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                         continue
                     c_top = linha_cab[idx_c] if idx_c < len(linha_cab) else ""
                     c_bot = prox_cab[idx_c] if idx_c < len(prox_cab) else ""
-                    comb_ano = remover_acentos(f"{c_top} {c_bot}".strip())
-                    if "TOTAL" in comb_ano:
+                    c_top_sem = remover_acentos(c_top)
+                    c_bot_sem = remover_acentos(c_bot)
+                    if "TOTAL" in c_top_sem or "TOTAL" in c_bot_sem:
                         continue
+                    # 1. Verifica primeiro se o próprio cabeçalho principal (c_top) contém o ano (sem consumir a 1ª linha de dados!)
                     if (
-                        re.search(r"\b20[2-3]\d\b", comb_ano)
-                        or re.search(r"\bANO\s*[1-4]\b", comb_ano)
-                        or re.search(r"\b[1-4][º°]?\s*ANO\b", comb_ano)
+                        re.search(r"\b20[2-3]\d\b", c_top_sem)
+                        or re.search(r"\bANO\s*[1-4]\b", c_top_sem)
+                        or re.search(r"\b[1-4][º°]?\s*ANO\b", c_top_sem)
                     ):
                         cols_anos_detectadas.append(idx_c)
-                        if len(prox_cab) > idx_c and prox_cab[idx_c].strip():
-                            usou_linha_abaixo_no_cabecalho = True
+                    # 2. Só verifica a linha imediatamente abaixo (c_bot) se não for valor monetário (R$) de linha de dados
+                    elif "R$" not in c_bot_sem and (
+                        re.search(r"\b20[2-3]\d\b", c_bot_sem)
+                        or re.search(r"\bANO\s*[1-4]\b", c_bot_sem)
+                        or re.search(r"\b[1-4][º°]?\s*ANO\b", c_bot_sem)
+                    ):
+                        cols_anos_detectadas.append(idx_c)
+                        usou_linha_abaixo_no_cabecalho = True
                 if len(cols_anos_detectadas) >= len(anos_esperados):
                     for nome_ano, idx_ano in zip(anos_esperados, cols_anos_detectadas):
                         mapa_coluna_para_indice[nome_ano] = idx_ano
@@ -901,6 +916,7 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     ):
                         mapa_coluna_para_indice[nome_ano] = idx_ano
 
+            espera_prioridade = any(_resolver_chave_sinonimo(n) == "PRIORIDADE" for n in nomes_colunas_esperados)
             cols_candidatas: List[int] = []
             for idx_c in range(max_cols_cab):
                 if idx_c in mapa_coluna_para_indice.values():
@@ -912,6 +928,10 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 ).strip()
                 txt_sem = remover_acentos(txt_c)
                 if not txt_sem or txt_sem in COLUNAS_METADADOS_IGNORADAS or txt_sem in TITULOS_IGNORADOS:
+                    continue
+                if "TOTAL" in txt_sem:
+                    continue
+                if not espera_prioridade and "PRIORIDADE" in txt_sem:
                     continue
                 cols_candidatas.append(idx_c)
 

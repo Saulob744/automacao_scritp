@@ -260,8 +260,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 675,
-        "x_max_input": 940,
+        "x_min_input": 720,
+        "x_max_input": 915,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -270,8 +270,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 955,
-        "x_max_input": 1225,
+        "x_min_input": 980,
+        "x_max_input": 1175,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -280,8 +280,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 1240,
-        "x_max_input": 1510,
+        "x_min_input": 1245,
+        "x_max_input": 1440,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -290,8 +290,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 1525,
-        "x_max_input": 1805,
+        "x_min_input": 1505,
+        "x_max_input": 1705,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -2888,11 +2888,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         eh_bloco_riscos = ("RISCO" in norm_btn_add)
         eh_bloco_kpis = ("KPI" in norm_btn_add or "INDICADOR" in norm_btn_add)
 
-        passo_padrao = 110 if eh_bloco_kpis else (188 if (eh_bloco_orcamento or eh_bloco_riscos) else 286)
-        if eh_bloco_orcamento or eh_bloco_riscos:
+        passo_padrao = 110 if eh_bloco_kpis else (188 if eh_bloco_riscos else 286)
+        if eh_bloco_riscos:
             passo_card = 188 if (not passo_y_grupo or int(passo_y_grupo) >= 240) else int(passo_y_grupo)
-        elif eh_bloco_metas_topo:
-            passo_card = 286 if (not passo_y_grupo or int(passo_y_grupo) == 276) else int(passo_y_grupo)
+        elif eh_bloco_metas_topo or eh_bloco_orcamento:
+            passo_card = 286 if (not passo_y_grupo or int(passo_y_grupo) in (188, 276)) else int(passo_y_grupo)
         else:
             passo_card = int(passo_y_grupo) if (passo_y_grupo and int(passo_y_grupo) >= 85) else passo_padrao
         y_btn_calibrado = y_btn if y_btn >= 208 else (572 if eh_bloco_metas_topo else 300)
@@ -3214,8 +3214,9 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                         )
 
         # Se o cabeçalho/botão do próximo bloco abaixo (y_lim_vizinho) está visível na tela (480 <= y_lim_vizinho <= 945),
-        # o novo sub-card recém-criado é SEMPRE o último sub-card do bloco atual, posicionado exatamente 62px acima de y_lim_vizinho!
-        if not (eh_bloco_riscos or eh_bloco_kpis) and 480 <= y_lim_vizinho <= 945:
+        # em 'Metas e ações' o último campo editável (RESPONSÁVEL) é a última linha do sub-card (62px acima de y_lim_vizinho).
+        # Já em 'Plano orçamentário', abaixo de ANO 1..4 ainda existem a linha 'Total' (readonly) e a caixa 'Totais consolidados'!
+        if eh_bloco_metas_topo and 480 <= y_lim_vizinho <= 945:
             y_resp_atual = int(y_lim_vizinho - 62)
 
         y_resp_escolhido = min(y_lim_vizinho - 22, int(y_resp_atual))
@@ -3250,7 +3251,8 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             ]
             if ys_ult_todos:
                 ult_da_coluna = int(ys_ult_todos[-1])
-                if abs(ult_da_coluna - y_resp_atual) <= max(105, int(passo_card * 0.45)):
+                tol_ult = max(165, int(passo_card * 0.65)) if eh_bloco_orcamento else max(105, int(passo_card * 0.45))
+                if abs(ult_da_coluna - y_resp_atual) <= tol_ult:
                     y_resp_escolhido = ult_da_coluna
 
         novas_coords_topo: List[Tuple[int, int]] = []

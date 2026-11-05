@@ -873,6 +873,17 @@ def _executar_passo_grupo_codependente(
                             (cx, centralizar_y_na_caixa_branca(img_ini, off_ini, cx, cy))
                             for cx, cy in coords_atuais
                         ]
+                    # Unifica o Y dos campos da mesma linha horizontal do 1º sub-card (ex: Linha 1 = AÇÃO (ID), DESCRIÇÃO DO CUSTO, FONTE DE RECURSO; Linha 2 = ANO 1..4)
+                    coords_unif_ini: List[Tuple[int, int]] = []
+                    for i_c, (cx_i, cy_i) in enumerate(coords_atuais):
+                        ys_lh = [
+                            coords_atuais[j_c][1]
+                            for j_c in range(len(coords_atuais))
+                            if abs(coords_iniciais[j_c][1] - coords_iniciais[i_c][1]) <= 12
+                        ]
+                        y_med_ini = sorted(ys_lh)[len(ys_lh) // 2] if ys_lh else cy_i
+                        coords_unif_ini.append((cx_i, int(y_med_ini)))
+                    coords_atuais = coords_unif_ini
                 else:
                     coords_atuais = [
                         (cx, centralizar_y_na_caixa_branca(img_ini, off_ini, cx, cy))
@@ -963,7 +974,7 @@ def _executar_passo_grupo_codependente(
                 if not v_c0 and not v_cn:
                     passo_corr = int(
                         passo_y_grupo
-                        or (188 if (eh_bloco_orcamentario or eh_bloco_riscos) else (110 if eh_bloco_kpis else 286))
+                        or (188 if eh_bloco_riscos else (110 if eh_bloco_kpis else 286))
                     )
                     print(
                         f"  🛡️ [PROTEÇÃO DE CAMPO PREENCHIDO] Sub-card em Y={coords_atuais[0][1]} já está preenchido! "
@@ -2032,16 +2043,17 @@ def _garantir_estrutura_blocos_fases_4_5_6(
     coord_cel_p4 = list(p4.get("coord_celula_planilha") or coord_plan_padrao)
 
     # Bloco 2 da Página 4: Guia '4.2. Plano Orçamentário' -> 'Plano orçamentário e de investimentos'
+    # Nota HTML: Cada sub-card de 'budget-plan' possui 3 linhas (Linha 1: Ação/Descrição/Fonte; Linha 2: Ano 1..4 com prefixo R$; Linha 3: Total readonly), altura = 286px!
     if not isinstance(p4.get("bloco_2"), dict) or not (p4["bloco_2"].get("campos")):
         campos_b2_p4: Dict[str, Any] = {}
         definicao_b2_p4 = [
             ("AÇÃO (ID)", "AÇÃO (ID)", "caixa_texto", None, [755, 620]),
             ("DESCRIÇÃO DO CUSTO", "DESCRIÇÃO DO CUSTO", "caixa_texto", None, [1065, 620]),
             ("FONTE DE RECURSO", "FONTE DE RECURSO", "caixa_texto", None, [1500, 620]),
-            ("ANO 1", "ANO 1", "caixa_texto", None, [805, 709]),
-            ("ANO 2", "ANO 2", "caixa_texto", None, [1065, 709]),
-            ("ANO 3", "ANO 3", "caixa_texto", None, [1325, 709]),
-            ("ANO 4", "ANO 4", "caixa_texto", None, [1585, 709]),
+            ("ANO 1", "ANO 1", "caixa_texto", None, [815, 709]),
+            ("ANO 2", "ANO 2", "caixa_texto", None, [1080, 709]),
+            ("ANO 3", "ANO 3", "caixa_texto", None, [1340, 709]),
+            ("ANO 4", "ANO 4", "caixa_texto", None, [1605, 709]),
         ]
         for nome_c, col_plan, tipo_c, opcoes_c, coord_sug in definicao_b2_p4:
             campos_b2_p4[nome_c] = {
@@ -2051,7 +2063,7 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                 "botao_adicionar": [1769, 510],
                 "tipo": tipo_c,
                 "tem_adicionar": True,
-                "passo_y_grupo": 188,
+                "passo_y_grupo": 286,
             }
         p4["bloco_2"] = {
             "nome_bloco": "Plano orçamentário e de investimentos",
@@ -2075,10 +2087,23 @@ def _garantir_estrutura_blocos_fases_4_5_6(
                     "ancorado_no_topo": True,
                     "campos": list(COLUNAS_PLANO_ORCAMENTARIO),
                     "botao_adicionar": [1769, 510],
-                    "passo_y_grupo": 188,
+                    "passo_y_grupo": 286,
                 }
             ],
         }
+    else:
+        b2_p4_exist = p4["bloco_2"]
+        xs_anos_white = {"ANO 1": 815, "ANO 2": 1080, "ANO 3": 1340, "ANO 4": 1605}
+        for k_c, info_c_b2 in (b2_p4_exist.get("campos") or {}).items():
+            if isinstance(info_c_b2, dict):
+                if info_c_b2.get("passo_y_grupo") == 188:
+                    info_c_b2["passo_y_grupo"] = 286
+                if k_c in xs_anos_white and isinstance(info_c_b2.get("sistema_campo_linha1"), list) and len(info_c_b2["sistema_campo_linha1"]) >= 2:
+                    if info_c_b2["sistema_campo_linha1"][0] in (805, 1065, 1325, 1585):
+                        info_c_b2["sistema_campo_linha1"][0] = xs_anos_white[k_c]
+        for p_b2 in (b2_p4_exist.get("passos_pagina") or []):
+            if isinstance(p_b2, dict) and p_b2.get("passo_y_grupo") == 188:
+                p_b2["passo_y_grupo"] = 286
 
     # Bloco 3 da Página 4: Guia '4.3. Gestão de Riscos' -> 'Plano de gestão de riscos'
     # Nota HTML: Todos os 6 campos de risk-plan são <input type="text" class="form-control">!
