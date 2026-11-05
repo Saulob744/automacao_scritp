@@ -197,7 +197,7 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "goals-actions",
         "texto_botao": "Adicionar ação",
         "coluna_grid": "col-md-3",
-        "x_min_input": 675,
+        "x_min_input": 1055,
         "x_max_input": 1330,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
@@ -231,7 +231,7 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-2",
         "x_min_input": 675,
-        "x_max_input": 840,
+        "x_max_input": 845,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -239,9 +239,9 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater": "budget-plan",
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
-        "coluna_grid": "col-md-6",
-        "x_min_input": 855,
-        "x_max_input": 1360,
+        "coluna_grid": "col-md-4",
+        "x_min_input": 860,
+        "x_max_input": 1225,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -249,8 +249,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater": "budget-plan",
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
-        "coluna_grid": "col-md-4",
-        "x_min_input": 1375,
+        "coluna_grid": "col-md-5",
+        "x_min_input": 1240,
         "x_max_input": 1710,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
@@ -261,7 +261,7 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
         "x_min_input": 675,
-        "x_max_input": 925,
+        "x_max_input": 940,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -270,8 +270,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 940,
-        "x_max_input": 1185,
+        "x_min_input": 955,
+        "x_max_input": 1225,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -280,8 +280,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 1200,
-        "x_max_input": 1445,
+        "x_min_input": 1240,
+        "x_max_input": 1510,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -290,8 +290,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "budget-plan",
         "texto_botao": "Adicionar linha",
         "coluna_grid": "col-md-3",
-        "x_min_input": 1460,
-        "x_max_input": 1710,
+        "x_min_input": 1525,
+        "x_max_input": 1805,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
@@ -302,9 +302,9 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater": "risk-plan",
         "data_repeater_add": "risk-plan",
         "texto_botao": "Adicionar risco",
-        "coluna_grid": "col-md-4",
+        "coluna_grid": "col-md-3",
         "x_min_input": 675,
-        "x_max_input": 1045,
+        "x_max_input": 940,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
         "ultimo_bloco_da_pagina": True,
@@ -314,8 +314,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "risk-plan",
         "texto_botao": "Adicionar risco",
         "coluna_grid": "col-md-2",
-        "x_min_input": 1060,
-        "x_max_input": 1235,
+        "x_min_input": 955,
+        "x_max_input": 1135,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
         "ultimo_bloco_da_pagina": True,
@@ -325,8 +325,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater_add": "risk-plan",
         "texto_botao": "Adicionar risco",
         "coluna_grid": "col-md-2",
-        "x_min_input": 1250,
-        "x_max_input": 1425,
+        "x_min_input": 1150,
+        "x_max_input": 1330,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
         "ultimo_bloco_da_pagina": True,
@@ -335,9 +335,9 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater": "risk-plan",
         "data_repeater_add": "risk-plan",
         "texto_botao": "Adicionar risco",
-        "coluna_grid": "col-md-2",
-        "x_min_input": 1440,
-        "x_max_input": 1615,
+        "coluna_grid": "col-md-4",
+        "x_min_input": 1345,
+        "x_max_input": 1710,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
         "ultimo_bloco_da_pagina": True,
@@ -346,9 +346,9 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater": "risk-plan",
         "data_repeater_add": "risk-plan",
         "texto_botao": "Adicionar risco",
-        "coluna_grid": "col-md-8",
+        "coluna_grid": "col-md-6",
         "x_min_input": 675,
-        "x_max_input": 1425,
+        "x_max_input": 1235,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
         "ultimo_bloco_da_pagina": True,
@@ -357,8 +357,8 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "data_repeater": "risk-plan",
         "data_repeater_add": "risk-plan",
         "texto_botao": "Adicionar risco",
-        "coluna_grid": "col-md-4",
-        "x_min_input": 1440,
+        "coluna_grid": "col-md-6",
+        "x_min_input": 1250,
         "x_max_input": 1805,
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
@@ -1613,12 +1613,13 @@ def eh_caixa_de_texto_vazia(
     x_caixa: int,
     y_caixa: int,
     x_btn_add: Optional[int] = None,
+    nome_campo: Optional[str] = None,
 ) -> bool:
     """
     Verifica visualmente se a coordenada `(x_caixa, y_caixa)` aponta para o interior de uma
     CAIXA DE TEXTO VAZIA (<input class="form-control"> com fundo #ffffff e sem texto escuro #03183C).
-    Detecta automaticamente as bordas esquerda/direita da caixa ao redor de `x_caixa` para funcionar
-    tanto em colunas largas (SWOT) quanto em blocos com vários campos lado a lado (Página 4: ID, Prazo, etc.).
+    Isola estritamente as bordas horizontais da coluna do campo (`REGRAS_DIV_REPEATER_HTML` + borda vertical >= 247)
+    para NUNCA invadir nem ler um campo vizinho ao lado (ex: ID vs OBJETIVO ESTRATÉGICO vs META).
     """
     ox, oy = offset_xy
     h_img, w_img = img_bgr.shape[:2]
@@ -1629,14 +1630,22 @@ def eh_caixa_de_texto_vazia(
     if yc_rel - 12 < 0 or yc_rel + 12 >= h_img or xc_rel < 10 or xc_rel >= (w_img - 10):
         return False
 
-    # Delimita as bordas horizontais [x_esq_rel, x_dir_rel] da caixa branca que contém `x_caixa`
-    # usando o percentil 85 vertical (que permanece >= 242 no padding branco superior/inferior mesmo se houver texto,
-    # mas cai < 238 na linha vertical da borda esquerda/direita do <input>).
-    # Usa alcance esquerdo de até 540px para alcançar a borda esquerda real (X ~ 675) mesmo em caixas largas col-md-12/col-md-8.
-    x_busca_min = max(max(0, 650 - ox), xc_rel - 540)
-    x_busca_max = min(w_img - 10, xc_rel + 280)
+    regra_div = REGRAS_DIV_REPEATER_HTML.get(_norm_chave(nome_campo or "")) if nome_campo else None
+    if regra_div is not None:
+        x_min_col = max(0, int(regra_div.get("x_min_input", 650)) - ox)
+        x_max_col = min(w_img - 10, int(regra_div.get("x_max_input", 1805)) - ox)
+        x_busca_min = max(x_min_col, xc_rel - 540)
+        x_busca_max = min(x_max_col, xc_rel + 280)
+    else:
+        x_busca_min = max(max(0, 650 - ox), xc_rel - 540)
+        x_busca_max = min(w_img - 10, xc_rel + 280)
+
     if x_btn_add is not None and int(x_btn_add) > int(x_caixa) + 60:
         x_busca_max = min(x_busca_max, max(xc_rel + 25, int(x_btn_add) - ox - 68))
+
+    if x_busca_max <= x_busca_min + 20:
+        x_busca_min = max(0, xc_rel - 50)
+        x_busca_max = min(w_img - 10, xc_rel + 80)
 
     faixa_input = cv2.cvtColor(
         img_bgr[yc_rel - 12 : yc_rel + 12, x_busca_min:x_busca_max],
@@ -1649,15 +1658,17 @@ def eh_caixa_de_texto_vazia(
     idx_xc = max(0, min(len(perfil_branco_x) - 1, xc_rel - x_busca_min))
 
     # Se nem o próprio ponto (x_caixa, y_centro) tem interior branco, não é uma caixa de texto branca
-    if float(np.mean(perfil_branco_x[max(0, idx_xc - 8) : min(len(perfil_branco_x), idx_xc + 9)])) < 240.0:
+    if float(np.mean(perfil_branco_x[max(0, idx_xc - 8) : min(len(perfil_branco_x), idx_xc + 9)])) < 242.0:
         return False
 
+    # Para imediatamente na borda vertical de 1px do <input> (onde o percentil 85 cai de 255 para <= 243),
+    # impedindo atravessar o espaço entre colunas vizinhas na mesma linha!
     idx_esq = idx_xc
-    while idx_esq > 0 and perfil_branco_x[idx_esq - 1] >= 240:
+    while idx_esq > 0 and perfil_branco_x[idx_esq - 1] >= 247:
         idx_esq -= 1
 
     idx_dir = idx_xc
-    while idx_dir < (len(perfil_branco_x) - 1) and perfil_branco_x[idx_dir + 1] >= 240:
+    while idx_dir < (len(perfil_branco_x) - 1) and perfil_branco_x[idx_dir + 1] >= 247:
         idx_dir += 1
 
     # Recorta o miolo interno da caixa começando logo após a borda esquerda (onde qualquer texto digitado começa!)
@@ -2458,8 +2469,8 @@ def ajustar_coordenada_para_caixa_vazia(
     """
     regra_div = REGRAS_DIV_REPEATER_HTML.get(_norm_chave(nome_campo or "")) if nome_campo else None
     if regra_div is not None:
-        x_min_div = int(regra_div.get("x_min_input", 650))
-        x_max_div = int(regra_div.get("x_max_input", 1760))
+        x_min_div = int(regra_div.get("x_min_input", 650)) + 14
+        x_max_div = int(regra_div.get("x_max_input", 1760)) - 14
         cx = max(x_min_div, min(x_max_div, int(coord_alvo[0])))
     else:
         cx = max(650, min(1760, int(coord_alvo[0])))
@@ -2514,7 +2525,7 @@ def ajustar_coordenada_para_caixa_vazia(
         return ((cx, cy), False, True)
 
     vazia_atual = eh_caixa_de_texto_vazia(
-        img, offset_xy, cx, cy_cent, x_b if coord_btn_add is not None else None
+        img, offset_xy, cx, cy_cent, x_b if coord_btn_add is not None else None, nome_campo=nome_campo
     )
     if vazia_atual:
         return ((cx, int(cy_cent)), True, False)

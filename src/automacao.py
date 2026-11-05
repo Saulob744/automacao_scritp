@@ -590,12 +590,28 @@ def _preencher_ou_selecionar_valor_unico(
             )
             return True
 
-        if abs(int(coord_ajustada[1]) - int(coord_alvo[1])) > 25 and esta_vazia:
+        if abs(int(coord_ajustada[1]) - int(coord_alvo[1])) > 25 and esta_vazia and permitir_avancar_abaixo:
             print(
                 f"  🔍 [SÓ CAIXA VAZIA] Caixa anterior em {coord_alvo} já ocupada; "
                 f"avançando automaticamente para a caixa vazia em {coord_ajustada}!"
             )
-        coord_alvo = coord_ajustada
+            coord_alvo = coord_ajustada
+        elif not permitir_avancar_abaixo:
+            # Em blocos multi-campos (ex: Metas e ações), preserva o Y unificado da linha horizontal
+            # se o ajuste individual tentar desviar mais de 6px dos campos vizinhos da mesma linha!
+            if abs(int(coord_ajustada[1]) - int(coord_alvo[1])) <= 6:
+                coord_alvo = coord_ajustada
+            else:
+                coord_alvo = (int(coord_ajustada[0]), int(coord_alvo[1]))
+        else:
+            coord_alvo = coord_ajustada
+
+        if not esta_vazia and permitir_avancar_abaixo:
+            print(
+                f"  🛡️ [PROTEÇÃO DE CAMPO PREENCHIDO] A caixa '{nome_campo}' em {coord_alvo} já possui conteúdo! "
+                "Preservando valor existente sem sobrescrever."
+            )
+            return True
 
         print(
             f"  ✍️  [{nome_campo} — Item {idx_caixa}/{total_caixas} (Linha {num_linha_planilha})] "
@@ -864,10 +880,10 @@ def _executar_passo_grupo_codependente(
                     ]
                 coords_base_fundo = list(coords_atuais)
             vazia_c0 = eh_caixa_de_texto_vazia(
-                img_ini, off_ini, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
+                img_ini, off_ini, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None, nome_campo=campos_grupo[0]
             )
             vazia_cn = eh_caixa_de_texto_vazia(
-                img_ini, off_ini, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), None
+                img_ini, off_ini, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), None, nome_campo=campos_grupo[-1]
             )
             if not vazia_c0 and not vazia_cn:
                 print(
@@ -904,9 +920,11 @@ def _executar_passo_grupo_codependente(
             f"Preenchendo os {len(campos_grupo)} campos na sequência antes de clicar em '{nome_botao_html}'..."
         )
 
-        # AUTOCORREÇÃO E ALINHAMENTO DE LINHA HORIZONTAL ANTES DE COLAR (a partir da 2ª caixa):
-        # Garante que todos os campos na mesma linha horizontal do sub-card (ex: ID, OBJETIVO ESTRATÉGICO e META)
-        # compartilhem exatamente o mesmo Y centralizado nas bordas reais do <input>.
+        # AUTOCORREÇÃO, PROTEÇÃO DE CAMPO PREENCHIDO E ALINHAMENTO DE LINHA HORIZONTAL (a partir da 2ª caixa):
+        # 1. Garante que todos os campos na mesma linha horizontal do sub-card (ex: ID, OBJETIVO ESTRATÉGICO e META)
+        #    compartilhem exatamente o mesmo Y centralizado nas bordas reais do <input>.
+        # 2. Confere se o sub-card mirado já possui texto preenchido; se estiver ocupado, NUNCA sobrescreve:
+        #    avança automaticamente +ΔY (passo_y_grupo) para o sub-card vazio abaixo!
         if idx_bloco >= 1 and coords_atuais:
             img_pre, off_pre = capturar_tela_sistema(coords_atuais[0][0])
             if img_pre is not None:
@@ -924,6 +942,48 @@ def _executar_passo_grupo_codependente(
                     y_med = sorted(ys_linha_h)[len(ys_linha_h) // 2] if ys_linha_h else cy_i
                     coords_unificadas.append((cx_i, int(y_med)))
                 coords_atuais = coords_unificadas
+
+                idx_ref_prim = 1 if (len(coords_atuais) >= 2 and abs(coords_iniciais[1][1] - coords_iniciais[0][1]) <= 12) else 0
+                v_c0 = eh_caixa_de_texto_vazia(
+                    img_pre,
+                    off_pre,
+                    int(coords_atuais[idx_ref_prim][0]),
+                    int(coords_atuais[idx_ref_prim][1]),
+                    None,
+                    nome_campo=campos_grupo[idx_ref_prim],
+                )
+                v_cn = eh_caixa_de_texto_vazia(
+                    img_pre,
+                    off_pre,
+                    int(coords_atuais[-1][0]),
+                    int(coords_atuais[-1][1]),
+                    None,
+                    nome_campo=campos_grupo[-1],
+                )
+                if not v_c0 and not v_cn:
+                    passo_corr = int(
+                        passo_y_grupo
+                        or (188 if (eh_bloco_orcamentario or eh_bloco_riscos) else (110 if eh_bloco_kpis else 286))
+                    )
+                    print(
+                        f"  🛡️ [PROTEÇÃO DE CAMPO PREENCHIDO] Sub-card em Y={coords_atuais[0][1]} já está preenchido! "
+                        f"Avançando +{passo_corr}px para o próximo sub-card vazio abaixo..."
+                    )
+                    if int(coords_atuais[-1][1]) + passo_corr > 865:
+                        ticks_c = max(2, min(4, int(round(passo_corr / 100.0))))
+                        rolar_pagina(-ticks_c, x=1230, y=500)
+                        time.sleep(0.35)
+                        img_pre2, off_pre2 = capturar_tela_sistema(coords_atuais[0][0])
+                        if img_pre2 is not None:
+                            coords_atuais = [
+                                (cx, centralizar_y_na_caixa_branca(img_pre2, off_pre2, cx, cy))
+                                for cx, cy in coords_atuais
+                            ]
+                    else:
+                        coords_atuais = [
+                            (cx, centralizar_y_na_caixa_branca(img_pre, off_pre, cx, int(cy + passo_corr)))
+                            for cx, cy in coords_atuais
+                        ]
 
         campos_preenchidos_na_linha = 0
         for idx_c, c_nome in enumerate(campos_grupo):
@@ -994,11 +1054,23 @@ def _executar_passo_grupo_codependente(
             if idx_c == 0 and info_c.get("tipo") != "barra_suspensa":
                 img_pos_c, off_pos_c = capturar_tela_sistema(coords_atuais[0][0])
                 if img_pos_c is not None and eh_caixa_de_texto_vazia(
-                    img_pos_c, off_pos_c, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
+                    img_pos_c,
+                    off_pos_c,
+                    int(coords_atuais[0][0]),
+                    int(coords_atuais[0][1]),
+                    None,
+                    nome_campo=c_nome,
                 ):
-                    cy_retry = centralizar_y_na_caixa_branca(
+                    cy_c0 = centralizar_y_na_caixa_branca(
                         img_pos_c, off_pos_c, int(coords_atuais[0][0]), int(coords_atuais[0][1])
                     )
+                    if len(coords_atuais) >= 2 and abs(coords_iniciais[1][1] - coords_iniciais[0][1]) <= 12:
+                        cy_c1 = centralizar_y_na_caixa_branca(
+                            img_pos_c, off_pos_c, int(coords_atuais[1][0]), int(coords_atuais[1][1])
+                        )
+                        cy_retry = cy_c1 if abs(cy_c1 - cy_c0) <= 18 else cy_c0
+                    else:
+                        cy_retry = cy_c0
                     print(
                         f"  🛠️ [AUTOCORREÇÃO PÓS-COLAGEM] Reforçando foco e colagem em '{c_nome}' "
                         f"em ({coords_atuais[0][0]}, {cy_retry})..."
