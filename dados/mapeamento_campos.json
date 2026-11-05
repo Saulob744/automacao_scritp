@@ -464,7 +464,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 },
                 "OBJETIVO ESTRATÉGICO": {
                     "coluna_planilha": "OBJETIVO ESTRATÉGICO DE TIC",
@@ -482,7 +482,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 },
                 "META": {
                     "coluna_planilha": "META",
@@ -500,7 +500,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 },
                 "AÇÃO PRINCIPAL": {
                     "coluna_planilha": "RESULTADO-CHAVE (KR) ESPERADO (AÇÃO PRINCIPAL)",
@@ -518,7 +518,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 },
                 "INDICADOR": {
                     "coluna_planilha": "INDICADOR-CHAVE DE DESEMPENHO (KPI)",
@@ -536,7 +536,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 },
                 "PRAZO": {
                     "coluna_planilha": "PRAZO (QUADRANTE + ANO)",
@@ -554,7 +554,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 },
                 "RESPONSÁVEL": {
                     "coluna_planilha": "RESPONSÁVEL",
@@ -572,7 +572,7 @@
                     ],
                     "tipo": "caixa_texto",
                     "tem_adicionar": true,
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 }
             },
             "caixas_bloqueadas": [],
@@ -596,7 +596,7 @@
                         1769,
                         572
                     ],
-                    "passo_y_grupo": 276
+                    "passo_y_grupo": 286
                 }
             ],
             "coord_toggle_todas_guias": [

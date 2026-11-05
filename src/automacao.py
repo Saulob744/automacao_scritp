@@ -834,7 +834,11 @@ def _executar_passo_grupo_codependente(
             if ancorado_no_topo:
                 if eh_bloco_orcamentario or eh_bloco_riscos or eh_bloco_kpis:
                     ys_x_ini = detectar_botoes_remover_da_coluna(
-                        img_ini, off_ini, int(coord_btn_atual[0]), min_y=int(coord_btn_atual[1]) + 20, max_y=920
+                        img_ini,
+                        off_ini,
+                        x_btn_add=int(coord_btn_atual[0]),
+                        y_btn_add=int(coord_btn_atual[1]) + 20,
+                        y_limite_inferior=920,
                     )
                     if ys_x_ini:
                         y_x1 = ys_x_ini[0]
@@ -900,46 +904,26 @@ def _executar_passo_grupo_codependente(
             f"Preenchendo os {len(campos_grupo)} campos na sequência antes de clicar em '{nome_botao_html}'..."
         )
 
-        # AUTOCORREÇÃO PRÉ-COLAGEM (a partir da 2ª caixa):
-        # Confere se o sub-card mirado está realmente vazio antes de colar o 1º campo;
-        # se tiver caído em um card anterior já preenchido, avança automaticamente +ΔY (passo_y_grupo) para a caixa vazia abaixo!
+        # AUTOCORREÇÃO E ALINHAMENTO DE LINHA HORIZONTAL ANTES DE COLAR (a partir da 2ª caixa):
+        # Garante que todos os campos na mesma linha horizontal do sub-card (ex: ID, OBJETIVO ESTRATÉGICO e META)
+        # compartilhem exatamente o mesmo Y centralizado nas bordas reais do <input>.
         if idx_bloco >= 1 and coords_atuais:
             img_pre, off_pre = capturar_tela_sistema(coords_atuais[0][0])
             if img_pre is not None:
-                v_prim_pre = eh_caixa_de_texto_vazia(
-                    img_pre, off_pre, int(coords_atuais[0][0]), int(coords_atuais[0][1]), None
-                )
-                if not v_prim_pre and len(coords_atuais) >= 2 and abs(coords_atuais[1][1] - coords_atuais[0][1]) <= 18:
-                    v_prim_pre = eh_caixa_de_texto_vazia(
-                        img_pre, off_pre, int(coords_atuais[1][0]), int(coords_atuais[1][1]), None
-                    )
-                v_ult_pre = eh_caixa_de_texto_vazia(
-                    img_pre, off_pre, int(coords_atuais[-1][0]), int(coords_atuais[-1][1]), None
-                )
-                if not v_prim_pre and not v_ult_pre:
-                    passo_corr = int(
-                        passo_y_grupo
-                        or (188 if (eh_bloco_orcamentario or eh_bloco_riscos) else (110 if eh_bloco_kpis else 276))
-                    )
-                    print(
-                        f"  🛠️ [AUTOCORREÇÃO PRÉ-COLAGEM] Caixa alvo em Y={coords_atuais[0][1]} já estava ocupada! "
-                        f"Avançando +{passo_corr}px (distância ΔY da caixa anterior) para a caixa vazia abaixo..."
-                    )
-                    if int(coords_atuais[-1][1]) + passo_corr > 865:
-                        ticks_c = max(2, min(4, int(round(passo_corr / 94.0))))
-                        rolar_pagina(-ticks_c, x=1230, y=500)
-                        time.sleep(0.35)
-                        img_pre, off_pre = capturar_tela_sistema(coords_atuais[0][0])
-                    else:
-                        coords_atuais = [
-                            (
-                                cx,
-                                centralizar_y_na_caixa_branca(img_pre, off_pre, cx, int(cy + passo_corr))
-                                if img_pre is not None
-                                else int(cy + passo_corr),
-                            )
-                            for cx, cy in coords_atuais
-                        ]
+                coords_cent = [
+                    (cx, centralizar_y_na_caixa_branca(img_pre, off_pre, cx, cy))
+                    for cx, cy in coords_atuais
+                ]
+                coords_unificadas: List[Tuple[int, int]] = []
+                for i_c, (cx_i, cy_i) in enumerate(coords_cent):
+                    ys_linha_h = [
+                        coords_cent[j_c][1]
+                        for j_c in range(len(coords_cent))
+                        if abs(coords_iniciais[j_c][1] - coords_iniciais[i_c][1]) <= 12
+                    ]
+                    y_med = sorted(ys_linha_h)[len(ys_linha_h) // 2] if ys_linha_h else cy_i
+                    coords_unificadas.append((cx_i, int(y_med)))
+                coords_atuais = coords_unificadas
 
         campos_preenchidos_na_linha = 0
         for idx_c, c_nome in enumerate(campos_grupo):

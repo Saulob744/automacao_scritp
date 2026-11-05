@@ -1538,8 +1538,12 @@ def centralizar_y_na_caixa_branca(
     y_caixa: int,
 ) -> int:
     """
-    Ajusta verticalmente `y_caixa` (em uma janela de ±18px) para o centro exato da caixa
-    de texto branca (<input class="form-control">) sob `x_caixa`.
+    Ajusta verticalmente `y_caixa` para o centro exato da caixa
+    de texto branca (<input class="form-control">) sob `x_caixa`:
+    1. Procura primeiro o par de bordas horizontais superior/inferior do <input> (separadas por ~36..44px)
+       com miolo branco contínuo entre elas, retornando o centro geométrico exato da caixa.
+    2. Como fallback, busca a faixa inteiramente branca (incluindo o centro yc±6, sem borda no meio!)
+       mais próxima de `y_caixa`.
     """
     ox, oy = offset_xy
     h_img, w_img = img_bgr.shape[:2]
@@ -1548,23 +1552,55 @@ def centralizar_y_na_caixa_branca(
     if (x2 - x1) < 25:
         return int(y_caixa)
 
+    faixa = img_bgr[:, x1:x2]
+    b_f = faixa[:, :, 0].astype(np.int16)
+    g_f = faixa[:, :, 1].astype(np.int16)
+    r_f = faixa[:, :, 2].astype(np.int16)
+    gray_f = cv2.cvtColor(faixa, cv2.COLOR_BGR2GRAY)
+
+    eh_borda = (
+        ((r_f >= 190) & (r_f <= 240) & (g_f >= 200) & (g_f <= 245) & (b_f >= 215) & (b_f <= 252) & ((b_f - r_f) >= 5))
+        | ((b_f >= 185) & ((b_f - r_f) >= 65))
+    )
+    score_borda = np.mean(eh_borda, axis=1)
+    score_branco = np.mean(gray_f >= 243, axis=1)
+
+    melhor_centro_borda: Optional[int] = None
+    menor_dist_borda = 999999.0
+    for dy in range(-28, 29):
+        yc_abs = int(y_caixa) + dy
+        yc_rel = yc_abs - oy
+        if yc_rel - 23 < 0 or yc_rel + 23 >= h_img:
+            continue
+        borda_sup = float(np.max(score_borda[yc_rel - 22 : yc_rel - 17]))
+        borda_inf = float(np.max(score_borda[yc_rel + 17 : yc_rel + 23]))
+        borda_meio = float(np.max(score_borda[yc_rel - 13 : yc_rel + 14]))
+        miolo_branco = float(np.mean(score_branco[yc_rel - 13 : yc_rel + 14]))
+        if borda_sup >= 0.42 and borda_inf >= 0.42 and borda_meio < 0.35 and miolo_branco >= 0.72:
+            dist = abs(dy) - (borda_sup + borda_inf) * 2.0
+            if dist < menor_dist_borda:
+                menor_dist_borda = dist
+                melhor_centro_borda = yc_abs
+
+    if melhor_centro_borda is not None:
+        return int(melhor_centro_borda)
+
     melhor_y = int(y_caixa)
     melhor_score = -1.0
     for dy in range(-18, 19, 2):
         yc_abs = int(y_caixa) + dy
-        y_sup1 = max(0, yc_abs - oy - 13)
-        y_sup2 = min(h_img, yc_abs - oy - 7)
-        y_inf1 = max(0, yc_abs - oy + 7)
-        y_inf2 = min(h_img, yc_abs - oy + 13)
-        if (y_sup2 - y_sup1) < 3 or (y_inf2 - y_inf1) < 3:
+        yc_rel = yc_abs - oy
+        if yc_rel - 13 < 0 or yc_rel + 13 >= h_img:
             continue
-        faixa_sup = cv2.cvtColor(img_bgr[y_sup1:y_sup2, x1:x2], cv2.COLOR_BGR2GRAY)
-        faixa_inf = cv2.cvtColor(img_bgr[y_inf1:y_inf2, x1:x2], cv2.COLOR_BGR2GRAY)
-        branco_sup = float(np.mean(faixa_sup >= 243))
-        branco_inf = float(np.mean(faixa_inf >= 243))
+        branco_sup = float(np.mean(score_branco[yc_rel - 13 : yc_rel - 6]))
+        branco_meio = float(np.mean(score_branco[yc_rel - 6 : yc_rel + 7]))
+        branco_inf = float(np.mean(score_branco[yc_rel + 6 : yc_rel + 13]))
+        borda_meio = float(np.max(score_borda[yc_rel - 10 : yc_rel + 11]))
+        if borda_meio >= 0.45:
+            continue
         penalidade_dist = abs(dy) * 0.004
-        score = min(branco_sup, branco_inf) * 0.7 + ((branco_sup + branco_inf) * 0.15) - penalidade_dist
-        if score > melhor_score and branco_sup >= 0.75 and branco_inf >= 0.75:
+        score = min(branco_sup, branco_meio, branco_inf) * 0.7 + ((branco_sup + branco_inf) * 0.15) - penalidade_dist
+        if score > melhor_score and branco_sup >= 0.75 and branco_meio >= 0.70 and branco_inf >= 0.75:
             melhor_score = score
             melhor_y = yc_abs
 
@@ -2841,9 +2877,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         eh_bloco_riscos = ("RISCO" in norm_btn_add)
         eh_bloco_kpis = ("KPI" in norm_btn_add or "INDICADOR" in norm_btn_add)
 
-        passo_padrao = 110 if eh_bloco_kpis else (188 if (eh_bloco_orcamento or eh_bloco_riscos) else 276)
+        passo_padrao = 110 if eh_bloco_kpis else (188 if (eh_bloco_orcamento or eh_bloco_riscos) else 286)
         if eh_bloco_orcamento or eh_bloco_riscos:
             passo_card = 188 if (not passo_y_grupo or int(passo_y_grupo) >= 240) else int(passo_y_grupo)
+        elif eh_bloco_metas_topo:
+            passo_card = 286 if (not passo_y_grupo or int(passo_y_grupo) == 276) else int(passo_y_grupo)
         else:
             passo_card = int(passo_y_grupo) if (passo_y_grupo and int(passo_y_grupo) >= 85) else passo_padrao
         y_btn_calibrado = y_btn if y_btn >= 208 else (572 if eh_bloco_metas_topo else 300)
@@ -3094,15 +3132,15 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             delta_step = _medir_scroll_por_template(
                 img_d0, img_d1, off_d0, x_btn, passos_scroll=-ticks_passo
             )
-            esperado_px = ticks_passo * 94
+            esperado_px = ticks_passo * 100
             if delta_step is not None and abs(delta_step) < 12:
                 # Página encostou no fim absoluto da rolagem
                 delta_step = 0
             elif delta_step is not None and 12 <= delta_step <= (esperado_px + 45) and (eh_bloco_riscos or eh_bloco_kpis):
                 # No último bloco da página (ex: Riscos ou KPIs), aceita rolagem parcial ao encostar no rodapé
                 delta_step = int(delta_step)
-            elif delta_step is None or delta_step <= 0 or abs(delta_step - esperado_px) > 85:
-                # Evita que sub-cards idênticos repetidos confundam o template matching em múltiplos de 276px
+            elif delta_step is None or delta_step <= 0 or abs(delta_step - esperado_px) > 65:
+                # Evita que sub-cards idênticos repetidos confundam o template matching em múltiplos de 286px
                 delta_step = esperado_px
 
             delta_scroll_total += int(delta_step)
@@ -3164,6 +3202,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                             y_minimo_abaixo=max(380, int(y_btn_pos_topo) + 260),
                         )
 
+        # Se o cabeçalho/botão do próximo bloco abaixo (y_lim_vizinho) está visível na tela (480 <= y_lim_vizinho <= 945),
+        # o novo sub-card recém-criado é SEMPRE o último sub-card do bloco atual, posicionado exatamente 62px acima de y_lim_vizinho!
+        if not (eh_bloco_riscos or eh_bloco_kpis) and 480 <= y_lim_vizinho <= 945:
+            y_resp_atual = int(y_lim_vizinho - 62)
+
         y_resp_escolhido = min(y_lim_vizinho - 22, int(y_resp_atual))
         if img_pos is not None:
             ys_x_pos = detectar_botoes_remover_da_coluna(
@@ -3187,74 +3230,17 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 if abs(ult_dy_x - passo_card) <= 32:
                     passo_card = ult_dy_x
 
-            # Identifica a posição na tela da CAIXA ANTERIOR já preenchida (max_y_preenchido):
-            # Pela regra de distância constante a partir da caixa anterior, a nova caixa recém-criada
-            # surge SEMPRE em (max_y_preenchido + passo_card) e NUNCA acima de uma caixa já preenchida!
-            max_y_preenchido = -1
-            status_vazio_por_yx: List[Tuple[int, int, bool]] = []
-            for yx in ys_x_pos:
-                y_ult_cand = int(yx + dy_x_para_ult)
-                y_prim_cand = int(y_ult_cand + dy_rel_ult[0])
-                if y_ult_cand >= (y_lim_vizinho - 10):
-                    continue
-                x_ult = int(base_coords[-1][0])
-                vazia_ult = (
-                    eh_caixa_de_texto_vazia(img_pos, off_pos, x_ult, y_ult_cand, None)
-                    if y_ult_cand >= 222
-                    else False
-                )
-                if y_prim_cand >= 222:
-                    vazia_prim = eh_caixa_de_texto_vazia(
-                        img_pos, off_pos, int(base_coords[0][0]), y_prim_cand, None
-                    )
-                    if not vazia_prim and len(base_coords) >= 2 and abs(dy_rel_ult[1] - dy_rel_ult[0]) <= 18:
-                        vazia_prim = eh_caixa_de_texto_vazia(
-                            img_pos,
-                            off_pos,
-                            int(base_coords[1][0]),
-                            int(y_ult_cand + dy_rel_ult[1]),
-                            None,
-                        )
-                else:
-                    vazia_prim = False
-
-                card_vazio = bool(vazia_ult and vazia_prim and y_prim_cand >= 222 and y_ult_cand >= 222)
-                if not card_vazio and y_ult_cand >= 222:
-                    max_y_preenchido = max(max_y_preenchido, y_ult_cand)
-                status_vazio_por_yx.append((yx, y_ult_cand, card_vazio))
-
-            # Se encontrou a caixa anterior preenchida na tela, a nova caixa está exatamente a +passo_card abaixo dela!
-            if max_y_preenchido >= 222:
-                y_esperado_pela_anterior = int(max_y_preenchido + passo_card)
-                if 222 <= y_esperado_pela_anterior < (y_lim_vizinho - 10):
-                    y_resp_atual = y_esperado_pela_anterior
-
-            max_desvio_snap = max(95, int(passo_card * 0.45))
-            ys_ult_vazios: List[int] = [
-                y_ult_cand
-                for _, y_ult_cand, card_vazio in status_vazio_por_yx
-                if card_vazio
-                and y_ult_cand > max_y_preenchido
-                and abs(y_ult_cand - y_resp_atual) <= max_desvio_snap
+            # O novo sub-card recém-adicionado em um data-repeater é SEMPRE o último sub-card visível do bloco (ys_x_pos[-1])!
+            ys_ult_todos = [
+                int(yx + dy_x_para_ult)
+                for yx in ys_x_pos
+                if int(yx + dy_x_para_ult + dy_rel_ult[0]) >= 222
+                and 222 <= int(yx + dy_x_para_ult) < (y_lim_vizinho - 10)
             ]
-
-            if ys_ult_vazios:
-                # Escolhe o sub-card VAZIO abaixo da caixa anterior mais próximo de (max_y_preenchido + passo_card)
-                ys_ult_vazios.sort(key=lambda yu: (abs(yu - y_resp_atual), -yu))
-                y_resp_escolhido = int(ys_ult_vazios[0])
-            elif ys_x_pos:
-                # Se a verificação de vazio não achou, considera apenas o último sub-card abaixo de max_y_preenchido
-                ys_ult_todos = [
-                    int(yx + dy_x_para_ult)
-                    for yx in ys_x_pos
-                    if int(yx + dy_x_para_ult + dy_rel_ult[0]) >= 222
-                    and int(yx + dy_x_para_ult) > max_y_preenchido
-                    and 222 <= int(yx + dy_x_para_ult) < (y_lim_vizinho - 10)
-                ]
-                if ys_ult_todos:
-                    ult_da_coluna = int(ys_ult_todos[-1])
-                    if abs(ult_da_coluna - y_resp_atual) <= max_desvio_snap:
-                        y_resp_escolhido = ult_da_coluna
+            if ys_ult_todos:
+                ult_da_coluna = int(ys_ult_todos[-1])
+                if abs(ult_da_coluna - y_resp_atual) <= max(105, int(passo_card * 0.45)):
+                    y_resp_escolhido = ult_da_coluna
 
         novas_coords_topo: List[Tuple[int, int]] = []
         for i in range(len(base_coords)):
@@ -3264,6 +3250,20 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 cy_i = centralizar_y_na_caixa_branca(img_pos, off_pos, cx_i, cy_i)
                 cy_i = max(218, min(y_lim_vizinho - 18, int(cy_i)))
             novas_coords_topo.append((cx_i, cy_i))
+
+        # Unifica o Y de todos os campos que pertencem à MESMA linha horizontal do sub-card
+        # (ex: Linha 1 = [ID, OBJETIVO ESTRATÉGICO, META]; Linha 2 = [AÇÃO PRINCIPAL, INDICADOR, PRAZO]),
+        # impedindo que o campo 'ID' (cujo label tem só 2 letras) fique desalinhado dos vizinhos da mesma linha!
+        coords_alinhadas: List[Tuple[int, int]] = []
+        for i, (cx_i, cy_i) in enumerate(novas_coords_topo):
+            ys_mesma_linha = [
+                novas_coords_topo[j][1]
+                for j in range(len(base_coords))
+                if abs(dy_rel_ult[j] - dy_rel_ult[i]) <= 12
+            ]
+            y_comum = int(round(float(np.median(ys_mesma_linha)))) if ys_mesma_linha else cy_i
+            coords_alinhadas.append((cx_i, y_comum))
+        novas_coords_topo = coords_alinhadas
 
         dy_snap = int(y_resp_escolhido - y_resp_atual)
         _log_visao(
