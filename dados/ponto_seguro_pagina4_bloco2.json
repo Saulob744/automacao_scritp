@@ -1,64 +1,1169 @@
 {
-    "descricao": "Ponto de retorno seguro validado da Página 4 — Bloco 2 ('4.2. Plano Orçamentário' / 'Plano orçamentário e de investimentos').",
-    "commit_referencia": "086edd1",
-    "pagina": "4. Metas e Planos Obrigatórios",
-    "bloco_2": {
-        "nome_bloco": "Plano orçamentário e de investimentos",
-        "nome_guia_planilha": "4.2. Plano Orçamentário",
-        "titulo_coluna_confirmacao": "Plano orçamentário",
-        "ativo": true,
-        "ir_para_topo_no_inicio": false,
-        "rolar_ate_o_final_no_inicio": false,
-        "ancorado_no_topo": true,
-        "campos": {
-            "AÇÃO (ID)": {
-                "coluna_planilha": "ID DA INICIATIVA",
-                "sistema_campo_linha1": [755, 620],
-                "botao_adicionar": [1769, 510],
-                "tipo": "caixa_texto",
-                "tem_adicionar": true,
-                "passo_y_grupo": 286
-            },
-            "DESCRIÇÃO DO CUSTO": {
-                "coluna_planilha": "DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC",
-                "sistema_campo_linha1": [1065, 620],
-                "botao_adicionar": [1769, 510],
-                "tipo": "caixa_texto",
-                "tem_adicionar": true,
-                "passo_y_grupo": 286
-            },
-            "FONTE DE RECURSO": {
-                "coluna_planilha": "FONTE DE RECURSO",
-                "sistema_campo_linha1": [1500, 620],
-                "botao_adicionar": [1769, 510],
-                "tipo": "caixa_texto",
-                "tem_adicionar": true,
-                "passo_y_grupo": 286
-            },
-            "ANO 1": {
-                "coluna_planilha": "ANO 2027 (R$)",
-                "sistema_campo_linha1": [815, 709],
-                "botao_adicionar": [1769, 510],
-                "tipo": "caixa_texto",
-                "tem_adicionar": true,
-                "passo_y_grupo": 286
-            },
-            "ANO 2": {
-                "coluna_planilha": "ANO 2028 (R$)",
-                "sistema_campo_linha1": [1080, 709],
-                "botao_adicionar": [1769, 510],
-                "tipo": "caixa_texto",
-                "tem_adicionar": true,
-                "passo_y_grupo": 286
-            },
-            "TOTAL": {
-                "coluna_planilha": "TOTAL (R$)",
-                "sistema_campo_linha1": [835, 797],
-                "botao_adicionar": [1769, 510],
-                "tipo": "caixa_texto",
-                "tem_adicionar": true,
-                "passo_y_grupo": 286
-            }
+    "parametros_referencia": {
+        "planilha": [
+            -1649,
+            373
+        ],
+        "titulo_ref": [
+            620,
+            415
+        ],
+        "campo_ref": [
+            735,
+            635
+        ],
+        "botao_ref": [
+            1151,
+            572
+        ],
+        "ponto_neutro": [
+            620,
+            200
+        ],
+        "dx_titulo_para_campo": 290,
+        "dy_titulo_para_campo": 73,
+        "dx_titulo_para_botao": 546,
+        "dy_titulo_para_botao": 0,
+        "dx_botao_para_campo": -416,
+        "dy_botao_para_campo": 63,
+        "passo_y_nova_caixa": 76
+    },
+    "config_grade": {
+        "passo_y_planilha": 20,
+        "passo_y_sistema": 76,
+        "tem_botao_adicionar": true
+    },
+    "campos_detalhados": {
+        "ID": {
+            "coluna_planilha": "ID OE.TIC",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                748,
+                687
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
+        },
+        "OBJETIVO ESTRATÉGICO": {
+            "coluna_planilha": "OBJETIVO ESTRATÉGICO DE TIC",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                1053,
+                685
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
+        },
+        "META": {
+            "coluna_planilha": "META",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                1496,
+                690
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
+        },
+        "AÇÃO PRINCIPAL": {
+            "coluna_planilha": "RESULTADO-CHAVE (KR) ESPERADO (AÇÃO PRINCIPAL)",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                798,
+                776
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
+        },
+        "INDICADOR": {
+            "coluna_planilha": "INDICADOR-CHAVE DE DESEMPENHO (KPI)",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                1156,
+                775
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
+        },
+        "PRAZO": {
+            "coluna_planilha": "PRAZO (QUADRANTE + ANO)",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                1428,
+                781
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
+        },
+        "RESPONSÁVEL": {
+            "coluna_planilha": "RESPONSÁVEL",
+            "planilha_linha1": [
+                -1534,
+                588
+            ],
+            "sistema_campo_linha1": [
+                1136,
+                865
+            ],
+            "botao_adicionar": [
+                1769,
+                572
+            ],
+            "tipo": "caixa_texto",
+            "tem_adicionar": true,
+            "passo_y_grupo": 286
         }
-    }
+    },
+    "campos": {
+        "ID": [
+            748,
+            687
+        ],
+        "OBJETIVO ESTRATÉGICO": [
+            1053,
+            685
+        ],
+        "META": [
+            1496,
+            690
+        ],
+        "AÇÃO PRINCIPAL": [
+            798,
+            776
+        ],
+        "INDICADOR": [
+            1156,
+            775
+        ],
+        "PRAZO": [
+            1428,
+            781
+        ],
+        "RESPONSÁVEL": [
+            1136,
+            865
+        ]
+    },
+    "planilha": [
+        -1649,
+        373
+    ],
+    "padroes_paginas": {
+        "3. Diagnóstico": {
+            "nome_pagina": "3. Diagnóstico",
+            "nome_bloco_1": "3. Diagnóstico — Bloco 1 (3.1. Análise SWOT)",
+            "nome_guia_planilha": "3.1. SWOT",
+            "coord_guia_planilha": null,
+            "coord_celula_planilha": [
+                -1565,
+                494
+            ],
+            "nome_guia_sistema": "3. Diagnóstico",
+            "step_index_sistema": 2,
+            "coord_guia_sistema": [
+                416,
+                516
+            ],
+            "proxima_pagina": "4. Metas e Planos Obrigatórios",
+            "ligar_proxima_pagina": true,
+            "campos": {
+                "FORÇAS": {
+                    "planilha_linha1": [
+                        -1649,
+                        373
+                    ],
+                    "sistema_campo_linha1": [
+                        845,
+                        393
+                    ],
+                    "botao_adicionar": [
+                        1174,
+                        322
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true
+                },
+                "FRAQUEZAS": {
+                    "planilha_linha1": [
+                        -1649,
+                        373
+                    ],
+                    "sistema_campo_linha1": [
+                        1513,
+                        386
+                    ],
+                    "botao_adicionar": [
+                        1775,
+                        322
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true
+                },
+                "OPORTUNIDADES": {
+                    "planilha_linha1": [
+                        -1649,
+                        373
+                    ],
+                    "sistema_campo_linha1": [
+                        797,
+                        559
+                    ],
+                    "botao_adicionar": [
+                        1174,
+                        494
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true
+                },
+                "AMEAÇAS": {
+                    "planilha_linha1": [
+                        -1649,
+                        373
+                    ],
+                    "sistema_campo_linha1": [
+                        1366,
+                        562
+                    ],
+                    "botao_adicionar": [
+                        1775,
+                        494
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true
+                }
+            },
+            "caixas_bloqueadas": [],
+            "passos_pagina": [
+                {
+                    "tipo_passo": "coluna_independente",
+                    "nome_passo": "FORÇAS",
+                    "campos": [
+                        "FORÇAS"
+                    ]
+                },
+                {
+                    "tipo_passo": "coluna_independente",
+                    "nome_passo": "FRAQUEZAS",
+                    "campos": [
+                        "FRAQUEZAS"
+                    ]
+                },
+                {
+                    "tipo_passo": "coluna_independente",
+                    "nome_passo": "OPORTUNIDADES",
+                    "campos": [
+                        "OPORTUNIDADES"
+                    ]
+                },
+                {
+                    "tipo_passo": "coluna_independente",
+                    "nome_passo": "AMEAÇAS",
+                    "campos": [
+                        "AMEAÇAS"
+                    ]
+                }
+            ],
+            "bloco_2": {
+                "nome_bloco": "Inventário de necessidades",
+                "nome_guia_planilha": "3.2. Inventário de necessidades",
+                "ativo": true,
+                "coord_guia_planilha": [
+                    -1567,
+                    1008
+                ],
+                "coord_celula_planilha": [
+                    -1534,
+                    588
+                ],
+                "campos": {
+                    "DESCRIÇÃO": {
+                        "coluna_planilha": "DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            744,
+                            619
+                        ],
+                        "botao_adicionar": [
+                            1711,
+                            498
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true
+                    },
+                    "PRIORIDADE": {
+                        "coluna_planilha": "CLASSIFICAÇÃO DE PRIORIDADE",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1394,
+                            619
+                        ],
+                        "botao_adicionar": [
+                            1711,
+                            498
+                        ],
+                        "tipo": "barra_suspensa",
+                        "tem_adicionar": true,
+                        "opcoes": [
+                            "Alta",
+                            "Média",
+                            "Baixa"
+                        ]
+                    },
+                    "ÁREA DEMANDANTE": {
+                        "coluna_planilha": "ÁREA DEMANDANTE",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1523,
+                            609
+                        ],
+                        "botao_adicionar": [
+                            1711,
+                            498
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true
+                    },
+                    "JUSTIFICATIVA": {
+                        "coluna_planilha": "JUSTIFICATIVA",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            758,
+                            768
+                        ],
+                        "botao_adicionar": [
+                            1711,
+                            498
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "scroll_antes_campo": -3
+                    }
+                },
+                "caixas_bloqueadas": [],
+                "passos_pagina": [
+                    {
+                        "tipo_passo": "grupo_codependente",
+                        "nome_passo": "Inventário de necessidades",
+                        "titulo_card_busca": "Inventário de necessidades",
+                        "texto_botao_adicionar": "Adicionar necessidade",
+                        "campos": [
+                            "DESCRIÇÃO",
+                            "PRIORIDADE",
+                            "ÁREA DEMANDANTE",
+                            "JUSTIFICATIVA"
+                        ],
+                        "botao_adicionar": [
+                            1711,
+                            498
+                        ],
+                        "passo_y_grupo": 265
+                    }
+                ]
+            },
+            "coord_toggle_todas_guias": [
+                -1819,
+                1014
+            ],
+            "coord_item_no_toggle": [
+                -1764,
+                746
+            ],
+            "coord_botao_proxima_etapa": [
+                402,
+                518
+            ]
+        },
+        "4. Metas e Planos Obrigatórios": {
+            "nome_pagina": "4. Metas e Planos Obrigatórios",
+            "nome_bloco_1": "4. Metas e Planos Obrigatórios — Bloco 1 (Metas e ações)",
+            "nome_guia_planilha": "4.1. Metas e Ações",
+            "coord_guia_planilha": null,
+            "coord_celula_planilha": [
+                -1534,
+                588
+            ],
+            "nome_guia_sistema": "4. Metas e Planos",
+            "step_index_sistema": 3,
+            "coord_guia_sistema": [
+                426,
+                563
+            ],
+            "campos": {
+                "ID": {
+                    "coluna_planilha": "ID OE.TIC",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        748,
+                        687
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                },
+                "OBJETIVO ESTRATÉGICO": {
+                    "coluna_planilha": "OBJETIVO ESTRATÉGICO DE TIC",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1053,
+                        685
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                },
+                "META": {
+                    "coluna_planilha": "META",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1496,
+                        690
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                },
+                "AÇÃO PRINCIPAL": {
+                    "coluna_planilha": "RESULTADO-CHAVE (KR) ESPERADO (AÇÃO PRINCIPAL)",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        798,
+                        776
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                },
+                "INDICADOR": {
+                    "coluna_planilha": "INDICADOR-CHAVE DE DESEMPENHO (KPI)",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1156,
+                        775
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                },
+                "PRAZO": {
+                    "coluna_planilha": "PRAZO (QUADRANTE + ANO)",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1428,
+                        781
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                },
+                "RESPONSÁVEL": {
+                    "coluna_planilha": "RESPONSÁVEL",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1136,
+                        865
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 286
+                }
+            },
+            "caixas_bloqueadas": [],
+            "passos_pagina": [
+                {
+                    "tipo_passo": "grupo_codependente",
+                    "nome_passo": "Metas e ações",
+                    "titulo_card_busca": "Metas e ações",
+                    "texto_botao_adicionar": "Adicionar ação",
+                    "ancorado_no_topo": true,
+                    "campos": [
+                        "ID",
+                        "OBJETIVO ESTRATÉGICO",
+                        "META",
+                        "AÇÃO PRINCIPAL",
+                        "INDICADOR",
+                        "PRAZO",
+                        "RESPONSÁVEL"
+                    ],
+                    "botao_adicionar": [
+                        1769,
+                        572
+                    ],
+                    "passo_y_grupo": 286
+                }
+            ],
+            "coord_toggle_todas_guias": [
+                -1812,
+                1012
+            ],
+            "bloco_2": {
+                "nome_bloco": "Plano orçamentário e de investimentos",
+                "nome_guia_planilha": "4.2. Plano Orçamentário",
+                "titulo_coluna_confirmacao": "Plano orçamentário",
+                "ativo": true,
+                "coord_toggle_todas_guias": [
+                    -1812,
+                    1012
+                ],
+                "coord_celula_planilha": [
+                    -1534,
+                    588
+                ],
+                "ir_para_topo_no_inicio": false,
+                "rolar_ate_o_final_no_inicio": false,
+                "ancorado_no_topo": true,
+                "campos": {
+                    "AÇÃO (ID)": {
+                        "coluna_planilha": "ID DA INICIATIVA",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            755,
+                            620
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "passo_y_grupo": 286
+                    },
+                    "DESCRIÇÃO DO CUSTO": {
+                        "coluna_planilha": "DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1065,
+                            620
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "passo_y_grupo": 286
+                    },
+                    "FONTE DE RECURSO": {
+                        "coluna_planilha": "FONTE DE RECURSO",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1500,
+                            620
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "passo_y_grupo": 286
+                    },
+                    "ANO 1": {
+                        "coluna_planilha": "ANO 2027 (R$)",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            815,
+                            709
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "passo_y_grupo": 286
+                    },
+                    "ANO 2": {
+                        "coluna_planilha": "ANO 2028 (R$)",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1080,
+                            709
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "passo_y_grupo": 286
+                    },
+                    "TOTAL": {
+                        "coluna_planilha": "TOTAL (R$)",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            835,
+                            797
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "passo_y_grupo": 286
+                    }
+                },
+                "caixas_bloqueadas": [],
+                "passos_pagina": [
+                    {
+                        "tipo_passo": "grupo_codependente",
+                        "nome_passo": "Plano orçamentário e de investimentos",
+                        "titulo_card_busca": "Plano orçamentário e de investimentos",
+                        "texto_botao_adicionar": "Adicionar linha",
+                        "data_repeater_add": "budget-plan",
+                        "ancorado_no_topo": true,
+                        "campos": [
+                            "AÇÃO (ID)",
+                            "DESCRIÇÃO DO CUSTO",
+                            "FONTE DE RECURSO",
+                            "ANO 1",
+                            "ANO 2",
+                            "TOTAL"
+                        ],
+                        "botao_adicionar": [
+                            1769,
+                            510
+                        ],
+                        "passo_y_grupo": 286
+                    }
+                ]
+            },
+            "blocos_adicionais": [
+                {
+                    "nome_bloco": "Plano de gestão de riscos",
+                    "nome_guia_planilha": "4.3. Gestão de Riscos",
+                    "titulo_coluna_confirmacao": "Plano de gestão de riscos",
+                    "ativo": true,
+                    "coord_toggle_todas_guias": [
+                        -1812,
+                        1012
+                    ],
+                    "coord_celula_planilha": [
+                        -1534,
+                        588
+                    ],
+                    "ir_para_topo_no_inicio": false,
+                    "rolar_ate_o_final_no_inicio": false,
+                    "ancorado_no_topo": true,
+                    "campos": {
+                        "RISCO IDENTIFICADO": {
+                            "coluna_planilha": "RISCO IDENTIFICADO",
+                            "planilha_linha1": [
+                                -1534,
+                                588
+                            ],
+                            "sistema_campo_linha1": [
+                                815,
+                                620
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "tipo": "caixa_texto",
+                            "tem_adicionar": true,
+                            "passo_y_grupo": 188
+                        },
+                        "PROBABILIDADE": {
+                            "coluna_planilha": "PROBABILIDADE",
+                            "planilha_linha1": [
+                                -1534,
+                                588
+                            ],
+                            "sistema_campo_linha1": [
+                                1055,
+                                620
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "tipo": "caixa_texto",
+                            "tem_adicionar": true,
+                            "passo_y_grupo": 188
+                        },
+                        "IMPACTO": {
+                            "coluna_planilha": "IMPACTO",
+                            "planilha_linha1": [
+                                -1534,
+                                588
+                            ],
+                            "sistema_campo_linha1": [
+                                1245,
+                                620
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "tipo": "caixa_texto",
+                            "tem_adicionar": true,
+                            "passo_y_grupo": 188
+                        },
+                        "NÍVEL": {
+                            "coluna_planilha": "NÍVEL",
+                            "planilha_linha1": [
+                                -1534,
+                                588
+                            ],
+                            "sistema_campo_linha1": [
+                                1530,
+                                620
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "tipo": "caixa_texto",
+                            "tem_adicionar": true,
+                            "passo_y_grupo": 188
+                        },
+                        "AÇÃO DE MITIGAÇÃO": {
+                            "coluna_planilha": "AÇÃO DE MITIGAÇÃO",
+                            "planilha_linha1": [
+                                -1534,
+                                588
+                            ],
+                            "sistema_campo_linha1": [
+                                1020,
+                                709
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "tipo": "caixa_texto",
+                            "tem_adicionar": true,
+                            "passo_y_grupo": 188
+                        },
+                        "RESPONSÁVEL PELO RISCO": {
+                            "coluna_planilha": "RESPONSÁVEL PELO RISCO",
+                            "planilha_linha1": [
+                                -1534,
+                                588
+                            ],
+                            "sistema_campo_linha1": [
+                                1610,
+                                709
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "tipo": "caixa_texto",
+                            "tem_adicionar": true,
+                            "passo_y_grupo": 188
+                        }
+                    },
+                    "caixas_bloqueadas": [],
+                    "passos_pagina": [
+                        {
+                            "tipo_passo": "grupo_codependente",
+                            "nome_passo": "Plano de gestão de riscos",
+                            "titulo_card_busca": "Plano de gestão de riscos",
+                            "texto_botao_adicionar": "Adicionar risco",
+                            "data_repeater_add": "risk-plan",
+                            "ancorado_no_topo": true,
+                            "campos": [
+                                "RISCO IDENTIFICADO",
+                                "PROBABILIDADE",
+                                "IMPACTO",
+                                "NÍVEL",
+                                "AÇÃO DE MITIGAÇÃO",
+                                "RESPONSÁVEL PELO RISCO"
+                            ],
+                            "botao_adicionar": [
+                                1769,
+                                510
+                            ],
+                            "passo_y_grupo": 188
+                        }
+                    ]
+                }
+            ],
+            "coord_item_no_toggle": [
+                -1737,
+                843
+            ]
+        },
+        "5. Capacitação, Comunicação e Ações Específicas": {
+            "nome_pagina": "5. Capacitação, Comunicação e Ações Específicas",
+            "campos": {
+                "TREINAMENTOS TÉCNICOS": {
+                    "coluna_planilha": "TREINAMENTOS TÉCNICOS",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        735,
+                        685
+                    ],
+                    "botao_adicionar": [
+                        1174,
+                        622
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "data_repeater_add": "technical-trainings"
+                },
+                "AÇÕES DE RETENÇÃO DE TALENTOS": {
+                    "coluna_planilha": "AÇÕES DE RETENÇÃO DE TALENTOS",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1386,
+                        685
+                    ],
+                    "botao_adicionar": [
+                        1788,
+                        622
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "data_repeater_add": "talent-actions"
+                }
+            },
+            "caixas_bloqueadas": [],
+            "passos_pagina": [
+                {
+                    "tipo_passo": "coluna_independente",
+                    "nome_passo": "TREINAMENTOS TÉCNICOS",
+                    "campos": [
+                        "TREINAMENTOS TÉCNICOS"
+                    ],
+                    "data_repeater_add": "technical-trainings",
+                    "scroll_down_apos_adicionar": true
+                },
+                {
+                    "tipo_passo": "coluna_independente",
+                    "nome_passo": "AÇÕES DE RETENÇÃO DE TALENTOS",
+                    "campos": [
+                        "AÇÕES DE RETENÇÃO DE TALENTOS"
+                    ],
+                    "data_repeater_add": "talent-actions",
+                    "scroll_down_apos_adicionar": true
+                }
+            ],
+            "nome_bloco_1": "5. Capacitação — Passo A (Guia 5.1. Capacitação)",
+            "nome_guia_planilha": "5.1. Capacitação",
+            "nome_guia_sistema": "5. Capacitação e Comunicação",
+            "step_index_sistema": 4,
+            "titulo_coluna_confirmacao": "Treinamentos técnicos",
+            "coord_toggle_todas_guias": [
+                -1812,
+                1012
+            ],
+            "coord_celula_planilha": [
+                -1534,
+                588
+            ],
+            "bloco_2": {
+                "nome_bloco": "Passo B — Ações Específicas (5.3. Ações Específicas)",
+                "nome_guia_planilha": "5.3. Ações Específicas",
+                "titulo_coluna_confirmacao": "Ações macro",
+                "ativo": true,
+                "coord_toggle_todas_guias": [
+                    -1812,
+                    1012
+                ],
+                "coord_celula_planilha": [
+                    -1534,
+                    588
+                ],
+                "ir_para_topo_no_inicio": false,
+                "rolar_ate_o_final_no_inicio": true,
+                "campos": {
+                    "AÇÕES MACRO": {
+                        "coluna_planilha": "AÇÕES MACRO",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            735,
+                            760
+                        ],
+                        "botao_adicionar": [
+                            965,
+                            697
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "data_repeater_add": "macro-actions"
+                    },
+                    "AÇÕES MICRO": {
+                        "coluna_planilha": "AÇÕES MICRO",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1145,
+                            760
+                        ],
+                        "botao_adicionar": [
+                            1375,
+                            697
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "data_repeater_add": "micro-actions"
+                    },
+                    "AÇÕES EXTRAS": {
+                        "coluna_planilha": "AÇÕES EXTRAS",
+                        "planilha_linha1": [
+                            -1534,
+                            588
+                        ],
+                        "sistema_campo_linha1": [
+                            1555,
+                            760
+                        ],
+                        "botao_adicionar": [
+                            1788,
+                            697
+                        ],
+                        "tipo": "caixa_texto",
+                        "tem_adicionar": true,
+                        "data_repeater_add": "extra-actions"
+                    }
+                },
+                "caixas_bloqueadas": [],
+                "passos_pagina": [
+                    {
+                        "tipo_passo": "coluna_independente",
+                        "nome_passo": "AÇÕES MACRO",
+                        "campos": [
+                            "AÇÕES MACRO"
+                        ],
+                        "data_repeater_add": "macro-actions",
+                        "scroll_down_apos_adicionar": true
+                    },
+                    {
+                        "tipo_passo": "coluna_independente",
+                        "nome_passo": "AÇÕES MICRO",
+                        "campos": [
+                            "AÇÕES MICRO"
+                        ],
+                        "data_repeater_add": "micro-actions",
+                        "scroll_down_apos_adicionar": true
+                    },
+                    {
+                        "tipo_passo": "coluna_independente",
+                        "nome_passo": "AÇÕES EXTRAS",
+                        "campos": [
+                            "AÇÕES EXTRAS"
+                        ],
+                        "data_repeater_add": "extra-actions",
+                        "scroll_down_apos_adicionar": true
+                    }
+                ]
+            }
+        },
+        "6. Monitoramento, Anexos e Revisão": {
+            "nome_pagina": "6. Monitoramento, Anexos e Revisão",
+            "campos": {
+                "INDICADOR": {
+                    "coluna_planilha": "INDICADOR-CHAVE DE DESEMPENHO (KPI)",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        880,
+                        790
+                    ],
+                    "botao_adicionar": [
+                        1765,
+                        675
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 110
+                },
+                "FÓRMULA / DESCRIÇÃO": {
+                    "coluna_planilha": "MÉTRICA / FÓRMULA",
+                    "planilha_linha1": [
+                        -1534,
+                        588
+                    ],
+                    "sistema_campo_linha1": [
+                        1480,
+                        790
+                    ],
+                    "botao_adicionar": [
+                        1765,
+                        675
+                    ],
+                    "tipo": "caixa_texto",
+                    "tem_adicionar": true,
+                    "passo_y_grupo": 110
+                }
+            },
+            "nome_bloco_1": "6. Monitoramento — Indicadores de sucesso (KPIs) [Memória Etapa 4]",
+            "usar_memoria_etapa_4": true,
+            "nome_guia_planilha": "4.1. Metas e Ações",
+            "nome_guia_sistema": "6. Monitoramento e Revisão",
+            "step_index_sistema": 5,
+            "titulo_coluna_confirmacao": "Indicadores de sucesso (KPIs)",
+            "passos_pagina": [
+                {
+                    "tipo_passo": "grupo_codependente",
+                    "nome_passo": "Indicadores de sucesso (KPIs)",
+                    "titulo_card_busca": "Indicadores de sucesso (KPIs)",
+                    "texto_botao_adicionar": "Adicionar KPI",
+                    "data_repeater_add": "kpis",
+                    "campos": [
+                        "INDICADOR",
+                        "FÓRMULA / DESCRIÇÃO"
+                    ],
+                    "botao_adicionar": [
+                        1765,
+                        675
+                    ],
+                    "passo_y_grupo": 110,
+                    "ancorado_no_topo": true
+                }
+            ],
+            "caixas_bloqueadas": []
+        }
+    },
+    "pagina_ativa": "4. Metas e Planos Obrigatórios",
+    "coord_toggle_todas_guias": [
+        -1819,
+        1014
+    ],
+    "coord_botao_proxima_etapa": [
+        402,
+        518
+    ]
 }
