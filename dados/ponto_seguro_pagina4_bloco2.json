@@ -1,0 +1,64 @@
+{
+    "descricao": "Ponto de retorno seguro validado da Página 4 — Bloco 2 ('4.2. Plano Orçamentário' / 'Plano orçamentário e de investimentos').",
+    "commit_referencia": "086edd1",
+    "pagina": "4. Metas e Planos Obrigatórios",
+    "bloco_2": {
+        "nome_bloco": "Plano orçamentário e de investimentos",
+        "nome_guia_planilha": "4.2. Plano Orçamentário",
+        "titulo_coluna_confirmacao": "Plano orçamentário",
+        "ativo": true,
+        "ir_para_topo_no_inicio": false,
+        "rolar_ate_o_final_no_inicio": false,
+        "ancorado_no_topo": true,
+        "campos": {
+            "AÇÃO (ID)": {
+                "coluna_planilha": "ID DA INICIATIVA",
+                "sistema_campo_linha1": [755, 620],
+                "botao_adicionar": [1769, 510],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "DESCRIÇÃO DO CUSTO": {
+                "coluna_planilha": "DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC",
+                "sistema_campo_linha1": [1065, 620],
+                "botao_adicionar": [1769, 510],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "FONTE DE RECURSO": {
+                "coluna_planilha": "FONTE DE RECURSO",
+                "sistema_campo_linha1": [1500, 620],
+                "botao_adicionar": [1769, 510],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "ANO 1": {
+                "coluna_planilha": "ANO 2027 (R$)",
+                "sistema_campo_linha1": [815, 709],
+                "botao_adicionar": [1769, 510],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "ANO 2": {
+                "coluna_planilha": "ANO 2028 (R$)",
+                "sistema_campo_linha1": [1080, 709],
+                "botao_adicionar": [1769, 510],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            },
+            "TOTAL": {
+                "coluna_planilha": "TOTAL (R$)",
+                "sistema_campo_linha1": [835, 797],
+                "botao_adicionar": [1769, 510],
+                "tipo": "caixa_texto",
+                "tem_adicionar": true,
+                "passo_y_grupo": 286
+            }
+        }
+    }
+}

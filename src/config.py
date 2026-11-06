@@ -25,9 +25,9 @@ ARQUIVO_LOG_PROGRESSO = DADOS_DIR / "progresso_execucao.csv"
 ARQUIVO_MAPEAMENTO = DADOS_DIR / "mapeamento_campos.json"
 
 TEMPO_CONTAGEM_INICIAL = 5
-ESPERA_CURTA = 0.25
-ESPERA_MEDIA = 0.6
-ESPERA_APOS_ADICIONAR = 1.25  # Pausa após clicar em "Adicionar" para renderização DOM da nova linha
+ESPERA_CURTA = 0.35
+ESPERA_MEDIA = 0.75
+ESPERA_APOS_ADICIONAR = 1.45  # Pausa após clicar em "Adicionar" para renderização DOM da nova linha
 
 TECLA_PARADA_EMERGENCIA = "esc"
 MODO_SIMULACAO = False

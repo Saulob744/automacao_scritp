@@ -1514,12 +1514,12 @@ def detectar_botoes_remover_da_coluna(
     ys_encontrados: List[int] = []
     for cnt in contornos:
         x, y, w, h = cv2.boundingRect(cnt)
-        if 1 <= w <= 68 and 1 <= h <= 68:
+        if 1 <= w <= 105 and 1 <= h <= 68:
             cx = ox + x + (w // 2)
             cy = oy + y + (h // 2)
             # Nos cards largos (x_btn_add ~ 1769), o botão '×' de 11 colunas (Metas e Ações / Plano de Riscos)
-            # fica na coluna 11 (cx ~ 1672, distância ~ 97px), enquanto de 12 colunas fica na coluna 12 (cx ~ 1775).
-            tol_x = 148 if int(x_btn_add) >= 1500 else 105
+            # fica na coluna 11 (cx ~ 1665..1675, distância ~ 100..115px), enquanto de 12 colunas fica na coluna 12 (cx ~ 1775).
+            tol_x = 175 if int(x_btn_add) >= 1500 else 105
             if abs(cx - int(x_btn_add)) <= tol_x and y_min_busca <= cy <= limite_y:
                 ys_encontrados.append(int(cy))
 
@@ -2039,13 +2039,15 @@ def _buscar_campo_com_ctrl_f(
     xn, _ = params["ponto_neutro"]
 
     atalho_teclado("ctrl", "f")
-    time.sleep(0.16)
+    time.sleep(0.22)
     copiar_para_clipboard(termo_busca)
-    time.sleep(0.06)
+    time.sleep(0.08)
     atalho_teclado("ctrl", "a")
-    time.sleep(0.04)
+    time.sleep(0.06)
+    pressionar_tecla_unica("backspace")
+    time.sleep(0.08)
     atalho_teclado("ctrl", "v")
-    time.sleep(0.32)
+    time.sleep(0.38)
 
     x_ref = x_btn_esperado if x_btn_esperado is not None else max(950, xn)
     # Usa o corredor central do formulário (X=1230, Y=500) para que o scroll da roda sempre role a página
@@ -2070,13 +2072,16 @@ def _buscar_campo_com_ctrl_f(
         # sobe a página +3 ticks para revelar o cabeçalho do card abaixo da topbar!
         if tentativa == 0 and total_dest == 0:
             rolar_pagina(3, x=x_scroll, y=500)
-            time.sleep(0.32)
+            time.sleep(0.38)
             continue
         if tentativa < 4:
             pressionar_tecla_unica("enter")
-            time.sleep(0.25)
+            time.sleep(0.30)
 
     pressionar_tecla_unica("esc")
+    time.sleep(0.22)
+    # Clica no ponto neutro lateral da página para devolver o foco ao documento após fechar o Ctrl+F
+    mover_e_clicar(x=620, y=260, cliques=1, botao="left")
     time.sleep(0.15)
 
     # Posiciona o cabeçalho do card em faixa segura (Y ~ 215..430), SEMPRE abaixo da topbar fixa (Y=198)
@@ -3015,47 +3020,71 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                         break
             else:
                 # Blocos intermediários/finais ('Plano orçamentário e de investimentos' / 'Plano de gestão de riscos' / 'Indicadores de sucesso (KPIs)'):
-                # NUNCA sobe até o topo da Página 4 (para não clicar em 'Adicionar ação' por engano)!
-                # Posiciona o cabeçalho e o botão do próprio bloco em Y ~ 240..380 via Ctrl+F
-                termo_cabecalho_bloco = (
-                    "Plano orçamentário e de investimentos"
-                    if eh_bloco_orcamento
-                    else (
-                        "Plano de gestão de riscos"
-                        if eh_bloco_riscos
+                # 1º: Tira o foco de qualquer campo readonly/inferior (ex: 'Total') clicando no ponto neutro lateral
+                mover_e_clicar(x=620, y=260, cliques=1, botao="left")
+                time.sleep(0.18)
+
+                # 2º: Como sabemos quantos pixels o botão subiu no card anterior (y_btn < 225),
+                # sobe primeiro exatamente os ticks necessários para devolver o botão do bloco a Y ~ 260 (sem depender de Ctrl+F!)
+                if y_btn < 225:
+                    passos_subir_bloco = max(2, min(14, int(round((265 - y_btn) / 100.0))))
+                    rolar_pagina(passos_subir_bloco, x=x_scroll, y=500)
+                    ticks_subidos += passos_subir_bloco
+                    time.sleep(0.45)
+                    img_up_b, off_up_b = capturar_tela_sistema(x_btn)
+                    btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
+                        img_up_b,
+                        off_up_b,
+                        x_btn,
+                        y_btn_esperado=265,
+                        preferir_topo=True,
+                    )
+
+                # 3º: Se ainda não ficou visível na faixa segura do topo (218..430), ancora via Ctrl+F no título do bloco
+                if btn_visivel is None or not (218 <= btn_visivel[1] <= 430):
+                    termo_cabecalho_bloco = (
+                        "Plano orçamentário e de investimentos"
+                        if eh_bloco_orcamento
                         else (
-                            "Indicadores de sucesso (KPIs)"
-                            if eh_bloco_kpis
-                            else texto_botao_adicionar
+                            "Plano de gestão de riscos"
+                            if eh_bloco_riscos
+                            else (
+                                "Indicadores de sucesso (KPIs)"
+                                if eh_bloco_kpis
+                                else texto_botao_adicionar
+                            )
                         )
                     )
-                )
-                btn_cf, dest_cf = _buscar_campo_com_ctrl_f(
-                    termo_busca=termo_cabecalho_bloco,
-                    x_btn_esperado=x_btn,
-                    posicionar_no_topo=True,
-                    espera_botao_adicionar=True,
-                    incluir_botoes_largos=True,
-                )
-                if btn_cf is not None:
-                    btn_visivel = (int(btn_cf[0]), int(btn_cf[1]))
-                elif dest_cf is not None:
-                    btn_visivel = (x_btn, int(dest_cf[1]))
+                    btn_cf, dest_cf = _buscar_campo_com_ctrl_f(
+                        termo_busca=termo_cabecalho_bloco,
+                        x_btn_esperado=x_btn,
+                        posicionar_no_topo=True,
+                        espera_botao_adicionar=True,
+                        incluir_botoes_largos=True,
+                    )
+                    if btn_cf is not None:
+                        btn_visivel = (int(btn_cf[0]), int(btn_cf[1]))
+                    elif dest_cf is not None:
+                        btn_visivel = (x_btn, int(dest_cf[1]))
 
             if btn_visivel is None:
                 atalho_teclado("ctrl", "f")
-                time.sleep(0.18)
+                time.sleep(0.22)
                 copiar_para_clipboard(texto_botao_adicionar)
-                time.sleep(0.06)
+                time.sleep(0.08)
                 atalho_teclado("ctrl", "a")
-                time.sleep(0.04)
+                time.sleep(0.06)
+                pressionar_tecla_unica("backspace")
+                time.sleep(0.08)
                 atalho_teclado("ctrl", "v")
-                time.sleep(0.35)
+                time.sleep(0.38)
                 pressionar_tecla_unica("esc")
-                time.sleep(0.12)
+                time.sleep(0.20)
+                mover_e_clicar(x=620, y=260, cliques=1, botao="left")
+                time.sleep(0.15)
                 rolar_pagina(4, x=x_scroll, y=500)
                 ticks_subidos += 4
-                time.sleep(0.35)
+                time.sleep(0.40)
                 img_cf, off_cf = capturar_tela_sistema(x_btn)
                 btn_visivel = _localizar_botao_adicionar_necessidade_visivel(
                     img_cf, off_cf, x_btn, y_btn_esperado=None, preferir_topo=True
@@ -3072,8 +3101,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
 
         x_clique_btn = max(650, min(1860, int(x_clique_btn)))
         y_clique_btn = max(208, min(950, int(y_clique_btn)))
+        if ticks_subidos > 0 and not eh_bloco_metas_topo:
+            mover_e_clicar(x=620, y=max(220, min(400, y_clique_btn)), cliques=1, botao="left")
+            time.sleep(0.15)
         mover_e_clicar(x=x_clique_btn, y=y_clique_btn, cliques=1, botao="left")
-        time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
+        time.sleep(max(1.45, float(ESPERA_APOS_ADICIONAR)))
 
         # Deslocamentos verticais relativos de cada campo até o último campo do sub-card (base_coords[-1])
         dy_rel_ult = [int(cy - base_coords[-1][1]) for _, cy in base_coords]
@@ -3239,9 +3271,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
 
         # Se o cabeçalho/botão do próximo bloco abaixo (y_lim_vizinho) está visível na tela (480 <= y_lim_vizinho <= 945),
         # em 'Metas e ações' o último campo editável (RESPONSÁVEL) é a última linha do sub-card (62px acima de y_lim_vizinho).
-        # Já em 'Plano orçamentário', abaixo de ANO 1..4 ainda existem a linha 'Total' (readonly) e a caixa 'Totais consolidados'!
+        # Já em 'Plano orçamentário', abaixo do campo 'Total' (readonly) ainda existe a caixa 'Totais consolidados' (164px acima de y_lim_vizinho)!
         if eh_bloco_metas_topo and 480 <= y_lim_vizinho <= 945:
             y_resp_atual = int(y_lim_vizinho - 62)
+        elif eh_bloco_orcamento and orcamento_tem_linha3_total and 520 <= y_lim_vizinho <= 975:
+            y_resp_atual = min(int(y_resp_atual), int(y_lim_vizinho - 164))
 
         y_resp_escolhido = min(y_lim_vizinho - 22, int(y_resp_atual))
         if img_pos is not None:
@@ -3260,6 +3294,90 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 and not _esta_em_zona_proibida(int(base_coords[-1][0]), int(yx + dy_x_para_ult), zonas_proibidas)
             ]
 
+            # AUTOCORREÇÃO DO BOTÃO ADICIONAR (Blocos 2 e 3):
+            # Se após clicar em 'Adicionar linha' / 'Adicionar risco' e descer a página o último sub-card visível
+            # do bloco já estiver preenchido (ou seja, o clique no botão 'Adicionar' não criou o novo bloco vazio!),
+            # sobe novamente até o botão 'Adicionar', clica nele com foco garantido e volta a descer!
+            if (eh_bloco_orcamento or eh_bloco_riscos) and ys_x_pos:
+                ult_yx_check = int(ys_x_pos[-1])
+                ult_y_resp_check = int(ult_yx_check + dy_x_para_ult)
+                idx_chk_prim = 1 if len(base_coords) >= 2 else 0
+                idx_chk_ult = -2 if (orcamento_tem_linha3_total and len(base_coords) >= 2) else -1
+                y_chk_prim = int(ult_y_resp_check + dy_rel_ult[idx_chk_prim])
+                y_chk_ult = int(ult_y_resp_check + dy_rel_ult[idx_chk_ult])
+                if 220 <= y_chk_prim <= 940 and 220 <= y_chk_ult <= 960:
+                    v_chk_prim = eh_caixa_de_texto_vazia(
+                        img_pos, off_pos, int(base_coords[idx_chk_prim][0]), y_chk_prim, None
+                    )
+                    v_chk_ult = eh_caixa_de_texto_vazia(
+                        img_pos, off_pos, int(base_coords[idx_chk_ult][0]), y_chk_ult, None
+                    )
+                    if not v_chk_prim and not v_chk_ult:
+                        print(
+                            f"  🛠️ [AUTOCORREÇÃO] Último sub-card visível (Y={y_chk_prim}) já está preenchido! "
+                            f"Subindo para clicar novamente em '{texto_botao_adicionar}' com segurança..."
+                        )
+                        passos_ret_up = max(3, ticks_descidos_total + 1)
+                        rolar_pagina(passos_ret_up, x=x_scroll, y=500)
+                        time.sleep(0.45)
+                        img_ret, off_ret = capturar_tela_sistema(x_btn)
+                        btn_ret = _localizar_botao_adicionar_necessidade_visivel(
+                            img_ret, off_ret, x_btn, y_btn_esperado=265, preferir_topo=True
+                        )
+                        if btn_ret is None:
+                            termo_ret = (
+                                "Plano orçamentário e de investimentos"
+                                if eh_bloco_orcamento
+                                else "Plano de gestão de riscos"
+                            )
+                            btn_cf_r, _ = _buscar_campo_com_ctrl_f(
+                                termo_busca=termo_ret,
+                                x_btn_esperado=x_btn,
+                                posicionar_no_topo=True,
+                                espera_botao_adicionar=True,
+                                incluir_botoes_largos=True,
+                            )
+                            if btn_cf_r is not None:
+                                btn_ret = (int(btn_cf_r[0]), int(btn_cf_r[1]))
+                        if btn_ret is not None:
+                            x_clique_btn, y_clique_btn = int(btn_ret[0]), int(btn_ret[1])
+                            mover_e_clicar(x=620, y=max(220, min(400, y_clique_btn)), cliques=1, botao="left")
+                            time.sleep(0.18)
+                            mover_e_clicar(x=x_clique_btn, y=y_clique_btn, cliques=1, botao="left")
+                            time.sleep(max(1.55, float(ESPERA_APOS_ADICIONAR)))
+                            passos_ret_down = max(3, int(round(((y_clique_btn + dy_btn_para_ult + (indice_caixa * passo_card)) - y_alvo_resp) / 98.0)))
+                            rolar_pagina(-passos_ret_down, x=x_scroll, y=500)
+                            ticks_descidos_total = passos_ret_down
+                            delta_scroll_total = passos_ret_down * 100
+                            y_btn_pos_topo = int(y_clique_btn - delta_scroll_total)
+                            y_resp_atual = int(y_clique_btn + dy_btn_para_ult + (indice_caixa * passo_card) - delta_scroll_total)
+                            time.sleep(0.45)
+                            img_pos, off_pos = capturar_tela_sistema(x_btn)
+                            if img_pos is not None:
+                                if not (eh_bloco_riscos or eh_bloco_kpis):
+                                    todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+                                    y_lim_vizinho = _obter_limite_y_proximo_card(
+                                        todos_b_pos,
+                                        x_btn,
+                                        max(70, y_btn_pos_topo),
+                                        y_limite_extra=y_limite_bloco_vizinho,
+                                        y_minimo_abaixo=max(380, int(y_btn_pos_topo) + 260),
+                                    )
+                                ys_x_pos = detectar_botoes_remover_da_coluna(
+                                    img_pos,
+                                    off_pos,
+                                    x_btn_add=x_btn,
+                                    y_btn_add=max(65, y_btn_pos_topo),
+                                    y_limite_inferior=y_lim_vizinho,
+                                    passo_max_continuo=380,
+                                )
+                                ys_x_pos = [
+                                    yx
+                                    for yx in ys_x_pos
+                                    if yx < y_lim_vizinho
+                                    and not _esta_em_zona_proibida(int(base_coords[-1][0]), int(yx + dy_x_para_ult), zonas_proibidas)
+                                ]
+
             # Mede a distância real entre sub-cards consecutivos pelos botões '×' visíveis (Lei da Distância Constante ΔY)
             if len(ys_x_pos) >= 2:
                 ult_dy_x = int(ys_x_pos[-1] - ys_x_pos[-2])
@@ -3275,7 +3393,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             ]
             if ys_ult_todos:
                 ult_da_coluna = int(ys_ult_todos[-1])
-                tol_ult = max(165, int(passo_card * 0.65)) if eh_bloco_orcamento else max(105, int(passo_card * 0.45))
+                tol_ult = max(185, int(passo_card * 0.72)) if (eh_bloco_orcamento or eh_bloco_riscos) else max(105, int(passo_card * 0.45))
                 if abs(ult_da_coluna - y_resp_atual) <= tol_ult:
                     y_resp_escolhido = ult_da_coluna
 
