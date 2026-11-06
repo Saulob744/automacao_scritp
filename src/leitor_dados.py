@@ -146,9 +146,6 @@ SINONIMOS_SWOT = {
         "DESCRICAO CUSTO",
         "DESCRIÇÃO CUSTO",
         "ITEM DE CUSTO",
-        "DESCRICAO DA DESPESA",
-        "DESCRIÇÃO DA DESPESA",
-        "DESPESA",
         "DESCRICAO DA INICIATIVA",
         "DESCRIÇÃO DA INICIATIVA",
         "DESCRICAO DA ACAO",
@@ -161,10 +158,11 @@ SINONIMOS_SWOT = {
         "FONTE ORÇAMENTÁRIA",
         "FONTE",
     },
-    "ANO 1": {"ANO 1", "ANO1", "1º ANO", "1° ANO", "VALOR ANO 1"},
-    "ANO 2": {"ANO 2", "ANO2", "2º ANO", "2° ANO", "VALOR ANO 2"},
-    "ANO 3": {"ANO 3", "ANO3", "3º ANO", "3° ANO", "VALOR ANO 3"},
-    "ANO 4": {"ANO 4", "ANO4", "4º ANO", "4° ANO", "VALOR ANO 4"},
+    "ANO 1": {"ANO 1", "ANO1", "1º ANO", "1° ANO", "VALOR ANO 1", "ANO 2027 (R$)", "ANO 2027", "2027 (R$)"},
+    "ANO 2": {"ANO 2", "ANO2", "2º ANO", "2° ANO", "VALOR ANO 2", "ANO 2028 (R$)", "ANO 2028", "2028 (R$)"},
+    "ANO 3": {"ANO 3", "ANO3", "3º ANO", "3° ANO", "VALOR ANO 3", "ANO 2029 (R$)", "ANO 2029", "2029 (R$)"},
+    "ANO 4": {"ANO 4", "ANO4", "4º ANO", "4° ANO", "VALOR ANO 4", "ANO 2030 (R$)", "ANO 2030", "2030 (R$)"},
+    "TOTAL": {"TOTAL", "TOTAL (R$)", "VALOR TOTAL", "VALOR TOTAL (R$)"},
     "RISCO IDENTIFICADO": {
         "RISCO IDENTIFICADO",
         "RISCOS IDENTIFICADOS",
@@ -510,22 +508,54 @@ def _celula_corresponde_coluna(celula: str, nome_esperado: str) -> bool:
             or "CODIGO DA INICIATIVA" in cel_sem
         ):
             return True
-        if chave_canon == "DESCRIÇÃO DO CUSTO" and (
-            "CUSTO" in cel_sem
-            or "DESPESA" in cel_sem
-            or "DESCRICAO DA INICIATIVA" in cel_sem
-            or "DESCRICAO DA ACAO" in cel_sem
+        if chave_canon == "DESCRIÇÃO DO CUSTO" and any(
+            termo in cel_sem
+            for termo in (
+                "DESCRICAO SUSCINTA",
+                "DESCRICAO SUCINTA",
+                "NECESSIDADE PRIORIZADA",
+                "CICLO DO PDTIC",
+                "DESCRICAO DO CUSTO",
+                "DESCRICAO DA INICIATIVA",
+                "DESCRICAO DA ACAO",
+            )
         ):
             return True
         if chave_canon == "FONTE DE RECURSO" and "FONTE" in cel_sem:
             return True
-        if chave_canon in ("ANO 1", "ANO 2", "ANO 3", "ANO 4"):
+        if chave_canon == "ANO 1" and (
+            "ANO 2027" in cel_sem
+            or "2027 (R$)" in cel_sem
+            or cel_sem == "2027"
+            or re.search(r"\bANO\s*0?1\b", cel_sem)
+            or re.search(r"\b0?1[º°]?\s*ANO\b", cel_sem)
+        ):
+            return True
+        if chave_canon == "ANO 2" and (
+            "ANO 2028" in cel_sem
+            or "2028 (R$)" in cel_sem
+            or cel_sem == "2028"
+            or re.search(r"\bANO\s*0?2\b", cel_sem)
+            or re.search(r"\b0?2[º°]?\s*ANO\b", cel_sem)
+        ):
+            return True
+        if chave_canon in ("ANO 3", "ANO 4"):
             num_ano = chave_canon.split()[-1]
+            ano_cal = "2029" if num_ano == "3" else "2030"
             if (
-                re.search(rf"\bANO\s*0?{num_ano}\b", cel_sem)
+                f"ANO {ano_cal}" in cel_sem
+                or f"{ano_cal} (R$)" in cel_sem
+                or cel_sem == ano_cal
+                or re.search(rf"\bANO\s*0?{num_ano}\b", cel_sem)
                 or re.search(rf"\b0?{num_ano}[º°]?\s*ANO\b", cel_sem)
             ):
                 return True
+        if chave_canon == "TOTAL" and (
+            cel_sem in ("TOTAL", "TOTAL (R$)", "VALOR TOTAL", "VALOR TOTAL (R$)")
+            or "TOTAL (R$)" in cel_sem
+            or cel_sem.startswith("TOTAL ")
+        ):
+            return True
         if chave_canon == "RISCO IDENTIFICADO" and (
             "RISCO IDENTIFICADO" in cel_sem
             or cel_sem in ("RISCO", "RISCOS")
@@ -817,8 +847,15 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
 
         # Se algum cabeçalho estiver quebrado/mesclado com a linha imediatamente abaixo
         # (ex: 'DESCRIÇÃO SUSCINTA DE NECESSIDADE' na linha 1 e 'PRIORIZADA NO CICLO DO PDTIC' na linha 2,
-        # ou 'CLASSIFICAÇÃO' na linha 1 e 'DE PRIORIDADE' na linha 2)
-        if prox_linha:
+        # Se algum cabeçalho estiver quebrado/mesclado com a linha imediatamente abaixo
+        # (ex: 'DESCRIÇÃO SUSCINTA DE NECESSIDADE' na linha 1 e 'PRIORIZADA NO CICLO DO PDTIC' na linha 2,
+        # ou 'CLASSIFICAÇÃO' na linha 1 e 'DE PRIORIDADE' na linha 2).
+        # Ignora prox_linha se ela já for claramente a 1ª linha de dados (contendo 'R$', 'SESP.' ou 'OE.TIC').
+        prox_eh_linha_dados = any(
+            "R$" in remover_acentos(c) or "SESP." in remover_acentos(c) or "OE.TIC" in remover_acentos(c)
+            for c in prox_linha
+        )
+        if prox_linha and not prox_eh_linha_dados:
             for nome_original in nomes_colunas_esperados:
                 if nome_original in encontrados_nesta_linha:
                     continue
@@ -850,7 +887,7 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
         mapa_coluna_para_indice = dict(melhor_encontrados)
 
         # Se a linha de cabeçalho encontrou parte das colunas esperadas (ex: 2 ou 3 das 4 colunas
-        # do Bloco 2, ou 4.2. Plano Orçamentário onde os anos vêm como '2024', '2025', '2026', '2027'),
+        # do Bloco 2, ou 4.2. Plano Orçamentário onde os anos vêm como 'ANO 2027 (R$)', 'ANO 2028 (R$)'),
         # mapeia primeiro colunas de anos (4 dígitos) e depois as restantes na ordem disponível.
         if len(mapa_coluna_para_indice) < len(nomes_colunas_esperados):
             linha_cab = todas_linhas[indice_linha_cabecalho]
@@ -861,13 +898,14 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             )
             max_cols_cab = max(len(linha_cab), len(prox_cab))
 
-            # Tratamento específico para 'ANO 1'..'ANO 4' quando a planilha usa anos calendário (ex: 2024..2027, ANO 2025, etc.)
+            # Tratamento específico para 'ANO 1'..'ANO 4' quando a planilha usa anos calendário (ex: ANO 2027 (R$), ANO 2028 (R$))
             anos_esperados = [
                 n for n in nomes_colunas_esperados if remover_acentos(n) in ("ANO 1", "ANO 2", "ANO 3", "ANO 4")
             ]
-            if anos_esperados and any(a not in mapa_coluna_para_indice for a in anos_esperados):
+            anos_faltantes = [a for a in anos_esperados if a not in mapa_coluna_para_indice]
+            if anos_faltantes:
                 idx_min_ano = 0
-                for chave_ant in ("FONTE DE RECURSO", "DESCRIÇÃO DO CUSTO", "AÇÃO (ID)"):
+                for chave_ant in ("DESCRIÇÃO DO CUSTO", "AÇÃO (ID)"):
                     for k_map, v_map in mapa_coluna_para_indice.items():
                         if _resolver_chave_sinonimo(k_map) == chave_ant:
                             idx_min_ano = max(idx_min_ano, v_map + 1)
@@ -896,24 +934,8 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     ):
                         cols_anos_detectadas.append(idx_c)
                         usou_linha_abaixo_no_cabecalho = True
-                if len(cols_anos_detectadas) >= len(anos_esperados):
-                    for nome_ano, idx_ano in zip(anos_esperados, cols_anos_detectadas):
-                        mapa_coluna_para_indice[nome_ano] = idx_ano
-                elif idx_min_ano > 0:
-                    # Fallback posicional à direita de 'FONTE DE RECURSO' para as 4 colunas de ano
-                    cols_direita_fonte = [
-                        idx_c
-                        for idx_c in range(idx_min_ano, max_cols_cab)
-                        if idx_c not in mapa_coluna_para_indice.values()
-                        and "TOTAL" not in remover_acentos(
-                            f"{linha_cab[idx_c] if idx_c < len(linha_cab) else ''} "
-                            f"{prox_cab[idx_c] if idx_c < len(prox_cab) else ''}"
-                        )
-                    ]
-                    for nome_ano, idx_ano in zip(
-                        [a for a in anos_esperados if a not in mapa_coluna_para_indice],
-                        cols_direita_fonte,
-                    ):
+                if cols_anos_detectadas:
+                    for nome_ano, idx_ano in zip(anos_faltantes, cols_anos_detectadas):
                         mapa_coluna_para_indice[nome_ano] = idx_ano
 
             espera_prioridade = any(_resolver_chave_sinonimo(n) == "PRIORIDADE" for n in nomes_colunas_esperados)
@@ -935,7 +957,12 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     continue
                 cols_candidatas.append(idx_c)
 
-            faltantes = [n for n in nomes_colunas_esperados if n not in mapa_coluna_para_indice]
+            faltantes = [
+                n
+                for n in nomes_colunas_esperados
+                if n not in mapa_coluna_para_indice
+                and _resolver_chave_sinonimo(n) not in ("ANO 1", "ANO 2", "ANO 3", "ANO 4", "TOTAL")
+            ]
             for nome_faltante, idx_cand in zip(faltantes, cols_candidatas):
                 mapa_coluna_para_indice[nome_faltante] = idx_cand
 
@@ -1146,8 +1173,14 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
         )
         valor_id_linha = item.get(chave_id_original, "") if chave_id_original else ""
         for k_campo in list(item.keys()):
-            if _resolver_chave_sinonimo(k_campo) == "OBJETIVO ESTRATÉGICO" and item[k_campo]:
+            ch_c = _resolver_chave_sinonimo(k_campo)
+            if ch_c == "OBJETIVO ESTRATÉGICO" and item[k_campo]:
                 item[k_campo] = limpar_objetivo_estrategico(item[k_campo], valor_id_linha)
+            elif ch_c in ("ANO 1", "ANO 2", "ANO 3", "ANO 4", "TOTAL") and item[k_campo]:
+                val_m = re.sub(r"^\s*R\$\s*", "", str(item[k_campo]).strip(), flags=re.IGNORECASE).strip()
+                if val_m in ("-", "--", "—"):
+                    val_m = "0,00"
+                item[k_campo] = val_m
 
         # Proteção para 'Inventário de necessidades': como 'CLASSIFICAÇÃO DE PRIORIDADE' já vem com
         # um toggle pré-selecionado na planilha, linhas em branco no template que tenham apenas a
@@ -1180,6 +1213,13 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 )
             )
             if not tem_conteudo_meta:
+                continue
+
+        # Proteção para '4.2. Plano Orçamentário': ignora linhas de rodapé/template sem Descrição do Custo
+        if "AÇÃO (ID)" in chaves_item_canon and "DESCRIÇÃO DO CUSTO" in chaves_item_canon:
+            desc_custo_val = str(chaves_item_canon.get("DESCRIÇÃO DO CUSTO", "")).strip()
+            acao_id_val = remover_acentos(str(chaves_item_canon.get("AÇÃO (ID)", "")).strip())
+            if not desc_custo_val or acao_id_val in ("SEM ID", "TOTAL", "TOTAIS"):
                 continue
 
         if any(str(v).strip() for k, v in item.items() if not str(k).startswith("_")):

@@ -295,6 +295,16 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "w_min_btn_add": 95,
         "w_max_btn_add": 185,
     },
+    "TOTAL": {
+        "data_repeater": "budget-plan",
+        "data_repeater_add": "budget-plan",
+        "texto_botao": "Adicionar linha",
+        "coluna_grid": "col-md-4",
+        "x_min_input": 720,
+        "x_max_input": 1005,
+        "w_min_btn_add": 95,
+        "w_max_btn_add": 185,
+    },
     # =========================================================================
     # Bloco 3: 'Plano de gestão de riscos' (data-repeater="risk-plan", botão "Adicionar risco")
     # =========================================================================
@@ -3065,10 +3075,19 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         mover_e_clicar(x=x_clique_btn, y=y_clique_btn, cliques=1, botao="left")
         time.sleep(max(1.25, float(ESPERA_APOS_ADICIONAR)))
 
-        # Deslocamentos verticais relativos de cada campo até o último campo editável do sub-card (base_coords[-1])
+        # Deslocamentos verticais relativos de cada campo até o último campo do sub-card (base_coords[-1])
         dy_rel_ult = [int(cy - base_coords[-1][1]) for _, cy in base_coords]
+        orcamento_tem_linha3_total = bool(
+            eh_bloco_orcamento and len(base_coords) >= 5 and int(base_coords[-1][1] - base_coords[0][1]) >= 140
+        )
         dy_btn_para_ult_padrao = (
-            115 if eh_bloco_kpis else (199 if (eh_bloco_orcamento or eh_bloco_riscos) else 289)
+            115
+            if eh_bloco_kpis
+            else (
+                199
+                if (eh_bloco_riscos or (eh_bloco_orcamento and not orcamento_tem_linha3_total))
+                else 289
+            )
         )
         if indice_caixa == 1 and ticks_subidos == 0 and 208 <= y_btn_calibrado <= 700:
             dy_btn_para_ult = int(base_coords[-1][1] - y_btn_calibrado)
@@ -3077,17 +3096,18 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         else:
             dy_btn_para_ult = dy_btn_para_ult_padrao
 
-        # Diferença vertical entre o botão vermelho '×' do sub-card (yx) e o último campo editável (base_coords[-1][1]):
+        # Diferença vertical entre o botão vermelho '×' do sub-card (yx) e o último campo do sub-card (base_coords[-1][1]):
         # - Metas e ações: '×' está na Linha 2 (ao lado de PRAZO, base_coords[5]), enquanto RESPONSÁVEL está na Linha 3 (+89px abaixo do '×').
-        # - Plano orçamentário: no HTML real (col-md-1 align-items-start pt-md-4), '×' está na Linha 1 (base_coords[0]), enquanto ANO 4 está na Linha 2 (+89px abaixo do '×').
+        # - Plano orçamentário: no HTML real (col-md-1 align-items-start pt-md-4), '×' está na Linha 1 (base_coords[0]),
+        #   enquanto ANO 1..2 estão na Linha 2 (+89px) e TOTAL está na Linha 3 (+177px abaixo do '×').
         # - Plano de gestão de riscos: '×' está na Linha 1 (ao lado de NÍVEL, base_coords[0]), enquanto RESPONSÁVEL PELO RISCO está na Linha 2 (+89px abaixo do '×').
         # - Indicadores de sucesso (KPIs): '×' está na única linha horizontal (dy_x_para_ult = 0).
         if eh_bloco_kpis:
             dy_x_para_ult = 0
-        elif eh_bloco_orcamento and len(base_coords) >= 7:
+        elif eh_bloco_orcamento and len(base_coords) >= 5:
             dy_x_para_ult = int(base_coords[-1][1] - base_coords[0][1])
-            if dy_x_para_ult < 45 or dy_x_para_ult > 135:
-                dy_x_para_ult = 89
+            if dy_x_para_ult < 45 or dy_x_para_ult > 215:
+                dy_x_para_ult = 177 if orcamento_tem_linha3_total else 89
         elif eh_bloco_metas_topo and len(base_coords) >= 7:
             dy_x_para_ult = int(base_coords[-1][1] - base_coords[5][1])
             if dy_x_para_ult < 45 or dy_x_para_ult > 135:
@@ -3100,7 +3120,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             dy_x_para_ult = 0
 
         # Se o usuário ensinou o comportamento de 3 linhas (--ensinar), usa o alvo aprendido para Linha 2 e Linha 3+
-        y_alvo_resp = 785 if (eh_bloco_orcamento or eh_bloco_riscos or eh_bloco_kpis) else 845
+        y_alvo_resp = (
+            785
+            if (eh_bloco_riscos or eh_bloco_kpis or (eh_bloco_orcamento and not orcamento_tem_linha3_total))
+            else 845
+        )
         ticks_ensinado = None
         if isinstance(aprendizado_3_linhas, dict):
             if indice_caixa == 1 and isinstance(aprendizado_3_linhas.get("coords_linha2"), list) and aprendizado_3_linhas["coords_linha2"]:

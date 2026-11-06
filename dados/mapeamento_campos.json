@@ -50,7 +50,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         },
         "OBJETIVO ESTRATÉGICO": {
             "coluna_planilha": "OBJETIVO ESTRATÉGICO DE TIC",
@@ -68,7 +68,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         },
         "META": {
             "coluna_planilha": "META",
@@ -86,7 +86,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         },
         "AÇÃO PRINCIPAL": {
             "coluna_planilha": "RESULTADO-CHAVE (KR) ESPERADO (AÇÃO PRINCIPAL)",
@@ -104,7 +104,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         },
         "INDICADOR": {
             "coluna_planilha": "INDICADOR-CHAVE DE DESEMPENHO (KPI)",
@@ -122,7 +122,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         },
         "PRAZO": {
             "coluna_planilha": "PRAZO (QUADRANTE + ANO)",
@@ -140,7 +140,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         },
         "RESPONSÁVEL": {
             "coluna_planilha": "RESPONSÁVEL",
@@ -158,7 +158,7 @@
             ],
             "tipo": "caixa_texto",
             "tem_adicionar": true,
-            "passo_y_grupo": 276
+            "passo_y_grupo": 286
         }
     },
     "campos": {
@@ -621,7 +621,7 @@
                 "ancorado_no_topo": true,
                 "campos": {
                     "AÇÃO (ID)": {
-                        "coluna_planilha": "AÇÃO (ID)",
+                        "coluna_planilha": "ID DA INICIATIVA",
                         "planilha_linha1": [
                             -1534,
                             588
@@ -639,7 +639,7 @@
                         "passo_y_grupo": 286
                     },
                     "DESCRIÇÃO DO CUSTO": {
-                        "coluna_planilha": "DESCRIÇÃO DO CUSTO",
+                        "coluna_planilha": "DESCRIÇÃO SUSCINTA DE NECESSIDADE PRIORIZADA NO CICLO DO PDTIC",
                         "planilha_linha1": [
                             -1534,
                             588
@@ -675,7 +675,7 @@
                         "passo_y_grupo": 286
                     },
                     "ANO 1": {
-                        "coluna_planilha": "ANO 1",
+                        "coluna_planilha": "ANO 2027 (R$)",
                         "planilha_linha1": [
                             -1534,
                             588
@@ -693,7 +693,7 @@
                         "passo_y_grupo": 286
                     },
                     "ANO 2": {
-                        "coluna_planilha": "ANO 2",
+                        "coluna_planilha": "ANO 2028 (R$)",
                         "planilha_linha1": [
                             -1534,
                             588
@@ -710,33 +710,15 @@
                         "tem_adicionar": true,
                         "passo_y_grupo": 286
                     },
-                    "ANO 3": {
-                        "coluna_planilha": "ANO 3",
+                    "TOTAL": {
+                        "coluna_planilha": "TOTAL (R$)",
                         "planilha_linha1": [
                             -1534,
                             588
                         ],
                         "sistema_campo_linha1": [
-                            1340,
-                            709
-                        ],
-                        "botao_adicionar": [
-                            1769,
-                            510
-                        ],
-                        "tipo": "caixa_texto",
-                        "tem_adicionar": true,
-                        "passo_y_grupo": 286
-                    },
-                    "ANO 4": {
-                        "coluna_planilha": "ANO 4",
-                        "planilha_linha1": [
-                            -1534,
-                            588
-                        ],
-                        "sistema_campo_linha1": [
-                            1605,
-                            709
+                            835,
+                            797
                         ],
                         "botao_adicionar": [
                             1769,
@@ -762,8 +744,7 @@
                             "FONTE DE RECURSO",
                             "ANO 1",
                             "ANO 2",
-                            "ANO 3",
-                            "ANO 4"
+                            "TOTAL"
                         ],
                         "botao_adicionar": [
                             1769,
