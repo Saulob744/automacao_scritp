@@ -9,7 +9,7 @@ Versão 100% Oculta / 2º Plano (SEPARADA do `main.py` que ocupa a tela principa
 
 import argparse
 from src.automacao_background import (
-    ARQUIVO_LOG_DEBUG,
+   ARQUIVO_LOG_BG,
     NOME_PADRAO_PLANILHA_DRIVE,
     PASTA_EXTENSAO_BG,
     PORTA_PONTE_LOCAL,
@@ -110,7 +110,7 @@ def main() -> None:
     print(f"📄 Guia já aberta:   {URL_PADRAO_NEX_PRIVACY}")
     print(f"📗 Planilha Drive:   '{NOME_PADRAO_PLANILHA_DRIVE}'")
     print(f"🧩 Extensão Oculta:  {PASTA_EXTENSAO_BG}")
-    print(f"🪵 Log de Debug:     {ARQUIVO_LOG_DEBUG}")
+    print(f"🪵 Log de Debug:     {ARQUIVO_LOG_BG}")
     print(f"⏱️  Timer / Timeout:  {args.timeout}s por etapa (para e avisa se travar)")
     print("🖥️  Tela / Monitores: Nenhuma janela será aberta ou trazida para a frente!")
     print("=" * 78)

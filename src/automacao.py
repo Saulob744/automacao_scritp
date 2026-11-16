@@ -1999,7 +1999,7 @@ def _executar_blocos_adicionais_da_pagina(
             nome_guia=nome_guia_b,
             rotulo_etapa=f"{nome_pagina} — BLOCO {num_b} ('{nome_guia_b}')",
             linhas_atuais=None,
-            verificar_aba_aberta_na_planilha=True,
+            verificar_aba_aberta_na_planilha=False,
         )
         if not linhas_b:
             continue
@@ -2102,11 +2102,11 @@ def _garantir_estrutura_blocos_fases_4_5_6(
         }
     else:
         b2_p4_exist = p4["bloco_2"]
-        b2_p4_exist["campos"] = campos_b2_p4
+        b2_p4_exist.setdefault("campos", campos_b2_p4)
         for p_b2 in (b2_p4_exist.get("passos_pagina") or []):
             if isinstance(p_b2, dict):
-                p_b2["campos"] = list(COLUNAS_PLANO_ORCAMENTARIO)
-                p_b2["passo_y_grupo"] = 286
+                p_b2.setdefault("campos", list(COLUNAS_PLANO_ORCAMENTARIO))
+                p_b2.setdefault("passo_y_grupo", 286)
 
     # Bloco 3 da Página 4: Guia '4.3. Gestão de Riscos' -> 'Plano de gestão de riscos'
     # Nota HTML: Todos os 6 campos de risk-plan são <input type="text" class="form-control">!
@@ -3002,7 +3002,7 @@ def executar_bloco_ou_pagina_especifica(alvo: str) -> bool:
             nome_guia="4.2. Plano Orçamentário",
             rotulo_etapa="BLOCO 4.2 — '4.2. Plano Orçamentário'",
             linhas_atuais=None,
-            verificar_aba_aberta_na_planilha=True,
+            verificar_aba_aberta_na_planilha=False,
         )
         if not linhas_42:
             return False
