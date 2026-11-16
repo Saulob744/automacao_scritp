@@ -1087,7 +1087,11 @@
                         "scroll_down_apos_adicionar": true
                     }
                 ]
-            }
+            },
+            "coord_guia_sistema": [
+                435,
+                522
+            ]
         },
         "6. Monitoramento, Anexos e Revisão": {
             "nome_pagina": "6. Monitoramento, Anexos e Revisão",
@@ -1154,7 +1158,11 @@
                     "ancorado_no_topo": true
                 }
             ],
-            "caixas_bloqueadas": []
+            "caixas_bloqueadas": [],
+            "coord_guia_sistema": [
+                435,
+                570
+            ]
         }
     },
     "pagina_ativa": "4. Metas e Planos Obrigatórios",

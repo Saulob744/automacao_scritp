@@ -435,6 +435,17 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
     # Página 6: '6. Monitoramento, Anexos e Revisão' — 'Indicadores de sucesso (KPIs)'
     # (data-repeater="kpis", botão "Adicionar KPI", inicia com 3 linhas vazias no HTML)
     # =========================================================================
+    "INDICADOR_KPIS": {
+        "data_repeater": "kpis",
+        "data_repeater_add": "kpis",
+        "texto_botao": "Adicionar KPI",
+        "coluna_grid": "col-md-5",
+        "x_min_input": 675,
+        "x_max_input": 1120,
+        "w_min_btn_add": 90,
+        "w_max_btn_add": 175,
+        "ultimo_bloco_da_pagina": False,
+    },
     "FORMULA / DESCRICAO": {
         "data_repeater": "kpis",
         "data_repeater_add": "kpis",
@@ -444,7 +455,7 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "x_max_input": 1710,
         "w_min_btn_add": 90,
         "w_max_btn_add": 175,
-        "ultimo_bloco_da_pagina": True,
+        "ultimo_bloco_da_pagina": False,
     },
     "FORMULA/DESCRICAO": {
         "data_repeater": "kpis",
@@ -455,7 +466,7 @@ REGRAS_DIV_REPEATER_HTML: Dict[str, Dict[str, Any]] = {
         "x_max_input": 1710,
         "w_min_btn_add": 90,
         "w_max_btn_add": 175,
-        "ultimo_bloco_da_pagina": True,
+        "ultimo_bloco_da_pagina": False,
     },
 }
 
@@ -483,6 +494,23 @@ def _norm_chave(texto: str) -> str:
 
 
 _normalizar_chave = _norm_chave
+
+
+def _obter_regra_div_repeater(
+    nome_campo: Optional[str],
+    x_alvo: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Retorna a regra de coluna Bootstrap (`REGRAS_DIV_REPEATER_HTML`) para `nome_campo`.
+    Diferencia automaticamente 'INDICADOR' da Página 4 ('Metas e ações', col-lg-3 em X=1055..1330)
+    de 'INDICADOR' da Página 6 ('Indicadores de sucesso (KPIs)', col-md-5 em X=675..1120).
+    """
+    if not nome_campo:
+        return None
+    chave = _norm_chave(nome_campo)
+    if chave == "INDICADOR" and x_alvo is not None and int(x_alvo) < 1000:
+        return REGRAS_DIV_REPEATER_HTML.get("INDICADOR_KPIS")
+    return REGRAS_DIV_REPEATER_HTML.get(chave)
 
 
 class _ExtratorCamposHTML(HTMLParser):
@@ -1640,7 +1668,7 @@ def eh_caixa_de_texto_vazia(
     if yc_rel - 12 < 0 or yc_rel + 12 >= h_img or xc_rel < 10 or xc_rel >= (w_img - 10):
         return False
 
-    regra_div = REGRAS_DIV_REPEATER_HTML.get(_norm_chave(nome_campo or "")) if nome_campo else None
+    regra_div = _obter_regra_div_repeater(nome_campo, x_caixa)
     if regra_div is not None:
         x_min_col = max(0, int(regra_div.get("x_min_input", 650)) - ox)
         x_max_col = min(w_img - 10, int(regra_div.get("x_max_input", 1805)) - ox)
@@ -2482,7 +2510,7 @@ def ajustar_coordenada_para_caixa_vazia(
        (acima do limite do bloco vizinho), avança automaticamente para a caixa vazia disponível.
     Retorna: `(coord_ajustada, esta_vazia, bloqueado_por_bloco_vizinho)`
     """
-    regra_div = REGRAS_DIV_REPEATER_HTML.get(_norm_chave(nome_campo or "")) if nome_campo else None
+    regra_div = _obter_regra_div_repeater(nome_campo, int(coord_alvo[0]))
     if regra_div is not None:
         x_min_div = int(regra_div.get("x_min_input", 650)) + 14
         x_max_div = int(regra_div.get("x_max_input", 1760)) - 14
@@ -2916,25 +2944,36 @@ def clicar_adicionar_e_avancar_grupo_codependente(
 
         # Caso especial Página 6 ('Indicadores de sucesso (KPIs)', data-repeater="kpis"):
         # O HTML inicial já vem com 3 linhas vazias pré-existentes (monitoring[kpis][0..2]).
-        # Antes de clicar em 'Adicionar KPI', verifica se já existe uma linha vazia logo abaixo da linha atual!
+        # Antes de clicar em 'Adicionar KPI', verifica se já existe uma linha vazia logo abaixo da linha atual
+        # DENTRO do bloco 'Indicadores de sucesso (KPIs)' (acima do botão 'Adicionar rito' do bloco seguinte)!
         if eh_bloco_kpis and img_antes is not None:
             y_atual_kpi = int(coords_campos_atuais[-1][1])
+            todos_b_kpi_antes = detectar_botoes_azuis_adicionar(
+                img_antes, off_antes, incluir_botoes_largos=True
+            )
+            y_lim_kpi_antes = _obter_limite_y_proximo_card(
+                todos_b_kpi_antes,
+                x_btn,
+                max(70, y_btn),
+                y_limite_extra=y_limite_bloco_vizinho,
+                y_minimo_abaixo=max(340, int(y_btn) + 180),
+            )
             ys_x_kpi = detectar_botoes_remover_da_coluna(
                 img_antes,
                 off_antes,
                 x_btn_add=x_btn,
                 y_btn_add=max(65, y_btn),
-                y_limite_inferior=965,
-                passo_max_continuo=220,
+                y_limite_inferior=y_lim_kpi_antes,
+                passo_max_continuo=155,
             )
             proximas_kpi_vazias: List[int] = []
             for yx_k in ys_x_kpi:
-                if (y_atual_kpi + 45) <= yx_k <= 945:
+                if (y_atual_kpi + 70) <= yx_k <= min(int(y_lim_kpi_antes) - 15, y_atual_kpi + 155, 945):
                     v_ind = eh_caixa_de_texto_vazia(
-                        img_antes, off_antes, int(base_coords[0][0]), int(yx_k), None
+                        img_antes, off_antes, int(base_coords[0][0]), int(yx_k), None, nome_campo="INDICADOR"
                     )
                     v_form = eh_caixa_de_texto_vazia(
-                        img_antes, off_antes, int(base_coords[-1][0]), int(yx_k), None
+                        img_antes, off_antes, int(base_coords[-1][0]), int(yx_k), None, nome_campo="FÓRMULA / DESCRIÇÃO"
                     )
                     if v_ind and v_form:
                         proximas_kpi_vazias.append(int(yx_k))
@@ -3213,17 +3252,18 @@ def clicar_adicionar_e_avancar_grupo_codependente(
             delta_scroll_total += int(delta_step)
             y_resp_atual = ys_card_novo_antes[-1] - delta_scroll_total
 
-            # Proteção contra invasão do bloco vizinho: se o botão azul do próximo bloco (ex: 'Adicionar linha'
-            # ou 'Adicionar risco') já apareceu na parte inferior da tela (Y <= 890), para de descer imediatamente!
-            if img_d1 is not None and not (eh_bloco_riscos or eh_bloco_kpis):
+            # Proteção contra invasão do bloco vizinho: se o botão azul do próximo bloco (ex: 'Adicionar linha',
+            # 'Adicionar risco' ou 'Adicionar rito') já apareceu na parte inferior da tela (Y <= 890), para de descer imediatamente!
+            if img_d1 is not None and not eh_bloco_riscos:
                 todos_b_d1 = detectar_botoes_azuis_adicionar(img_d1, off_d1, incluir_botoes_largos=True)
                 y_btn_topo_d1 = int(y_clique_btn - delta_scroll_total)
+                y_min_ab_d1 = max(340, int(y_btn_topo_d1) + 180) if eh_bloco_kpis else max(380, int(y_btn_topo_d1) + 260)
                 y_lim_d1 = _obter_limite_y_proximo_card(
                     todos_b_d1,
                     x_btn,
                     max(70, y_btn_topo_d1),
                     y_limite_extra=y_limite_bloco_vizinho,
-                    y_minimo_abaixo=max(380, int(y_btn_topo_d1) + 260),
+                    y_minimo_abaixo=y_min_ab_d1,
                 )
                 if y_lim_d1 <= 890:
                     break
@@ -3237,17 +3277,18 @@ def clicar_adicionar_e_avancar_grupo_codependente(
         y_lim_vizinho = int(y_limite_bloco_vizinho) if (y_limite_bloco_vizinho and int(y_limite_bloco_vizinho) > 220) else 985
 
         if img_pos is not None:
-            if eh_bloco_riscos or eh_bloco_kpis:
-                # 'Plano de gestão de riscos' (Página 4) e 'Indicadores de sucesso (KPIs)' (Página 6)
+            if eh_bloco_riscos:
+                # 'Plano de gestão de riscos' é o último bloco da Página 4
                 y_lim_vizinho = 965
             else:
                 todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+                y_min_ab_pos = max(340, int(y_btn_pos_topo) + 180) if eh_bloco_kpis else max(380, int(y_btn_pos_topo) + 260)
                 y_lim_vizinho = _obter_limite_y_proximo_card(
                     todos_b_pos,
                     x_btn,
                     max(70, y_btn_pos_topo),
                     y_limite_extra=y_limite_bloco_vizinho,
-                    y_minimo_abaixo=max(380, int(y_btn_pos_topo) + 260),
+                    y_minimo_abaixo=y_min_ab_pos,
                 )
                 # Se o bloco vizinho subiu demais na tela (y_lim_vizinho < 640), sobe para devolver o bloco atual ao centro
                 if y_lim_vizinho < 640 and ticks_descidos_total >= 2:
@@ -3261,12 +3302,13 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                     img_pos, off_pos = capturar_tela_sistema(x_btn)
                     if img_pos is not None:
                         todos_b_pos = detectar_botoes_azuis_adicionar(img_pos, off_pos, incluir_botoes_largos=True)
+                        y_min_ab_pos = max(340, int(y_btn_pos_topo) + 180) if eh_bloco_kpis else max(380, int(y_btn_pos_topo) + 260)
                         y_lim_vizinho = _obter_limite_y_proximo_card(
                             todos_b_pos,
                             x_btn,
                             max(70, y_btn_pos_topo),
                             y_limite_extra=y_limite_bloco_vizinho,
-                            y_minimo_abaixo=max(380, int(y_btn_pos_topo) + 260),
+                            y_minimo_abaixo=y_min_ab_pos,
                         )
 
         # Se o cabeçalho/botão do próximo bloco abaixo (y_lim_vizinho) está visível na tela (480 <= y_lim_vizinho <= 945),
@@ -3285,7 +3327,7 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 x_btn_add=x_btn,
                 y_btn_add=max(65, y_btn_pos_topo),
                 y_limite_inferior=y_lim_vizinho,
-                passo_max_continuo=380,
+                passo_max_continuo=(160 if eh_bloco_kpis else 380),
             )
             ys_x_pos = [
                 yx
@@ -3294,11 +3336,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                 and not _esta_em_zona_proibida(int(base_coords[-1][0]), int(yx + dy_x_para_ult), zonas_proibidas)
             ]
 
-            # AUTOCORREÇÃO DO BOTÃO ADICIONAR (Blocos 2 e 3):
-            # Se após clicar em 'Adicionar linha' / 'Adicionar risco' e descer a página o último sub-card visível
+            # AUTOCORREÇÃO DO BOTÃO ADICIONAR (Blocos 2, 3 e KPIs):
+            # Se após clicar em 'Adicionar linha' / 'Adicionar risco' / 'Adicionar KPI' e descer a página o último sub-card visível
             # do bloco já estiver preenchido (ou seja, o clique no botão 'Adicionar' não criou o novo bloco vazio!),
             # sobe novamente até o botão 'Adicionar', clica nele com foco garantido e volta a descer!
-            if (eh_bloco_orcamento or eh_bloco_riscos) and ys_x_pos:
+            if (eh_bloco_orcamento or eh_bloco_riscos or eh_bloco_kpis) and ys_x_pos:
                 ult_yx_check = int(ys_x_pos[-1])
                 ult_y_resp_check = int(ult_yx_check + dy_x_para_ult)
                 idx_chk_prim = 1 if len(base_coords) >= 2 else 0
@@ -3328,7 +3370,11 @@ def clicar_adicionar_e_avancar_grupo_codependente(
                             termo_ret = (
                                 "Plano orçamentário e de investimentos"
                                 if eh_bloco_orcamento
-                                else "Plano de gestão de riscos"
+                                else (
+                                    "Indicadores de sucesso (KPIs)"
+                                    if eh_bloco_kpis
+                                    else "Plano de gestão de riscos"
+                                )
                             )
                             btn_cf_r, _ = _buscar_campo_com_ctrl_f(
                                 termo_busca=termo_ret,

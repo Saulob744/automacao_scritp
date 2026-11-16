@@ -830,7 +830,11 @@ def _executar_passo_grupo_codependente(
             else (
                 "Adicionar linha"
                 if eh_bloco_orcamentario
-                else ("Adicionar risco" if eh_bloco_riscos else "Adicionar necessidade")
+                else (
+                    "Adicionar risco"
+                    if eh_bloco_riscos
+                    else ("Adicionar KPI" if eh_bloco_kpis else "Adicionar necessidade")
+                )
             )
         )
     )

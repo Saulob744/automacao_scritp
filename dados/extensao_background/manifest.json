@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Automação PDTIC - Ponte em 2º Plano (Oculto)",
+  "version": "1.0.0",
+  "description": "Conecta a guia já aberta do Nex Privacy e lê a planilha do Google Sheets 100% em 2º plano sem mexer na tela.",
+  "permissions": [
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://parana.nexprivacy.com/*",
+    "https://docs.google.com/*",
+    "https://*.googleusercontent.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://parana.nexprivacy.com/admin/institutional-documents/*/edit*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
