@@ -1242,6 +1242,25 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             )
         )
 
+    # ==========================================================
+    # NOVA REGRA: Ordenação crescente pela coluna 'NÍVEL' (1, 2, 3...)
+    # ==========================================================
+    if any("NÍVEL" in r for r in resultado):
+        def extrair_numero_nivel(linha):
+            valor = str(linha.get("NÍVEL", "")).strip()
+            
+            # Busca qualquer sequência de dígitos dentro da célula (ex: "1", "Nível 2")
+            numeros = re.findall(r'\d+', valor)
+            
+            if numeros:
+                return int(numeros[0])  # Converte o primeiro número encontrado para inteiro
+            
+            # Se a célula estiver vazia ou sem números, recebe um valor alto para ir pro final da fila
+            return 9999 
+            
+        # Aplica a ordenação alterando a lista original
+        resultado.sort(key=extrair_numero_nivel)
+
     return resultado
 
 

@@ -64,7 +64,8 @@ ARQUIVO_LOG_BG = DADOS_DIR / "debug_background.log"
 URL_PADRAO_NEX_PRIVACY = "https://parana.nexprivacy.com/admin/institutional-documents/100/edit"
 URL_PADRAO_PLANILHA_DRIVE = "https://docs.google.com/spreadsheets/d/1lqrbuQwTY93KHhUP1WmyQR44oGhiD4gsXeVbASnZycs/edit"
 ID_PADRAO_PLANILHA_DRIVE = "1lqrbuQwTY93KHhUP1WmyQR44oGhiD4gsXeVbASnZycs"
-NOME_PADRAO_PLANILHA_DRIVE = "Campos Necessários para Sistema da Tecpar - SESP"
+NOME_PADRAO_PLANILHA_DRIVE = "Campos Necessários para Sistema da Tecpar - Consolidado"
+NOME_ARQUIVO_EXCEL_PADRAO = "Campos Necessários para Sistema da Tecpar - Consolidado.xlsx"
 
 
 # =============================================================================
@@ -942,10 +943,16 @@ def localizar_arquivo_planilha_xlsx(caminho_informado: Optional[str] = None) -> 
         if p.is_file():
             return p
 
+    # Prioridade máxima: arquivo padrão na raiz do projeto ou em dados/
+    for base in [Path.cwd(), DADOS_DIR]:
+        direto = base / NOME_ARQUIVO_EXCEL_PADRAO
+        if direto.is_file():
+            return direto.resolve()
+
     candidatos: List[Tuple[int, float, Path]] = []
     pastas_busca = [
-        DADOS_DIR,
         Path.cwd(),
+        DADOS_DIR,
         Path.home() / "Downloads",
     ]
     vistos = set()
@@ -961,7 +968,7 @@ def localizar_arquivo_planilha_xlsx(caminho_informado: Optional[str] = None) -> 
             vistos.add(resolvido)
             score, _ = _pontuar_arquivo_xlsx_pdtic(resolvido)
             nome_norm = remover_acentos(arq.name)
-            if "TECPAR" in nome_norm or "CAMPOS NECESSARIOS" in nome_norm or "SESP" in nome_norm:
+            if any(termo in nome_norm for termo in ("TECPAR", "CAMPOS NECESSARIOS", "CONSOLIDADO", "SESP")):
                 score += 50
             if score > 0:
                 candidatos.append((score, resolvido.stat().st_mtime, resolvido))

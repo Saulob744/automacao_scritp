@@ -1487,6 +1487,22 @@ def garantir_guia_correta_na_planilha_e_copiar(
         print("=" * 72)
         return linhas_atuais
 
+    # OTIMIZAÇÃO: Se existir arquivo Excel local baixado, lê os dados diretamente da aba em memória
+    try:
+        from src.automacao_background import localizar_arquivo_planilha_xlsx, ler_guia_de_arquivo_xlsx
+        caminho_xlsx = localizar_arquivo_planilha_xlsx()
+        if caminho_xlsx and caminho_xlsx.is_file():
+            linhas_xlsx = ler_guia_de_arquivo_xlsx(caminho_xlsx, nome_guia, nomes_esperados)
+            if linhas_xlsx:
+                print(
+                    f"   ⚡ [OTIMIZAÇÃO] Lendo diretamente do arquivo Excel baixado: '{caminho_xlsx.name}' "
+                    f"(aba '{nome_guia}') -> {len(linhas_xlsx)} linha(s) extraída(s) sem precisar trocar de janela!"
+                )
+                print("=" * 72)
+                return linhas_xlsx
+    except Exception as exc:
+        print(f"   ℹ️  Leitura direta do Excel não aplicada ({exc}). Seguindo via interface...")
+
     if verificar_aba_aberta_na_planilha:
         print(f"   📋 Verificando na planilha se a guia aberta atualmente já é '{nome_guia}'...")
         linhas_teste = _copiar_tabela_da_guia_atual_na_planilha(
@@ -1649,6 +1665,13 @@ def _executar_roteiro_de_bloco(
     - No Bloco 2 ('Inventário de necessidades'): rola a página até o final novamente (`rolar_ate_o_final_no_inicio=True`)
       para posicionar 'Inventário de necessidades' e preencher os 4 campos de cada linha.
     """
+    if "gestão de riscos" in nome_bloco.lower() or "gestao de riscos" in nome_bloco.lower():
+        linhas = sorted(
+            linhas,
+            key=lambda linha: int(linha.get('NÍVEL')) if str(linha.get('NÍVEL', '')).isdigit() else 999
+        )
+    # --- FIM DO AJUSTE DE ORDENAÇÃO ---
+
     campos_detalhados = (
         padrao_bloco.get("campos")
         or mapeamento.get("campos_detalhados")
