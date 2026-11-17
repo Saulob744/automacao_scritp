@@ -599,12 +599,11 @@ class ControladorExecucaoOculta:
         self._thread: Optional[threading.Thread] = None
 
     def gerar_relatorio_auditoria(self) -> Optional[Path]:
-        """Gera um arquivo Markdown com o resumo exato de tudo que foi injetado na tela."""
+        """Gera um arquivo Markdown cruzando os dados lidos da planilha com os colados no sistema."""
         if not self.historico_relatorio:
             return None
 
         DADOS_DIR.mkdir(parents=True, exist_ok=True)
-        # Cria um arquivo único com a data e hora da execução
         caminho_relatorio = DADOS_DIR / f"relatorio_pdtic_{time.strftime('%Y%m%d_%H%M%S')}.md"
 
         linhas_md = [
@@ -614,21 +613,38 @@ class ControladorExecucaoOculta:
             "---",
             "## 🎯 Resumo Geral",
             f"- **Blocos Processados:** {len(self.historico_relatorio)}",
-            f"- **Total de Linhas/Cards Injetados:** {sum(h['preenchidos'] for h in self.historico_relatorio)}",
+            f"- **Total de Itens Injetados:** {sum(h['preenchidos'] for h in self.historico_relatorio)}",
             "---",
-            "## 📝 Detalhamento por Bloco\n"
+            "## 📝 Detalhamento por Bloco (De -> Para)\n"
         ]
 
         for hist in self.historico_relatorio:
             linhas_md.append(f"### {hist['bloco']}")
             linhas_md.append(f"- **Contêiner Alvo (Repeater):** `{hist['repeater']}`")
-            linhas_md.append(f"- **Itens Lidos da Planilha:** {hist['total_planilha']}")
-            linhas_md.append(f"- **Itens Preenchidos com Sucesso:** {hist['preenchidos']}")
+            linhas_md.append(f"- **Sucesso:** {hist['preenchidos']} de {hist['total_planilha']} item(ns)")
             linhas_md.append(f"- **Tempo Gasto:** {hist['tempo']}s")
-            linhas_md.append("\n**📋 Dados Colados (Log do Navegador):**")
+            
+            # --- SEÇÃO 1: O QUE VEIO DA PLANILHA ---
+            linhas_md.append("\n**📄 1. O QUE FOI LIDO DA PLANILHA:**")
+            itens_enviados = hist.get('itens_enviados', [])
+            
+            if not itens_enviados:
+                linhas_md.append("> *Nenhum dado lido.*")
+            else:
+                for idx, item in enumerate(itens_enviados, 1):
+                    if isinstance(item, dict):
+                        # É um bloco com vários campos (ex: Inventário, Metas). Pega os valores reais
+                        valores = [f"`{str(v).strip()}`" for v in item.values() if str(v).strip()]
+                        texto_item = " | ".join(valores) if valores else "*Linha vazia*"
+                        linhas_md.append(f"> **Linha {idx}:** {texto_item}")
+                    else:
+                        # É uma coluna única (ex: SWOT)
+                        linhas_md.append(f"> **Linha {idx}:** `{str(item).strip()}`")
 
+            # --- SEÇÃO 2: O QUE O JAVASCRIPT COLOCOU NA TELA ---
+            linhas_md.append("\n**📋 2. O QUE FOI COLADO NO SISTEMA (Confirmação):**")
             if not hist['detalhes']:
-                linhas_md.append("> *Nenhum detalhe retornado ou bloco estava vazio.*")
+                linhas_md.append("> *Nenhum detalhe retornado do navegador.*")
             else:
                 for det in hist['detalhes']:
                     linhas_md.append(f"> - {det}")
@@ -789,7 +805,6 @@ class ControladorExecucaoOculta:
             nivel="DEBUG",
         )
 
-        # FUNÇÃO INTERNA NOVA: Registra o sucesso no histórico antes de devolver a resposta
         def _processar_e_registrar(resultado: Any, dt_decorrido: float) -> Dict[str, Any]:
             if isinstance(resultado, dict):
                 resultado["_tempo_s"] = round(dt_decorrido, 2)
@@ -800,11 +815,12 @@ class ControladorExecucaoOculta:
                         "total_planilha": len(payload.get("items") or []),
                         "preenchidos": resultado.get("preenchidos", 0),
                         "detalhes": resultado.get("detalhes", []),
-                        "tempo": resultado["_tempo_s"]
+                        "tempo": resultado["_tempo_s"],
+                        # NOVO: Salva os dados brutos que vieram do Excel e foram passados pro JS
+                        "itens_enviados": payload.get("items", [])
                     })
             return resultado
 
-        # Execução via CDP
         if self.modo_ativo == "cdp" and self.cliente_cdp is not None:
             try:
                 expressao = f"{JS_HELPER_PREENCHER_REPEATER}({json.dumps(payload, ensure_ascii=False)})"
@@ -816,7 +832,6 @@ class ControladorExecucaoOculta:
             except Exception as exc:
                 return {"ok": False, "erro": f"Exceção CDP durante preenchimento: {exc}"}
 
-        # Execução via Ponte (Extensão)
         res_ponte = self.enviar_comando_ponte("fill_repeater", {"payload": payload}, timeout=timeout)
         dt = time.time() - t0
         if not isinstance(res_ponte, dict):
@@ -1191,25 +1206,37 @@ def ler_guia_de_arquivo_xlsx(
             linhas_tsv.append("\t".join(celulas))
 
         texto_tsv = "\n".join(linhas_tsv)
-        linhas_extraidas = extrair_tabela_de_texto_tsv(texto_tsv, colunas_esperadas)
         
         # =========================================================================
-        # INÍCIO DO AJUSTE: ORDENAÇÃO NUMÉRICA GLOBAL (SEGUNDO PLANO)
+        # 1. GARANTE QUE A ORDEM SEJA EXTRAÍDA (Mesmo que não esteja na lista oficial)
+        # =========================================================================
+        colunas_com_ordem = list(colunas_esperadas)
+        if "ORDEM SEQUENCIAL" not in colunas_com_ordem:
+            colunas_com_ordem.append("ORDEM SEQUENCIAL")
+
+        linhas_extraidas = extrair_tabela_de_texto_tsv(texto_tsv, colunas_com_ordem)
+        
+        # =========================================================================
+        # 2. ORDENAÇÃO NUMÉRICA BLINDADA 
         # =========================================================================
         if linhas_extraidas:
             def extrair_ordem(linha):
-                # Busca a chave com ou sem o underscore "_"
-                valor = linha.get("_ORDEM_SEQUENCIAL") or linha.get("ORDEM SEQUENCIAL")
+                # Usa a SUA função (buscar_valor_da_coluna) que é imune a espaços/acentos
+                valor = buscar_valor_da_coluna(linha, "ORDEM SEQUENCIAL")
+                if not valor: 
+                    # Tenta apenas "ORDEM" caso no Excel esteja resumido
+                    valor = buscar_valor_da_coluna(linha, "ORDEM")
+                    
                 if valor:
                     try:
-                        # Converte '11' para 11 e '2' para 2 matematicamente
+                        # Força a matemática: '11' vira 11 e '2' vira 2
                         return int(float(str(valor).strip()))
                     except ValueError:
                         pass
-                # Se não tem número de ordem válido, joga para o fim da lista
+                # Sem número válido? Vai pro final da fila.
                 return 999999
             
-            # Ordena a lista na memória antes de devolver para os blocos
+            # Ordena a lista na memória antes de devolver para o bloco 3.2 preencher
             linhas_extraidas.sort(key=extrair_ordem)
         # =========================================================================
 
@@ -1353,28 +1380,40 @@ def _executar_bloco_3_2_inventario(
     limite: Optional[int] = None,
 ) -> bool:
     log_debug("BLOCO 3.2", "Iniciando Etapa 3 — Bloco 3.2 ('3.2. Inventário de necessidades')...", nivel="INFO")
+    
+    # 1. FORÇAR A LEITURA DA COLUNA DE ORDEM
+    # Adicionamos "ORDEM SEQUENCIAL" e "ORDEM" à lista para o TSV não jogar a coluna no lixo.
+    colunas_exigidas = list(COLUNAS_INVENTARIO_NECESSIDADES)
+    if "ORDEM SEQUENCIAL" not in colunas_exigidas:
+        colunas_exigidas.append("ORDEM SEQUENCIAL")
+    if "ORDEM" not in colunas_exigidas:
+        colunas_exigidas.append("ORDEM")
+
     linhas = ler_guia_de_arquivo_xlsx(
         caminho_xlsx,
         "3.2. Inventário de necessidades",
-        list(COLUNAS_INVENTARIO_NECESSIDADES),
+        colunas_exigidas,
     )
 
-    # --- INÍCIO DO AJUSTE DE ORDENAÇÃO ---
-    def extrair_ordem(linha) -> int:
+    # 2. ORDENAÇÃO MATEMÁTICA DEFINITIVA (Logo antes de montar o pacote)
+    def extrair_numero_ordem(linha: dict) -> int:
         valor = buscar_valor_da_coluna(linha, "ORDEM SEQUENCIAL")
+        if not valor:
+            valor = buscar_valor_da_coluna(linha, "ORDEM")
+        
         if valor:
             try:
-                # Converte o valor para inteiro para garantir ordem numérica correta (1, 2, 3... 10, 11)
+                # Converte string "11" para 11, impedindo que venha antes do 2.
                 return int(float(str(valor).strip()))
             except ValueError:
                 pass
-        # Se a célula estiver vazia ou com texto inválido, joga para o final da lista
+        # Se vier vazio ou texto inválido, joga a linha pro fim da fila
         return 999999
 
-    # Aplica a ordenação na lista de linhas usando a função acima como chave
-    linhas.sort(key=extrair_ordem)
-    # --- FIM DO AJUSTE DE ORDENAÇÃO ---
+    # Aqui acontece a mágica: a lista é organizada do menor para o maior número.
+    linhas.sort(key=extrair_numero_ordem)
 
+    # 3. MONTA OS DADOS (Agora já perfeitamente organizados)
     itens: List[Dict[str, str]] = []
     for l in linhas:
         item = {
@@ -1389,7 +1428,6 @@ def _executar_bloco_3_2_inventario(
     return _preencher_repeater_grupo(
         ctrl, 2, "needs", "3.2. Inventário de necessidades", itens, limite
     )
-
 def _executar_bloco_4_1_metas(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
