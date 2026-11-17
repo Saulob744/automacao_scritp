@@ -1344,13 +1344,14 @@ def _executar_bloco_4_2_orcamento(
     )
     itens: List[Dict[str, str]] = []
     for l in linhas:
+        val_fonte = buscar_valor_da_coluna(l, "FONTE DE RECURSO")
         item = {
-            'input[name$="[action_id]"]': buscar_valor_da_coluna(l, "AÇÃO (ID)"),
-            'input[name$="[cost_description]"]': buscar_valor_da_coluna(l, "DESCRIÇÃO DO CUSTO"),
-            'input[name$="[funding_source]"]': buscar_valor_da_coluna(l, "FONTE DE RECURSO"),
-            'input[name$="[year_1]"]': buscar_valor_da_coluna(l, "ANO 1"),
-            'input[name$="[year_2]"]': buscar_valor_da_coluna(l, "ANO 2"),
-            'input[name$="[total]"]': buscar_valor_da_coluna(l, "TOTAL"),
+            '[name$="[action_id]"]': buscar_valor_da_coluna(l, "AÇÃO (ID)"),
+            '[name$="[cost_description]"], [name$="[description]"]': buscar_valor_da_coluna(l, "DESCRIÇÃO DO CUSTO"),
+            '[name$="[funding_source]"], [name*="funding"], [name*="source"], [name*="fonte"], [placeholder*="Tesouro"], [placeholder*="Convênio"]': val_fonte,
+            '[name$="[year_1]"], [name*="2027"]': buscar_valor_da_coluna(l, "ANO 1"),
+            '[name$="[year_2]"], [name*="2028"]': buscar_valor_da_coluna(l, "ANO 2"),
+            '[name$="[total]"]': buscar_valor_da_coluna(l, "TOTAL"),
         }
         if any(item.values()):
             itens.append(item)
