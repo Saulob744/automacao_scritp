@@ -81,6 +81,16 @@ SINONIMOS_SWOT = {
         "RESULTADO-CHAVE",
         "RESULTADO CHAVE",
     },
+    "ID AÇÃO PRINCIPAL (KR)": {
+        "ID ACAO PRINCIPAL (KR)",
+        "ID AÇÃO PRINCIPAL (KR)",
+        "ID ACAO PRINCIPAL",
+        "ID AÇÃO PRINCIPAL",
+        "ID ACAO (KR)",
+        "ID AÇÃO (KR)",
+        "ID (KR)",
+        "ID KR",
+    },
     "INDICADOR": {
         "INDICADOR",
         "INDICADORES",
@@ -190,6 +200,15 @@ SINONIMOS_SWOT = {
         "NÍVEL DO RISCO",
         "GRAU DE RISCO",
         "SEVERIDADE",
+    },
+    "CLASSIFICAÇÃO": {
+        "CLASSIFICACAO",
+        "CLASSIFICAÇÃO",
+        "CLASSIFICACAO DE PRIORIDADE",
+        "CLASSIFICAÇÃO DE PRIORIDADE",
+        "CLASSIFICACAO DO RISCO",
+        "CLASSIFICAÇÃO DO RISCO",
+        "GRAU",
     },
     "AÇÃO DE MITIGAÇÃO": {
         "ACAO DE MITIGACAO",
@@ -1182,6 +1201,40 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     val_m = "0,00"
                 item[k_campo] = val_m
 
+        # 1. Concatenação Ação Principal: 'ID AÇÃO PRINCIPAL (KR)' + ' - ' + 'AÇÃO PRINCIPAL'
+        # Exemplo: 'SESP.KR.1 - Adotar recursos metodológicos e tecnológicos...'
+        chave_id_kr = next(
+            (k for k in item.keys() if _resolver_chave_sinonimo(k) == "ID AÇÃO PRINCIPAL (KR)"),
+            None,
+        )
+        chave_acao_princ = next(
+            (k for k in item.keys() if _resolver_chave_sinonimo(k) == "AÇÃO PRINCIPAL"),
+            None,
+        )
+        if chave_acao_princ and item.get(chave_acao_princ):
+            val_acao = str(item[chave_acao_princ]).strip()
+            val_id_kr = str(item.get(chave_id_kr, "")).strip() if chave_id_kr else ""
+            if val_id_kr and val_acao:
+                if not val_acao.startswith(f"{val_id_kr} -") and not val_acao.startswith(f"{val_id_kr}-"):
+                    item[chave_acao_princ] = f"{val_id_kr} - {val_acao}"
+
+        # 2. Concatenação Gestão de Riscos: 'NÍVEL' + ' - ' + 'CLASSIFICAÇÃO'
+        # Exemplo: '5 - Muito Baixo' ou '8 - Baixo'
+        chave_nivel = next(
+            (k for k in item.keys() if _resolver_chave_sinonimo(k) == "NÍVEL"),
+            None,
+        )
+        chave_classif = next(
+            (k for k in item.keys() if _resolver_chave_sinonimo(k) == "CLASSIFICAÇÃO"),
+            None,
+        )
+        if chave_nivel and item.get(chave_nivel):
+            val_nivel = str(item[chave_nivel]).strip()
+            val_classif = str(item.get(chave_classif, "")).strip() if chave_classif else ""
+            if val_nivel and val_classif:
+                if " - " not in val_nivel and not val_nivel.endswith(val_classif):
+                    item[chave_nivel] = f"{val_nivel} - {val_classif}"
+
         # Proteção para 'Inventário de necessidades': como 'CLASSIFICAÇÃO DE PRIORIDADE' já vem com
         # um toggle pré-selecionado na planilha, linhas em branco no template que tenham apenas a
         # prioridade preenchida (sem Descrição, Área Demandante nem Justificativa) são ignoradas!
@@ -1233,14 +1286,18 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             resultado.append(item)
 
     # Ordenação obrigatória pela coluna 'ORDEM SEQUENCIAL' (1, 2, 3...) na aba '3.2. Inventário de necessidades'
+    # Analisa o número inteiro por completo (1, 2, 3... 10, 11...)
     if col_ordem_seq != -1 and any(r.get("_ORDEM_SEQUENCIAL") is not None for r in resultado):
-        resultado.sort(
-            key=lambda r: (
-                0 if r.get("_ORDEM_SEQUENCIAL") is not None else 1,
-                float(r["_ORDEM_SEQUENCIAL"]) if r.get("_ORDEM_SEQUENCIAL") is not None else float("inf"),
-                int(r.get("_IDX_LINHA_ORIGINAL", 0)),
-            )
-        )
+        def _chave_ordem_seq(r):
+            v = r.get("_ORDEM_SEQUENCIAL")
+            if v is not None:
+                try:
+                    return (0, int(round(float(v))), int(r.get("_IDX_LINHA_ORIGINAL", 0)))
+                except (ValueError, TypeError):
+                    pass
+            return (1, 999999, int(r.get("_IDX_LINHA_ORIGINAL", 0)))
+
+        resultado.sort(key=_chave_ordem_seq)
 
     # ==========================================================
     # NOVA REGRA: Ordenação crescente pela coluna 'NÍVEL' (1, 2, 3...)
