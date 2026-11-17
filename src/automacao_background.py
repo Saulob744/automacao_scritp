@@ -58,7 +58,7 @@ from src.leitor_dados import (
 PORTA_PONTE_LOCAL = 8765
 PORTA_CDP_PADRAO = 9222
 TIMEOUT_CONEXAO_PADRAO = 25
-TIMEOUT_COMANDO_PADRAO = 15
+TIMEOUT_COMANDO_PADRAO = 30
 PASTA_EXTENSAO_BG = DADOS_DIR / "extensao_background"
 ARQUIVO_LOG_BG = DADOS_DIR / "debug_background.log"
 URL_PADRAO_NEX_PRIVACY = "https://parana.nexprivacy.com/admin/institutional-documents/100/edit"
@@ -585,6 +585,7 @@ class ControladorExecucaoOculta:
         self.porta_cdp = porta_cdp
         self.cliente_cdp: Optional[ClienteCDP] = None
         self.modo_ativo: str = "nenhum"
+        self.historico_relatorio: List[Dict[str, Any]] = []
 
         self._lock = threading.Lock()
         self._tarefa_atual: Optional[Dict[str, Any]] = None
@@ -596,6 +597,45 @@ class ControladorExecucaoOculta:
         self.ultimo_ip_cliente: Optional[str] = None
         self._httpd: Optional[HTTPServer] = None
         self._thread: Optional[threading.Thread] = None
+
+    def gerar_relatorio_auditoria(self) -> Optional[Path]:
+        """Gera um arquivo Markdown com o resumo exato de tudo que foi injetado na tela."""
+        if not self.historico_relatorio:
+            return None
+
+        DADOS_DIR.mkdir(parents=True, exist_ok=True)
+        # Cria um arquivo único com a data e hora da execução
+        caminho_relatorio = DADOS_DIR / f"relatorio_pdtic_{time.strftime('%Y%m%d_%H%M%S')}.md"
+
+        linhas_md = [
+            "# 📊 Relatório de Auditoria - Automação PDTIC",
+            f"**Data da Execução:** {time.strftime('%d/%m/%Y às %H:%M:%S')}",
+            f"**Modo de Conexão Usado:** {self.modo_ativo.upper()}",
+            "---",
+            "## 🎯 Resumo Geral",
+            f"- **Blocos Processados:** {len(self.historico_relatorio)}",
+            f"- **Total de Linhas/Cards Injetados:** {sum(h['preenchidos'] for h in self.historico_relatorio)}",
+            "---",
+            "## 📝 Detalhamento por Bloco\n"
+        ]
+
+        for hist in self.historico_relatorio:
+            linhas_md.append(f"### {hist['bloco']}")
+            linhas_md.append(f"- **Contêiner Alvo (Repeater):** `{hist['repeater']}`")
+            linhas_md.append(f"- **Itens Lidos da Planilha:** {hist['total_planilha']}")
+            linhas_md.append(f"- **Itens Preenchidos com Sucesso:** {hist['preenchidos']}")
+            linhas_md.append(f"- **Tempo Gasto:** {hist['tempo']}s")
+            linhas_md.append("\n**📋 Dados Colados (Log do Navegador):**")
+
+            if not hist['detalhes']:
+                linhas_md.append("> *Nenhum detalhe retornado ou bloco estava vazio.*")
+            else:
+                for det in hist['detalhes']:
+                    linhas_md.append(f"> - {det}")
+            linhas_md.append("\n---\n")
+
+        caminho_relatorio.write_text("\n".join(linhas_md), encoding="utf-8")
+        return caminho_relatorio
 
     def iniciar_servidor_ponte(self) -> Tuple[bool, str]:
         pai = self
@@ -749,30 +789,43 @@ class ControladorExecucaoOculta:
             nivel="DEBUG",
         )
 
+        # FUNÇÃO INTERNA NOVA: Registra o sucesso no histórico antes de devolver a resposta
+        def _processar_e_registrar(resultado: Any, dt_decorrido: float) -> Dict[str, Any]:
+            if isinstance(resultado, dict):
+                resultado["_tempo_s"] = round(dt_decorrido, 2)
+                if resultado.get("ok"):
+                    self.historico_relatorio.append({
+                        "bloco": nome_exibicao,
+                        "repeater": payload.get("repeaterName"),
+                        "total_planilha": len(payload.get("items") or []),
+                        "preenchidos": resultado.get("preenchidos", 0),
+                        "detalhes": resultado.get("detalhes", []),
+                        "tempo": resultado["_tempo_s"]
+                    })
+            return resultado
+
+        # Execução via CDP
         if self.modo_ativo == "cdp" and self.cliente_cdp is not None:
             try:
                 expressao = f"{JS_HELPER_PREENCHER_REPEATER}({json.dumps(payload, ensure_ascii=False)})"
                 res = self.cliente_cdp.executar_js(expressao)
                 dt = time.time() - t0
                 if isinstance(res, dict):
-                    res["_tempo_s"] = round(dt, 2)
-                    return res
+                    return _processar_e_registrar(res, dt)
                 return {"ok": False, "erro": f"Retorno inesperado do DOM via CDP: {res}"}
             except Exception as exc:
-                return {"ok": False, "erro": f"Exceção CDP durante preenchimento de '{nome_exibicao}': {exc}"}
+                return {"ok": False, "erro": f"Exceção CDP durante preenchimento: {exc}"}
 
+        # Execução via Ponte (Extensão)
         res_ponte = self.enviar_comando_ponte("fill_repeater", {"payload": payload}, timeout=timeout)
         dt = time.time() - t0
         if not isinstance(res_ponte, dict):
             return {
                 "ok": False,
-                "erro": (
-                    f"TIMEOUT ({timeout:.0f}s) aguardando resposta do navegador ao preencher '{nome_exibicao}'. "
-                    f"(Polls recebidos até agora: {self.qtd_polls_recebidos})"
-                ),
+                "erro": f"TIMEOUT ({timeout:.0f}s) aguardando resposta do navegador."
             }
-        res_ponte["_tempo_s"] = round(dt, 2)
-        return res_ponte
+        
+        return _processar_e_registrar(res_ponte, dt)
 
 
 # =============================================================================
@@ -1139,6 +1192,27 @@ def ler_guia_de_arquivo_xlsx(
 
         texto_tsv = "\n".join(linhas_tsv)
         linhas_extraidas = extrair_tabela_de_texto_tsv(texto_tsv, colunas_esperadas)
+        
+        # =========================================================================
+        # INÍCIO DO AJUSTE: ORDENAÇÃO NUMÉRICA GLOBAL (SEGUNDO PLANO)
+        # =========================================================================
+        if linhas_extraidas:
+            def extrair_ordem(linha):
+                # Busca a chave com ou sem o underscore "_"
+                valor = linha.get("_ORDEM_SEQUENCIAL") or linha.get("ORDEM SEQUENCIAL")
+                if valor:
+                    try:
+                        # Converte '11' para 11 e '2' para 2 matematicamente
+                        return int(float(str(valor).strip()))
+                    except ValueError:
+                        pass
+                # Se não tem número de ordem válido, joga para o fim da lista
+                return 999999
+            
+            # Ordena a lista na memória antes de devolver para os blocos
+            linhas_extraidas.sort(key=extrair_ordem)
+        # =========================================================================
+
         dt = time.time() - t0
         log_debug(
             nome_guia_esperada,
@@ -1284,6 +1358,23 @@ def _executar_bloco_3_2_inventario(
         "3.2. Inventário de necessidades",
         list(COLUNAS_INVENTARIO_NECESSIDADES),
     )
+
+    # --- INÍCIO DO AJUSTE DE ORDENAÇÃO ---
+    def extrair_ordem(linha) -> int:
+        valor = buscar_valor_da_coluna(linha, "ORDEM SEQUENCIAL")
+        if valor:
+            try:
+                # Converte o valor para inteiro para garantir ordem numérica correta (1, 2, 3... 10, 11)
+                return int(float(str(valor).strip()))
+            except ValueError:
+                pass
+        # Se a célula estiver vazia ou com texto inválido, joga para o final da lista
+        return 999999
+
+    # Aplica a ordenação na lista de linhas usando a função acima como chave
+    linhas.sort(key=extrair_ordem)
+    # --- FIM DO AJUSTE DE ORDENAÇÃO ---
+
     itens: List[Dict[str, str]] = []
     for l in linhas:
         item = {
@@ -1294,10 +1385,10 @@ def _executar_bloco_3_2_inventario(
         }
         if any(item.values()):
             itens.append(item)
+            
     return _preencher_repeater_grupo(
         ctrl, 2, "needs", "3.2. Inventário de necessidades", itens, limite
     )
-
 
 def _executar_bloco_4_1_metas(
     ctrl: ControladorExecucaoOculta,
@@ -1564,12 +1655,23 @@ def executar_automacao_segundo_plano(
             and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
             and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
         )
+        # ... código anterior ...
         if ok:
             log_debug(
                 "FINALIZADO",
-                "🎉 Todas as etapas (3, 4, 5 e 6) foram preenchidas em 2º plano com sucesso!",
+                "🎉 Todas as etapas solicitadas foram preenchidas em 2º plano com sucesso!",
                 nivel="OK",
             )
         return ok
     finally:
+        # NOVO: Gerar o relatório de auditoria antes de encerrar
+        if hasattr(ctrl, 'historico_relatorio') and ctrl.historico_relatorio:
+            caminho_relatorio = ctrl.gerar_relatorio_auditoria()
+            if caminho_relatorio:
+                print("\n" + "=" * 78)
+                print(f"📑 RELATÓRIO DE AUDITORIA GERADO!")
+                print(f"📁 Salvo em: {caminho_relatorio}")
+                print(f"Você pode abrir este arquivo para conferir o que foi digitado em cada campo.")
+                print("=" * 78 + "\n")
+                
         ctrl.fechar()

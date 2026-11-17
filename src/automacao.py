@@ -1261,6 +1261,26 @@ def _copiar_tabela_da_guia_atual_na_planilha(
         texto_copiado = ler_do_clipboard()
         linhas = extrair_tabela_de_texto_tsv(texto_copiado, nomes_esperados)
 
+    # =========================================================================
+    # INÍCIO DO AJUSTE: ORDENAÇÃO NUMÉRICA OBRIGATÓRIA ANTES DE RETORNAR
+    # =========================================================================
+    if linhas:
+        def extrair_ordem(linha):
+            # Procura a chave com ou sem o underscore "_"
+            valor = linha.get("_ORDEM_SEQUENCIAL") or linha.get("ORDEM SEQUENCIAL")
+            if valor:
+                try:
+                    # Converte para float e depois int para evitar que "11" venha antes de "2"
+                    return int(float(str(valor).strip()))
+                except ValueError:
+                    pass
+            # Se a célula estiver vazia, joga pro final da fila
+            return 999999
+
+        # ORDENA de fato a lista na memória!
+        linhas.sort(key=extrair_ordem)
+    # =========================================================================
+
     if linhas:
         cols_lidas = [k for k in linhas[0].keys() if not str(k).startswith("_")]
         amostra_1 = {
@@ -1271,8 +1291,9 @@ def _copiar_tabela_da_guia_atual_na_planilha(
         print(f"   📌 Colunas identificadas na guia '{nome_guia}': {cols_lidas}")
         if any(l.get("_ORDEM_SEQUENCIAL") is not None for l in linhas):
             ordens_seq = [l.get("_ORDEM_SEQUENCIAL") for l in linhas if l.get("_ORDEM_SEQUENCIAL") is not None]
-            print(f"   🔢 Linhas ordenadas por 'ORDEM SEQUENCIAL' crescente: {ordens_seq}")
+            print(f"   🔢 Linhas de fato ordenadas (Numérico): {ordens_seq}")
         print(f"   🔎 Amostra 1ª Linha a colar: {amostra_1}")
+        
     print(f"✅ Guia '{nome_guia}' lida com sucesso: {len(linhas)} linha(s) válida(s) encontrada(s)!")
     print("-" * 72)
     return linhas
