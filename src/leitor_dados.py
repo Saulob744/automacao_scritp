@@ -1285,39 +1285,6 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     )
             resultado.append(item)
 
-    # Ordenação obrigatória pela coluna 'ORDEM SEQUENCIAL' (1, 2, 3...) na aba '3.2. Inventário de necessidades'
-    # Analisa o número inteiro por completo (1, 2, 3... 10, 11...)
-    if col_ordem_seq != -1 and any(r.get("_ORDEM_SEQUENCIAL") is not None for r in resultado):
-        def _chave_ordem_seq(r):
-            v = r.get("_ORDEM_SEQUENCIAL")
-            if v is not None:
-                try:
-                    return (0, int(round(float(v))), int(r.get("_IDX_LINHA_ORIGINAL", 0)))
-                except (ValueError, TypeError):
-                    pass
-            return (1, 999999, int(r.get("_IDX_LINHA_ORIGINAL", 0)))
-
-        resultado.sort(key=_chave_ordem_seq)
-
-    # ==========================================================
-    # NOVA REGRA: Ordenação crescente pela coluna 'NÍVEL' (1, 2, 3...)
-    # ==========================================================
-    if any("NÍVEL" in r for r in resultado):
-        def extrair_numero_nivel(linha):
-            valor = str(linha.get("NÍVEL", "")).strip()
-            
-            # Busca qualquer sequência de dígitos dentro da célula (ex: "1", "Nível 2")
-            numeros = re.findall(r'\d+', valor)
-            
-            if numeros:
-                return int(numeros[0])  # Converte o primeiro número encontrado para inteiro
-            
-            # Se a célula estiver vazia ou sem números, recebe um valor alto para ir pro final da fila
-            return 9999 
-            
-        # Aplica a ordenação alterando a lista original
-        resultado.sort(key=extrair_numero_nivel)
-
     return resultado
 
 
@@ -1356,15 +1323,6 @@ def mesclar_tabelas_por_colunas(
                 item_b[k] = v
         if any(str(val).strip() for k, val in item_b.items() if not str(k).startswith("_")):
             mescladas.append(item_b)
-
-    if any(r.get("_ORDEM_SEQUENCIAL") is not None for r in mescladas):
-        mescladas.sort(
-            key=lambda r: (
-                0 if r.get("_ORDEM_SEQUENCIAL") is not None else 1,
-                float(r["_ORDEM_SEQUENCIAL"]) if r.get("_ORDEM_SEQUENCIAL") is not None else float("inf"),
-                int(r.get("_IDX_LINHA_ORIGINAL", 0)),
-            )
-        )
     return mescladas
 
 

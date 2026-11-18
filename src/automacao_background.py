@@ -30,6 +30,10 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 import urllib.parse
 import urllib.request
+import warnings
+
+# Silencia os avisos visuais inofensivos do openpyxl sobre cabeçalhos e rodapés do Google Sheets
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 import openpyxl
 
@@ -816,7 +820,7 @@ class ControladorExecucaoOculta:
                         "preenchidos": resultado.get("preenchidos", 0),
                         "detalhes": resultado.get("detalhes", []),
                         "tempo": resultado["_tempo_s"],
-                        # NOVO: Salva os dados brutos que vieram do Excel e foram passados pro JS
+                        # Salva os dados brutos que vieram do Excel e foram passados pro JS
                         "itens_enviados": payload.get("items", [])
                     })
             return resultado
@@ -1206,40 +1210,8 @@ def ler_guia_de_arquivo_xlsx(
             linhas_tsv.append("\t".join(celulas))
 
         texto_tsv = "\n".join(linhas_tsv)
+        linhas_extraidas = extrair_tabela_de_texto_tsv(texto_tsv, colunas_esperadas)
         
-        # =========================================================================
-        # 1. GARANTE QUE A ORDEM SEJA EXTRAÍDA (Mesmo que não esteja na lista oficial)
-        # =========================================================================
-        colunas_com_ordem = list(colunas_esperadas)
-        if "ORDEM SEQUENCIAL" not in colunas_com_ordem:
-            colunas_com_ordem.append("ORDEM SEQUENCIAL")
-
-        linhas_extraidas = extrair_tabela_de_texto_tsv(texto_tsv, colunas_com_ordem)
-        
-        # =========================================================================
-        # 2. ORDENAÇÃO NUMÉRICA BLINDADA 
-        # =========================================================================
-        if linhas_extraidas:
-            def extrair_ordem(linha):
-                # Usa a SUA função (buscar_valor_da_coluna) que é imune a espaços/acentos
-                valor = buscar_valor_da_coluna(linha, "ORDEM SEQUENCIAL")
-                if not valor: 
-                    # Tenta apenas "ORDEM" caso no Excel esteja resumido
-                    valor = buscar_valor_da_coluna(linha, "ORDEM")
-                    
-                if valor:
-                    try:
-                        # Força a matemática: '11' vira 11 e '2' vira 2
-                        return int(float(str(valor).strip()))
-                    except ValueError:
-                        pass
-                # Sem número válido? Vai pro final da fila.
-                return 999999
-            
-            # Ordena a lista na memória antes de devolver para o bloco 3.2 preencher
-            linhas_extraidas.sort(key=extrair_ordem)
-        # =========================================================================
-
         dt = time.time() - t0
         log_debug(
             nome_guia_esperada,
@@ -1381,39 +1353,12 @@ def _executar_bloco_3_2_inventario(
 ) -> bool:
     log_debug("BLOCO 3.2", "Iniciando Etapa 3 — Bloco 3.2 ('3.2. Inventário de necessidades')...", nivel="INFO")
     
-    # 1. FORÇAR A LEITURA DA COLUNA DE ORDEM
-    # Adicionamos "ORDEM SEQUENCIAL" e "ORDEM" à lista para o TSV não jogar a coluna no lixo.
-    colunas_exigidas = list(COLUNAS_INVENTARIO_NECESSIDADES)
-    if "ORDEM SEQUENCIAL" not in colunas_exigidas:
-        colunas_exigidas.append("ORDEM SEQUENCIAL")
-    if "ORDEM" not in colunas_exigidas:
-        colunas_exigidas.append("ORDEM")
-
     linhas = ler_guia_de_arquivo_xlsx(
         caminho_xlsx,
         "3.2. Inventário de necessidades",
-        colunas_exigidas,
+        list(COLUNAS_INVENTARIO_NECESSIDADES),
     )
 
-    # 2. ORDENAÇÃO MATEMÁTICA DEFINITIVA (Logo antes de montar o pacote)
-    def extrair_numero_ordem(linha: dict) -> int:
-        valor = buscar_valor_da_coluna(linha, "ORDEM SEQUENCIAL")
-        if not valor:
-            valor = buscar_valor_da_coluna(linha, "ORDEM")
-        
-        if valor:
-            try:
-                # Converte string "11" para 11, impedindo que venha antes do 2.
-                return int(float(str(valor).strip()))
-            except ValueError:
-                pass
-        # Se vier vazio ou texto inválido, joga a linha pro fim da fila
-        return 999999
-
-    # Aqui acontece a mágica: a lista é organizada do menor para o maior número.
-    linhas.sort(key=extrair_numero_ordem)
-
-    # 3. MONTA OS DADOS (Agora já perfeitamente organizados)
     itens: List[Dict[str, str]] = []
     for l in linhas:
         item = {
@@ -1428,6 +1373,8 @@ def _executar_bloco_3_2_inventario(
     return _preencher_repeater_grupo(
         ctrl, 2, "needs", "3.2. Inventário de necessidades", itens, limite
     )
+
+
 def _executar_bloco_4_1_metas(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
@@ -1693,7 +1640,7 @@ def executar_automacao_segundo_plano(
             and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
             and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
         )
-        # ... código anterior ...
+        
         if ok:
             log_debug(
                 "FINALIZADO",
@@ -1702,7 +1649,7 @@ def executar_automacao_segundo_plano(
             )
         return ok
     finally:
-        # NOVO: Gerar o relatório de auditoria antes de encerrar
+        # Gerar o relatório de auditoria antes de encerrar
         if hasattr(ctrl, 'historico_relatorio') and ctrl.historico_relatorio:
             caminho_relatorio = ctrl.gerar_relatorio_auditoria()
             if caminho_relatorio:
