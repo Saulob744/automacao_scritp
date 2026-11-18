@@ -2334,7 +2334,7 @@ def _contar_linhas_planilha_por_repeater(
         ("OPORTUNIDADES", "opportunities"),
         ("AMEAÇAS", "threats"),
     ]:
-        vals = [v for v in (buscar_valor_da_coluna(l, nome_col) for l in swot) if str(v).strip()]
+        vals = [v for v in [buscar_valor_da_coluna(l, nome_col) for l in swot] if v and str(v).strip()]
         contagens[rep_name] = len(_aplicar_limite(vals, limite))
 
     inv = ler_guia_de_arquivo_xlsx(caminho_xlsx, "3.2. Inventário de necessidades", list(COLUNAS_INVENTARIO_NECESSIDADES))
@@ -2355,7 +2355,7 @@ def _contar_linhas_planilha_por_repeater(
         ("TREINAMENTOS TÉCNICOS", "technical-trainings"),
         ("AÇÕES DE RETENÇÃO DE TALENTOS", "talent-actions"),
     ]:
-        vals = [v for v in (buscar_valor_da_coluna(l, nome_col) for l in cap) if str(v).strip()]
+        vals = [v for v in [buscar_valor_da_coluna(l, nome_col) for l in cap] if v and str(v).strip()]
         contagens[rep_name] = len(_aplicar_limite(vals, limite))
 
     acoes = ler_guia_de_arquivo_xlsx(caminho_xlsx, "5.3. Ações Específicas", list(COLUNAS_ACOES_ESPECIFICAS))
@@ -2364,7 +2364,7 @@ def _contar_linhas_planilha_por_repeater(
         ("AÇÕES MICRO", "micro-actions"),
         ("AÇÕES EXTRAS", "extra-actions"),
     ]:
-        vals = [v for v in (buscar_valor_da_coluna(l, nome_col) for l in acoes) if str(v).strip()]
+        vals = [v for v in [buscar_valor_da_coluna(l, nome_col) for l in acoes] if v and str(v).strip()]
         contagens[rep_name] = len(_aplicar_limite(vals, limite))
 
     return contagens
