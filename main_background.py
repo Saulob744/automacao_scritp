@@ -25,10 +25,12 @@ import time
 
 from src.automacao_background import (
     ARQUIVO_LOG_BG,
+    DELAY_ADICIONAR_MS_PADRAO,
     NOME_ARQUIVO_EXCEL_PADRAO,
     PASTA_EXTENSAO_BG,
     PORTA_CDP_PADRAO,
     PORTA_PONTE_LOCAL,
+    TAMANHO_LOTE_PADRAO,
     TIMEOUT_CONEXAO_PADRAO,
     URL_PADRAO_NEX_PRIVACY,
     executar_automacao_segundo_plano,
@@ -149,6 +151,33 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Abre o Google Chrome na porta CDP 9222 com o sistema aberto.",
     )
+    parser.add_argument(
+        "--analisar",
+        "--diagnostico-dom",
+        dest="analisar",
+        action="store_true",
+        help="Apenas analisa todos os campos, capacidades e estado atual do DOM vs Planilha sem alterar nada.",
+    )
+    parser.add_argument(
+        "--delay-ms",
+        dest="delay_ms",
+        type=int,
+        default=DELAY_ADICIONAR_MS_PADRAO,
+        help=f"Tempo de espera (ms) após criar cada novo card no DOM (padrão: {DELAY_ADICIONAR_MS_PADRAO}ms).",
+    )
+    parser.add_argument(
+        "--lote",
+        dest="lote",
+        type=int,
+        default=TAMANHO_LOTE_PADRAO,
+        help=f"Quantidade de linhas enviadas por lote (padrão: {TAMANHO_LOTE_PADRAO}).",
+    )
+    parser.add_argument(
+        "--limpar",
+        dest="limpar",
+        action="store_true",
+        help="Limpa linhas existentes de cada bloco antes de colar os dados da planilha.",
+    )
     return parser.parse_args()
 
 
@@ -227,12 +256,15 @@ def main() -> None:
         args.pagina5,
         args.pagina6,
         args.tudo,
+        args.analisar,
     ])
 
     if nenhum_alvo_passado and sys.stdin.isatty():
         alvo, limite = menu_interativo()
     else:
-        if args.bloco:
+        if args.analisar and not any([args.bloco, args.pagina3, args.pagina4, args.pagina5, args.pagina6, args.tudo]):
+            alvo = "analisar"
+        elif args.bloco:
             alvo = args.bloco
         elif args.pagina3 and not args.tudo:
             alvo = "pagina3"
@@ -259,7 +291,7 @@ def main() -> None:
     print(f"🌐 Guia do Sistema:   {URL_PADRAO_NEX_PRIVACY}")
     print(f"🧩 Extensão Oculta:   {PASTA_EXTENSAO_BG}")
     print(f"🪵 Log de Auditoria:  {ARQUIVO_LOG_BG}")
-    print(f"⏱️  Tempo Limite:      {args.timeout}s por etapa")
+    print(f"⏱️  Espera / Lote:     {args.delay_ms}ms por card | Lote de {args.lote} linhas | Timeout={args.timeout}s")
     print("🖥️  Sua Tela:          100% LIVRE — Mouse e teclado não são afetados!")
     print("=" * 78 + "\n")
 
@@ -269,6 +301,10 @@ def main() -> None:
         limite=limite,
         porta_cdp=args.porta,
         timeout_conexao=args.timeout,
+        delay_add_ms=args.delay_ms,
+        tamanho_lote=args.lote,
+        limpar_antes=args.limpar,
+        apenas_analisar=args.analisar,
     )
 
     if sucesso:
