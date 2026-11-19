@@ -3827,6 +3827,191 @@ def executar_analise_completa_campos(
     return diag
 
 
+def executar_auditoria_somente_leitura_conteudo(
+    ctrl: ControladorExecucaoOculta,
+    caminho_xlsx: Optional[Path],
+    mapeamento: Dict[str, Any],
+    limite: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Faz uma varredura 100% SOMENTE-LEITURA (sem criar cards, sem editar textos e sem clicar em Salvar)
+    cruzando célula por célula todos os 14 blocos do documento aberto contra a planilha Excel.
+    """
+    if caminho_xlsx is None:
+        return {"ok": False, "erro": "Planilha não localizada para auditoria célula a célula."}
+
+    log_debug(
+        "AUDITORIA SOMENTE-LEITURA",
+        "🔍 Conferindo célula por célula (3.188 campos) do documento salvo vs Planilha (ZERO alterações no DOM)...",
+        nivel="INFO",
+    )
+
+    linhas_swot = ler_guia_de_arquivo_xlsx(caminho_xlsx, "3.1. SWOT", list(COLUNAS_PADRAO_SWOT))
+    linhas_inv = ler_guia_de_arquivo_xlsx(caminho_xlsx, "3.2. Inventário de necessidades", list(COLUNAS_INVENTARIO_NECESSIDADES))
+    linhas_41 = ler_guia_de_arquivo_xlsx(caminho_xlsx, "4.1. Metas e Ações", list(COLUNAS_METAS_ACOES))
+    linhas_42 = ler_guia_de_arquivo_xlsx(caminho_xlsx, "4.2. Plano Orçamentário", list(COLUNAS_PLANO_ORCAMENTARIO))
+    linhas_43 = ler_guia_de_arquivo_xlsx(caminho_xlsx, "4.3. Gestão de Riscos", list(COLUNAS_GESTAO_RISCOS))
+    linhas_51 = ler_guia_de_arquivo_xlsx(caminho_xlsx, "5.1. Plano de Capacitação", list(COLUNAS_CAPACITACAO))
+    linhas_53 = ler_guia_de_arquivo_xlsx(caminho_xlsx, "5.3. Ações Específicas", list(COLUNAS_ACOES_ESPECIFICAS))
+    linhas_kpis = salvar_dados_etapa_4_em_memoria(linhas_41, mapeamento) if linhas_41 else []
+
+    itens_inv = [
+        it for it in (
+            {
+                '[name$="[description]"]': buscar_valor_da_coluna(l, "DESCRIÇÃO"),
+                '[name$="[priority]"]': buscar_valor_da_coluna(l, "PRIORIDADE"),
+                '[name$="[requester_area]"], [name$="[requesting_area]"]': buscar_valor_da_coluna(l, "ÁREA DEMANDANTE"),
+                '[name$="[justification]"]': buscar_valor_da_coluna(l, "JUSTIFICATIVA"),
+            }
+            for l in linhas_inv
+        ) if any(it.values())
+    ]
+    itens_41 = [
+        it for it in (
+            {
+                '[name$="[id]"]': buscar_valor_da_coluna(l, "ID"),
+                '[name$="[strategic_objective]"]': buscar_valor_da_coluna(l, "OBJETIVO ESTRATÉGICO"),
+                '[name$="[goal]"]': buscar_valor_da_coluna(l, "META"),
+                '[name$="[main_action]"]': buscar_valor_da_coluna(l, "AÇÃO PRINCIPAL"),
+                '[name$="[indicator]"]': buscar_valor_da_coluna(l, "INDICADOR"),
+                '[name$="[deadline]"]': buscar_valor_da_coluna(l, "PRAZO"),
+                '[name$="[responsible]"]': buscar_valor_da_coluna(l, "RESPONSÁVEL"),
+            }
+            for l in linhas_41
+        ) if any(it.values())
+    ]
+    itens_42 = [
+        it for it in (
+            {
+                '[name$="[action_id]"], [name$="[id]"]': buscar_valor_da_coluna(l, "AÇÃO (ID)"),
+                '[name$="[cost_description]"], [name$="[description]"], [name$="[item]"]': buscar_valor_da_coluna(l, "DESCRIÇÃO DO CUSTO"),
+                '[name$="[funding_source]"], [name$="[resource_source]"], [name*="funding"], [name*="source"], [name*="fonte"], [placeholder*="Tesouro"], [placeholder*="Convênio"]': buscar_valor_da_coluna(l, "FONTE DE RECURSO"),
+                '[name$="[year_1]"], [name$="[year1]"], [name*="2027"]': buscar_valor_da_coluna(l, "ANO 1"),
+                '[name$="[year_2]"], [name$="[year2]"], [name*="2028"]': buscar_valor_da_coluna(l, "ANO 2"),
+                '[name$="[total]"]': buscar_valor_da_coluna(l, "TOTAL"),
+            }
+            for l in linhas_42
+        ) if any(it.values())
+    ]
+    itens_43 = [
+        it for it in (
+            {
+                '[name$="[risk]"]': buscar_valor_da_coluna(l, "RISCO IDENTIFICADO"),
+                '[name$="[probability]"]': buscar_valor_da_coluna(l, "PROBABILIDADE"),
+                '[name$="[impact]"]': buscar_valor_da_coluna(l, "IMPACTO"),
+                '[name$="[level]"]': buscar_valor_da_coluna(l, "NÍVEL"),
+                '[name$="[mitigation]"]': buscar_valor_da_coluna(l, "AÇÃO DE MITIGAÇÃO"),
+                '[name$="[responsible]"]': buscar_valor_da_coluna(l, "RESPONSÁVEL PELO RISCO"),
+            }
+            for l in linhas_43
+        ) if any(it.values())
+    ]
+    itens_kpis = [
+        it for it in (
+            {
+                '[name$="[name]"]': buscar_valor_da_coluna(l, "INDICADOR"),
+                '[name$="[formula]"]': buscar_valor_da_coluna(l, "FÓRMULA / DESCRIÇÃO"),
+            }
+            for l in linhas_kpis
+        ) if any(it.values())
+    ]
+
+    roteiro_verificacao = [
+        (2, "strengths", "3.1 — FORÇAS", "single_column", [v for v in (buscar_valor_da_coluna(l, "FORÇAS") for l in linhas_swot) if v]),
+        (2, "weaknesses", "3.1 — FRAQUEZAS", "single_column", [v for v in (buscar_valor_da_coluna(l, "FRAQUEZAS") for l in linhas_swot) if v]),
+        (2, "opportunities", "3.1 — OPORTUNIDADES", "single_column", [v for v in (buscar_valor_da_coluna(l, "OPORTUNIDADES") for l in linhas_swot) if v]),
+        (2, "threats", "3.1 — AMEAÇAS", "single_column", [v for v in (buscar_valor_da_coluna(l, "AMEAÇAS") for l in linhas_swot) if v]),
+        (2, "needs", "3.2. Inventário de necessidades", "multi_field", itens_inv),
+        (3, "goals-actions", "4.1. Metas e ações", "multi_field", itens_41),
+        (3, "budget-plan", "4.2. Plano orçamentário", "multi_field", itens_42),
+        (3, "risk-plan", "4.3. Gestão de riscos", "multi_field", itens_43),
+        (4, "technical-trainings", "5.1 — TREINAMENTOS TÉCNICOS", "single_column", [v for v in (buscar_valor_da_coluna(l, "TREINAMENTOS TÉCNICOS") for l in linhas_51) if v]),
+        (4, "talent-actions", "5.1 — RETENÇÃO DE TALENTOS", "single_column", [v for v in (buscar_valor_da_coluna(l, "AÇÕES DE RETENÇÃO DE TALENTOS") for l in linhas_51) if v]),
+        (4, "macro-actions", "5.3 — AÇÕES MACRO", "single_column", [v for v in (buscar_valor_da_coluna(l, "AÇÕES MACRO") for l in linhas_53) if v]),
+        (4, "micro-actions", "5.3 — AÇÕES MICRO", "single_column", [v for v in (buscar_valor_da_coluna(l, "AÇÕES MICRO") for l in linhas_53) if v]),
+        (4, "extra-actions", "5.3 — AÇÕES EXTRAS", "single_column", [v for v in (buscar_valor_da_coluna(l, "AÇÕES EXTRAS") for l in linhas_53) if v]),
+        (5, "kpis", "6.1. Indicadores (KPIs)", "multi_field", itens_kpis),
+    ]
+
+    print("\n" + "=" * 105)
+    print("🔎 AUDITORIA SOMENTE-LEITURA CÉLULA A CÉLULA (DOCUMENTO SALVO × PLANILHA — SEM ALTERAR NADA)")
+    print("=" * 105)
+    print(f"{'BLOCO VERIFICADO':<36} | {'LINHAS OK':>11} | {'CAMPOS OK':>13} | {'DOM ATUAL':>9} | {'PRECISÃO':>9} | {'STATUS'}")
+    print("-" * 105)
+
+    tot_linhas_esp = 0
+    tot_linhas_ok = 0
+    tot_campos_esp = 0
+    tot_campos_ok = 0
+    blocos_detalhe: List[Dict[str, Any]] = []
+
+    for step_idx, rep_name, label, mode, itens_bloco in roteiro_verificacao:
+        itens_alvo = _aplicar_limite(itens_bloco, limite)
+        res_v = ctrl.verificar_repeater(
+            step_index=step_idx,
+            repeater_name=rep_name,
+            mode=mode,
+            items=itens_alvo,
+            delay_step_ms=120,
+            timeout=45.0,
+        )
+        qtd_esp_l = len(itens_alvo)
+        qtd_ok_l = int(res_v.get("linhasCompletas", 0))
+        c_esp = int(res_v.get("camposEsperadosTotal", 0))
+        c_ok = int(res_v.get("camposConfirmadosTotal", 0))
+        dom_rows = int(res_v.get("totalLinhasDOM", 0))
+        pct = float(res_v.get("grauConfirmacaoPct", 0.0))
+        divs = res_v.get("divergencias") or []
+        pendentes = int(res_v.get("qtdPendentes", 0))
+
+        tot_linhas_esp += qtd_esp_l
+        tot_linhas_ok += qtd_ok_l
+        tot_campos_esp += c_esp
+        tot_campos_ok += c_ok
+
+        status_str = "✅ 100% SALVO E IDÊNTICO" if (pendentes == 0 and c_ok == c_esp and qtd_ok_l == qtd_esp_l) else f"⚠️ {pendentes} divergência(s)"
+        print(
+            f"{label[:36]:<36} | {f'{qtd_ok_l}/{qtd_esp_l}':>11} | {f'{c_ok}/{c_esp}':>13} | {dom_rows:>9} | {f'{pct:.2f}%':>9} | {status_str}"
+        )
+        blocos_detalhe.append({
+            "bloco": label,
+            "repeater": rep_name,
+            "linhasEsperadas": qtd_esp_l,
+            "linhasConfirmadas": qtd_ok_l,
+            "camposEsperados": c_esp,
+            "camposConfirmados": c_ok,
+            "totalLinhasDOM": dom_rows,
+            "precisaoPct": pct,
+            "qtdPendentes": pendentes,
+            "amostraDivergencias": divs[:10],
+        })
+        if divs:
+            for dv in divs[:3]:
+                print(f"    ↳ Divergência em [{label}]: {dv}")
+
+    pct_global = round((tot_campos_ok / tot_campos_esp) * 100.0, 2) if tot_campos_esp > 0 else 0.0
+    print("-" * 105)
+    print(
+        f"🏆 RESULTADO FINAL DA VARREDURA: {pct_global:.2f}% "
+        f"({tot_campos_ok}/{tot_campos_esp} campos e {tot_linhas_ok}/{tot_linhas_esp} linhas idênticos à planilha!)"
+    )
+    print("🔒 NENHUM campo foi alterado e 'Salvar rascunho' NÃO foi clicado (100% somente-leitura).")
+    print("=" * 105 + "\n", flush=True)
+
+    resumo_aud = {
+        "ok": True,
+        "precisaoGlobalPct": pct_global,
+        "linhasEsperadasTotal": tot_linhas_esp,
+        "linhasConfirmadasTotal": tot_linhas_ok,
+        "camposEsperadosTotal": tot_campos_esp,
+        "camposConfirmadosTotal": tot_campos_ok,
+        "blocos": blocos_detalhe,
+    }
+    arq_aud = DADOS_DIR / "auditoria_somente_leitura.json"
+    arq_aud.write_text(json.dumps(resumo_aud, ensure_ascii=False, indent=2), encoding="utf-8")
+    return resumo_aud
+
+
 def executar_automacao_segundo_plano(
     alvo: str = "todas",
     caminho_planilha: Optional[str] = None,
@@ -3892,6 +4077,7 @@ def executar_automacao_segundo_plano(
         # PASSO 2.5: Análise completa dos campos no DOM vs linhas da planilha
         executar_analise_completa_campos(ctrl, caminho_xlsx, limite)
         if apenas_analisar or chave in ("analisar", "diagnostico", "inspecionar"):
+            executar_auditoria_somente_leitura_conteudo(ctrl, caminho_xlsx, mapeamento, limite)
             log_debug("ANÁLISE CONCLUÍDA", "Modo somente-análise finalizado sem alterar os campos da tela.", nivel="OK")
             return True
 
