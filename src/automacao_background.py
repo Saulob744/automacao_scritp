@@ -61,7 +61,7 @@ from src.leitor_dados import (
 
 PORTA_PONTE_LOCAL = 8765
 PORTA_CDP_PADRAO = 9222
-VERSAO_PONTE_MINIMA = 3
+VERSAO_PONTE_MINIMA = 4
 TIMEOUT_CONEXAO_PADRAO = 25
 TIMEOUT_COMANDO_PADRAO = 90
 DELAY_PASSO_MS_PADRAO = 450
@@ -687,6 +687,7 @@ JS_HELPER_PREENCHER_REPEATER = r"""
     const startIndex = typeof config.startIndex === 'number' ? config.startIndex : null;
     const clearBeforeFill = Boolean(config.clearBeforeFill);
     const onlyMissingFields = config.onlyMissingFields !== undefined ? Boolean(config.onlyMissingFields) : false;
+    const trimExcessTo = typeof config.trimExcessTo === 'number' && config.trimExcessTo >= 1 ? config.trimExcessTo : null;
     const delayStepMs = typeof config.delayStepMs === 'number' ? config.delayStepMs : 450;
     const delayAddMs = typeof config.delayAddMs === 'number' ? config.delayAddMs : 90;
     const delayFieldMs = typeof config.delayFieldMs === 'number' ? config.delayFieldMs : 25;
@@ -977,6 +978,25 @@ JS_HELPER_PREENCHER_REPEATER = r"""
         return corrigidos;
     }
 
+    async function cortarLinhasExcedentesSePedido() {
+        if (trimExcessTo === null) return 0;
+        let rows = obterLinhasRepeater();
+        let removidos = 0;
+        for (let idx = rows.length - 1; idx >= trimExcessTo; idx--) {
+            const rmBtn = rows[idx].querySelector('[data-repeater-remove], [data-repeater-delete], button.btn-danger, .remove-row');
+            if (rmBtn) {
+                rmBtn.click();
+                await sleep(20);
+            }
+            if (rows[idx] && rows[idx].isConnected) {
+                rows[idx].remove();
+            }
+            removidos++;
+        }
+        if (removidos > 0) await sleep(50);
+        return removidos;
+    }
+
     if (clearBeforeFill && (startIndex === 0 || startIndex === null)) {
         let rows = obterLinhasRepeater();
         for (let idx = rows.length - 1; idx >= 1; idx--) {
@@ -1081,6 +1101,7 @@ JS_HELPER_PREENCHER_REPEATER = r"""
             }
         }
 
+        const cardsRemovidosExcesso = await cortarLinhasExcedentesSePedido();
         const indicesCorrigidos = corrigirIndicesDuplicadosNoRepeater();
         const form = document.querySelector('#pdtic-form') || document.querySelector('form');
         const totalNamedForm = form ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length : 0;
@@ -1093,6 +1114,7 @@ JS_HELPER_PREENCHER_REPEATER = r"""
             preenchidos,
             linhasIniciaisDOM,
             cardsCriados: totalCardsCriados,
+            cardsRemovidosExcesso,
             totalLinhasDOM: obterLinhasRepeater().length,
             camposEsperadosTotal,
             camposConfirmadosTotal,
@@ -1228,6 +1250,7 @@ JS_HELPER_PREENCHER_REPEATER = r"""
         }
     }
 
+    const cardsRemovidosExcesso = await cortarLinhasExcedentesSePedido();
     const indicesCorrigidos = corrigirIndicesDuplicadosNoRepeater();
     const form = document.querySelector('#pdtic-form') || document.querySelector('form');
     const totalNamedForm = form ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length : 0;
@@ -1240,6 +1263,7 @@ JS_HELPER_PREENCHER_REPEATER = r"""
         preenchidos,
         linhasIniciaisDOM,
         cardsCriados: totalCardsCriados,
+        cardsRemovidosExcesso,
         totalLinhasDOM: obterLinhasRepeater().length,
         camposEsperadosTotal,
         camposConfirmadosTotal,
@@ -1379,7 +1403,7 @@ JS_BRIDGE_CONSOLE = (
                 const btn = document.querySelector('.wizard-nav button.active');
                 await enviarResultado(tarefa.id, {
                     ok: true,
-                    versao: 3,
+                    versao: 4,
                     url: location.href,
                     title: document.title,
                     etapaAtiva: btn ? btn.textContent.trim() : '1. Identificação',
@@ -1607,6 +1631,7 @@ class ControladorExecucaoOculta:
         tamanho_lote: int = TAMANHO_LOTE_PADRAO,
         limpar_antes: bool = False,
         somente_faltantes: bool = True,
+        cortar_excedentes: bool = False,
     ) -> None:
         self.porta_ponte = porta_ponte
         self.porta_cdp = porta_cdp
@@ -1616,6 +1641,7 @@ class ControladorExecucaoOculta:
         self.tamanho_lote = max(1, tamanho_lote)
         self.limpar_antes = limpar_antes
         self.somente_faltantes = bool(somente_faltantes and not limpar_antes)
+        self.cortar_excedentes = cortar_excedentes
         self.cliente_cdp: Optional[ClienteCDP] = None
         self.modo_ativo: str = "nenhum"
         self.historico_relatorio: List[Dict[str, Any]] = []
@@ -2140,8 +2166,13 @@ class ControladorExecucaoOculta:
                         nivel="WARN",
                     )
 
-            # Se JÁ ESTÁ 100% CONFIRMADO no rascunho, pula completamente a escrita deste bloco!
-            if len(indices_pendentes) == 0 and grau_antes >= 100.0:
+            # Se JÁ ESTÁ 100% CONFIRMADO no rascunho (e sem cards excedentes quando em modo --parte), pula!
+            precisa_cortar_excesso = bool(
+                self.cortar_excedentes
+                and isinstance(dom_inicial_analise, int)
+                and dom_inicial_analise > total_planilha
+            )
+            if len(indices_pendentes) == 0 and grau_antes >= 100.0 and not precisa_cortar_excesso:
                 dt_skip = round(time.time() - t_global, 2)
                 log_debug(
                     nome_exibicao,
@@ -2232,6 +2263,7 @@ class ControladorExecucaoOculta:
                 "startIndex": usar_start_index,
                 "onlyMissingFields": bool(self.somente_faltantes and not self.limpar_antes),
                 "clearBeforeFill": bool(self.limpar_antes and idx_lote == 0),
+                "trimExcessTo": total_planilha if (self.cortar_excedentes and idx_lote == total_lotes - 1) else None,
                 "delayStepMs": self.delay_step_ms if idx_lote == 0 else 60,
                 "delayAddMs": self.delay_add_ms,
                 "delayFieldMs": self.delay_field_ms,
@@ -2276,16 +2308,20 @@ class ControladorExecucaoOculta:
             seletores_nao_enc.extend(res_lote.get("seletoresNaoEncontrados") or [])
             campos_rejeitados.extend(res_lote.get("camposRejeitados") or [])
 
-            primeiro_card_lote = (
-                fatia[0]["__targetIndex"] + 1
-                if isinstance(fatia[0], dict) and "__targetIndex" in fatia[0]
-                else ini + 1
-            )
-            ultimo_card_lote = (
-                fatia[-1]["__targetIndex"] + 1
-                if isinstance(fatia[-1], dict) and "__targetIndex" in fatia[-1]
-                else fim
-            )
+            if fatia:
+                primeiro_card_lote = (
+                    fatia[0]["__targetIndex"] + 1
+                    if isinstance(fatia[0], dict) and "__targetIndex" in fatia[0]
+                    else ini + 1
+                )
+                ultimo_card_lote = (
+                    fatia[-1]["__targetIndex"] + 1
+                    if isinstance(fatia[-1], dict) and "__targetIndex" in fatia[-1]
+                    else fim
+                )
+            else:
+                primeiro_card_lote = 0
+                ultimo_card_lote = 0
 
             log_debug(
                 nome_exibicao,
@@ -2631,6 +2667,15 @@ def conectar_guia_com_debug_e_timer(
                 nivel="OK",
             )
             return True
+        if versao_remota >= 3:
+            log_debug("PASSO 1/4 — CONEXÃO", f"Atualizando Ponte v{versao_remota} -> v{VERSAO_PONTE_MINIMA} automaticamente...", nivel="INFO")
+            ctrl.enviar_comando_ponte("upgrade_bridge", timeout=3.0)
+            time.sleep(0.8)
+            res_ping2 = ctrl.enviar_comando_ponte("ping", timeout=2.5)
+            if isinstance(res_ping2, dict) and int(res_ping2.get("versao") or 1) >= VERSAO_PONTE_MINIMA:
+                ctrl.modo_ativo = "ponte"
+                log_debug("PASSO 1/4 — CONEXÃO", f"Ponte atualizada automaticamente para v{res_ping2.get('versao')}!", nivel="OK")
+                return True
         detectou_ponte_antiga = True
 
     print("\n" + "-" * 78)
@@ -2959,10 +3004,92 @@ def ler_guia_de_arquivo_xlsx(
 # =============================================================================
 
 
-def _aplicar_limite(linhas: List[Any], limite: Optional[int]) -> List[Any]:
-    if limite is not None and limite > 0 and len(linhas) > limite:
-        return linhas[:limite]
-    return linhas
+DEFINICAO_PARTES_LIMITE_1000: Dict[int, Dict[str, Any]] = {
+    1: {
+        "titulo": "PARTE 1/5 — Etapa 3 Completa (3.1 SWOT + 3.2 Inventário) [~962 campos < 1.000]",
+        "arquivo_sugerido": "parte1.docx",
+        "fatias": {
+            "3.1": (0, None),
+            "3.2": (0, None),
+            "4.1": (0, 1),
+            "4.2": (0, 1),
+            "4.3": (0, 1),
+            "5.1": (0, 1),
+            "5.3": (0, 1),
+            "6.1": (0, 1),
+        },
+    },
+    2: {
+        "titulo": "PARTE 2/5 — Bloco 4.1 Completo (Metas e Ações: 108 linhas) [~834 campos < 1.000]",
+        "arquivo_sugerido": "parte2.docx",
+        "fatias": {
+            "3.1": (0, 1),
+            "3.2": (0, 1),
+            "4.1": (0, None),
+            "4.2": (0, 1),
+            "4.3": (0, 1),
+            "5.1": (0, 1),
+            "5.3": (0, 1),
+            "6.1": (0, 1),
+        },
+    },
+    3: {
+        "titulo": "PARTE 3/5 — Bloco 4.2 Plano Orçamentário (Linhas 1 a 95) [~837 campos < 1.000]",
+        "arquivo_sugerido": "parte3.docx",
+        "fatias": {
+            "3.1": (0, 1),
+            "3.2": (0, 1),
+            "4.1": (0, 1),
+            "4.2": (0, 95),
+            "4.3": (0, 1),
+            "5.1": (0, 1),
+            "5.3": (0, 1),
+            "6.1": (0, 1),
+        },
+    },
+    4: {
+        "titulo": "PARTE 4/5 — Bloco 4.2 Plano Orçamentário (Linhas 96 a 155) [~557 campos < 1.000]",
+        "arquivo_sugerido": "parte4.docx",
+        "fatias": {
+            "3.1": (0, 1),
+            "3.2": (0, 1),
+            "4.1": (0, 1),
+            "4.2": (95, None),
+            "4.3": (0, 1),
+            "5.1": (0, 1),
+            "5.3": (0, 1),
+            "6.1": (0, 1),
+        },
+    },
+    5: {
+        "titulo": "PARTE 5/5 — Bloco 4.3 Riscos + Etapa 5 (Capacitação/Ações) + Etapa 6 (KPIs) [~722 campos < 1.000]",
+        "arquivo_sugerido": "parte5.docx",
+        "fatias": {
+            "3.1": (0, 1),
+            "3.2": (0, 1),
+            "4.1": (0, 1),
+            "4.2": (0, 1),
+            "4.3": (0, None),
+            "5.1": (0, None),
+            "5.3": (0, None),
+            "6.1": (0, None),
+        },
+    },
+}
+
+
+def _aplicar_limite(
+    linhas: List[Any],
+    limite: Optional[int],
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
+) -> List[Any]:
+    resultado = linhas
+    if fatia is not None:
+        ini, fim = fatia
+        resultado = resultado[ini:fim]
+    if limite is not None and limite > 0 and len(resultado) > limite:
+        resultado = resultado[:limite]
+    return resultado
 
 
 def _preencher_repeater_coluna_unica(
@@ -2972,8 +3099,9 @@ def _preencher_repeater_coluna_unica(
     nome_exibicao: str,
     valores: List[str],
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
-    valores_lim = _aplicar_limite([v for v in valores if str(v).strip()], limite)
+    valores_lim = _aplicar_limite([v for v in valores if str(v).strip()], limite, fatia)
     if not valores_lim:
         log_debug(nome_exibicao, "Nenhum valor não-vazio encontrado na planilha para esta coluna.", nivel="WARN")
         return True
@@ -3018,8 +3146,9 @@ def _preencher_repeater_grupo(
     nome_exibicao: str,
     itens_mapeados: List[Dict[str, str]],
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
-    itens_lim = _aplicar_limite(itens_mapeados, limite)
+    itens_lim = _aplicar_limite(itens_mapeados, limite, fatia)
     if not itens_lim:
         log_debug(nome_exibicao, "Nenhuma linha encontrada na planilha para este bloco.", nivel="WARN")
         return True
@@ -3062,6 +3191,7 @@ def _executar_bloco_3_1_swot(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 3.1", "Iniciando Etapa 3 — Bloco 3.1 ('3.1. Análise SWOT')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(caminho_xlsx, "3.1. SWOT", list(COLUNAS_PADRAO_SWOT))
@@ -3074,7 +3204,7 @@ def _executar_bloco_3_1_swot(
     for nome_col, rep_name in pares:
         vals = [buscar_valor_da_coluna(l, nome_col) for l in linhas]
         vals = [v for v in vals if v]
-        if not _preencher_repeater_coluna_unica(ctrl, 2, rep_name, f"3.1 — {nome_col}", vals, limite):
+        if not _preencher_repeater_coluna_unica(ctrl, 2, rep_name, f"3.1 — {nome_col}", vals, limite, fatia):
             return False
     return True
 
@@ -3083,6 +3213,7 @@ def _executar_bloco_3_2_inventario(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 3.2", "Iniciando Etapa 3 — Bloco 3.2 ('3.2. Inventário de necessidades')...", nivel="INFO")
     
@@ -3104,7 +3235,7 @@ def _executar_bloco_3_2_inventario(
             itens.append(item)
             
     return _preencher_repeater_grupo(
-        ctrl, 2, "needs", "3.2. Inventário de necessidades", itens, limite
+        ctrl, 2, "needs", "3.2. Inventário de necessidades", itens, limite, fatia
     )
 
 
@@ -3113,6 +3244,7 @@ def _executar_bloco_4_1_metas(
     caminho_xlsx: Path,
     mapeamento: Dict[str, Any],
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 4.1", "Iniciando Etapa 4 — Bloco 4.1 ('4.1. Metas e Ações')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3136,7 +3268,7 @@ def _executar_bloco_4_1_metas(
         if any(item.values()):
             itens.append(item)
     return _preencher_repeater_grupo(
-        ctrl, 3, "goals-actions", "4.1. Metas e ações", itens, limite
+        ctrl, 3, "goals-actions", "4.1. Metas e ações", itens, limite, fatia
     )
 
 
@@ -3144,6 +3276,7 @@ def _executar_bloco_4_2_orcamento(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 4.2", "Iniciando Etapa 4 — Bloco 4.2 ('4.2. Plano Orçamentário')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3165,7 +3298,7 @@ def _executar_bloco_4_2_orcamento(
         if any(item.values()):
             itens.append(item)
     return _preencher_repeater_grupo(
-        ctrl, 3, "budget-plan", "4.2. Plano orçamentário e de investimentos", itens, limite
+        ctrl, 3, "budget-plan", "4.2. Plano orçamentário e de investimentos", itens, limite, fatia
     )
 
 
@@ -3173,6 +3306,7 @@ def _executar_bloco_4_3_riscos(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 4.3", "Iniciando Etapa 4 — Bloco 4.3 ('4.3. Gestão de Riscos')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3193,7 +3327,7 @@ def _executar_bloco_4_3_riscos(
         if any(item.values()):
             itens.append(item)
     return _preencher_repeater_grupo(
-        ctrl, 3, "risk-plan", "4.3. Plano de gestão de riscos", itens, limite
+        ctrl, 3, "risk-plan", "4.3. Plano de gestão de riscos", itens, limite, fatia
     )
 
 
@@ -3201,6 +3335,7 @@ def _executar_bloco_5_1_capacitacao(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 5.1", "Iniciando Etapa 5 — Bloco 5.1 ('5.1. Plano de Capacitação')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3215,7 +3350,7 @@ def _executar_bloco_5_1_capacitacao(
     for nome_col, rep_name in pares:
         vals = [buscar_valor_da_coluna(l, nome_col) for l in linhas]
         vals = [v for v in vals if v]
-        if not _preencher_repeater_coluna_unica(ctrl, 4, rep_name, f"5.1 — {nome_col}", vals, limite):
+        if not _preencher_repeater_coluna_unica(ctrl, 4, rep_name, f"5.1 — {nome_col}", vals, limite, fatia):
             return False
     return True
 
@@ -3224,6 +3359,7 @@ def _executar_bloco_5_3_acoes_especificas(
     ctrl: ControladorExecucaoOculta,
     caminho_xlsx: Path,
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 5.3", "Iniciando Etapa 5 — Bloco 5.3 ('5.3. Ações Específicas')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3239,7 +3375,7 @@ def _executar_bloco_5_3_acoes_especificas(
     for nome_col, rep_name in pares:
         vals = [buscar_valor_da_coluna(l, nome_col) for l in linhas]
         vals = [v for v in vals if v]
-        if not _preencher_repeater_coluna_unica(ctrl, 4, rep_name, f"5.3 — {nome_col}", vals, limite):
+        if not _preencher_repeater_coluna_unica(ctrl, 4, rep_name, f"5.3 — {nome_col}", vals, limite, fatia):
             return False
     return True
 
@@ -3249,6 +3385,7 @@ def _executar_bloco_6_kpis(
     caminho_xlsx: Optional[Path],
     mapeamento: Dict[str, Any],
     limite: Optional[int] = None,
+    fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 6.1", "Iniciando Etapa 6 — 'Indicadores de sucesso (KPIs)'...", nivel="INFO")
     linhas_kpis = obter_dados_etapa_4_da_memoria(mapeamento)
@@ -3280,7 +3417,7 @@ def _executar_bloco_6_kpis(
                 }
             )
     return _preencher_repeater_grupo(
-        ctrl, 5, "kpis", "6. Indicadores de sucesso (KPIs)", itens, limite
+        ctrl, 5, "kpis", "6. Indicadores de sucesso (KPIs)", itens, limite, fatia
     )
 
 
@@ -3474,22 +3611,28 @@ def executar_automacao_segundo_plano(
     somente_faltantes: bool = True,
     segunda_passada: bool = True,
     salvar_rascunho: bool = True,
+    parte: Optional[int] = None,
 ) -> bool:
     """
     Executa a automação 100% oculta com:
     1. Análise prévia dos campos do rascunho atual no DOM vs Planilha.
     2. Preenchimento incremental (`somente_faltantes=True`): preserva o que já está 100% certo e preenche só o que falta.
-    3. 2ª Passada independente (`segunda_passada=True`) conferindo 100% dos campos e calculando o Grau de Confirmação (%).
-    4. Clique automático em `'Salvar rascunho'` (`data-submit-mode="draft"`) SE E SOMENTE SE tudo estiver 100% confirmado!
+    3. Suporte a divisão em 5 Partes (`parte=1..5`) respeitando estritamente o limite de < 1.000 campos por documento.
+    4. 2ª Passada independente (`segunda_passada=True`) conferindo 100% dos campos e calculando o Grau de Confirmação (%).
+    5. Clique automático em `'Salvar rascunho'` (`data-submit-mode="draft"`) SE E SOMENTE SE tudo estiver 100% confirmado!
     """
     chave = str(alvo or "todas").strip().lower()
     mapeamento = carregar_mapeamento() or {}
+    cfg_parte = DEFINICAO_PARTES_LIMITE_1000.get(parte) if parte else None
+
+    if cfg_parte:
+        log_debug("MODO 5 PARTES (<1.000 CAMPOS)", f"📦 {cfg_parte['titulo']}", nivel="INFO")
 
     log_debug(
         "INÍCIO",
-        f"Alvo='{chave}' | Limite={limite or 'SEM LIMITE'} | Incremental={somente_faltantes and not limpar_antes} | "
-        f"2ªPassada={segunda_passada} | SalvarRascunho={salvar_rascunho} | DelayAdd={delay_add_ms}ms | "
-        f"Lote={tamanho_lote} | LimparAntes={limpar_antes} | Timeout={timeout_conexao}s",
+        f"Alvo='{chave}' | Parte={parte or 'COMPLETO'} | Limite={limite or 'SEM LIMITE'} | "
+        f"Incremental={somente_faltantes and not limpar_antes} | 2ªPassada={segunda_passada} | "
+        f"SalvarRascunho={salvar_rascunho} | DelayAdd={delay_add_ms}ms | Lote={tamanho_lote} | Timeout={timeout_conexao}s",
         nivel="INFO",
     )
 
@@ -3500,6 +3643,7 @@ def executar_automacao_segundo_plano(
         tamanho_lote=tamanho_lote,
         limpar_antes=limpar_antes,
         somente_faltantes=somente_faltantes,
+        cortar_excedentes=bool(cfg_parte is not None),
     )
     try:
         # PASSO 1: Conectar à guia já aberta do Nex Privacy (com Timer regressivo e diagnóstico)
@@ -3536,7 +3680,19 @@ def executar_automacao_segundo_plano(
             nivel="INFO",
         )
 
-        if chave in ("3.1", "swot"):
+        if cfg_parte is not None:
+            fatias_p = cfg_parte["fatias"]
+            ok = (
+                _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, fatias_p["3.1"])  # type: ignore[arg-type]
+                and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite, fatias_p["3.2"])  # type: ignore[arg-type]
+                and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["4.1"])  # type: ignore[arg-type]
+                and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite, fatias_p["4.2"])  # type: ignore[arg-type]
+                and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite, fatias_p["4.3"])  # type: ignore[arg-type]
+                and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, fatias_p["5.1"])  # type: ignore[arg-type]
+                and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, fatias_p["5.3"])  # type: ignore[arg-type]
+                and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["6.1"])
+            )
+        elif chave in ("3.1", "swot"):
             ok = _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
         elif chave in ("3.2", "inventario"):
             ok = _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
@@ -3637,6 +3793,21 @@ def executar_automacao_segundo_plano(
                     f"⚠️ Todos os campos foram confirmados (100%), mas não foi possível clicar em 'Salvar rascunho': {res_draft.get('erro')}",
                     nivel="WARN",
                 )
+
+        if cfg_parte is not None:
+            pasta_partes = DADOS_DIR / "partes_docx"
+            pasta_partes.mkdir(parents=True, exist_ok=True)
+            print("\n" + "=" * 86)
+            print(f"✅ {cfg_parte['titulo']} SALVA COM SUCESSO (< 1.000 CAMPOS)!")
+            print(f"👉 PRÓXIMO PASSO NA TELA DO NEX PRIVACY:")
+            print(f"   1. Gere/baixe o arquivo .docx deste rascunho no sistema.")
+            print(f"   2. Salve (ou renomeie) o arquivo baixado como '{cfg_parte['arquivo_sugerido']}' na pasta:")
+            print(f"      {pasta_partes}")
+            if parte and parte < 5:
+                print(f"   3. Depois abra um novo documento no Nex Privacy para rodarmos `--parte {parte + 1}`!")
+            else:
+                print(f"   3. Com parte1.docx a parte5.docx salvos, rode `python unificar_docx.py` para gerar o .docx final único!")
+            print("=" * 86 + "\n")
 
         log_debug(
             "FINALIZADO",
