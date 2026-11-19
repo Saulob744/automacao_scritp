@@ -116,5 +116,5 @@ Ao ler `Campos Necessários para Sistema da Tecpar - Consolidado.xlsx`, o módul
 2. **`4.1 Metas e Ações` (`Objetivo estratégico`):** remove o prefixo repetido `OE.TIC.X - ` (pois o código já vai no campo `ID`).
 3. **`4.1 Metas e Ações` (`Ação principal`):** concatena `ID AÇÃO PRINCIPAL (KR)` + ` - ` + `AÇÃO PRINCIPAL`.
 4. **`4.1 Metas e Ações` (`Prazo`):** une automaticamente as subcolunas `QUADRANTE` + `ANO`.
-5. **`4.3 Gestão de Riscos` (`Nível`):** concatena `NÍVEL` + ` - ` + `CLASSIFICAÇÃO` *(ex.: `8 - Baixo`)*.
+5. **`4.3 Gestão de Riscos` (`Risco identificado` e `Nível`):** concatena `ID DO RISCO` + ` - ` + `RISCO IDENTIFICADO` *(ex.: `SESP.R1 - Inclusão no PDTIC de necessidades...`)* e `NÍVEL` + ` - ` + `CLASSIFICAÇÃO` *(ex.: `8 - Baixo`)*.
 6. **`6.1 Indicadores (KPIs)`:** extrai automaticamente os 108 indicadores e fórmulas (`MÉTRICA / FÓRMULA`) da aba `4.1. Metas e Ações`.

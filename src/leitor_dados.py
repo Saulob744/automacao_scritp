@@ -1115,6 +1115,32 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                 col_id_iniciativa_inv = idx_col_inv
                 break
 
+    # Regra do Bloco '4.3. Gestão de Riscos':
+    # Localiza a coluna 'ID DO RISCO' para concatenar no campo 'RISCO IDENTIFICADO'
+    # (ex: 'SESP.R1 - Inclusão no PDTIC de necessidades não enquadradas nas soluções de TIC').
+    tem_risco_no_bloco = any(
+        _resolver_chave_sinonimo(k) == "RISCO IDENTIFICADO" for k in mapa_coluna_para_indice.keys()
+    )
+    col_id_risco: int = -1
+    if tem_risco_no_bloco and 0 <= indice_linha_cabecalho < len(todas_linhas):
+        linha_cab_r = todas_linhas[indice_linha_cabecalho]
+        prox_cab_r = (
+            todas_linhas[indice_linha_cabecalho + 1]
+            if (indice_linha_cabecalho + 1) < len(todas_linhas)
+            else []
+        )
+        max_c_r = max(len(linha_cab_r), len(prox_cab_r))
+        nomes_id_risco = {"ID DO RISCO", "ID RISCO", "CODIGO DO RISCO", "RISCO ID", "ID"}
+        for idx_col_r in range(max_c_r):
+            if idx_col_r in mapa_coluna_para_indice.values():
+                continue
+            cel_r1 = remover_acentos(" ".join((linha_cab_r[idx_col_r] if idx_col_r < len(linha_cab_r) else "").splitlines()))
+            cel_r2 = remover_acentos(" ".join((prox_cab_r[idx_col_r] if idx_col_r < len(prox_cab_r) else "").splitlines()))
+            comb_r = f"{cel_r1} {cel_r2}".strip()
+            if cel_r1 in nomes_id_risco or cel_r2 in nomes_id_risco or comb_r in nomes_id_risco:
+                col_id_risco = idx_col_r
+                break
+
     # Coleta TODAS as linhas de dados abaixo do cabeçalho (sem parar em linhas vazias intermediárias)
     if indice_linha_cabecalho != -1:
         inicio_dados = indice_linha_cabecalho + (2 if usou_linha_abaixo_no_cabecalho else 1)
@@ -1282,6 +1308,23 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     and not val_desc_inv.startswith(f"{val_id_inic}-")
                 ):
                     item[chave_desc_inv] = f"{val_id_inic} - {val_desc_inv}"
+
+        # 4. Concatenação Gestão de Riscos (4.3): 'ID DO RISCO' + ' - ' + 'RISCO IDENTIFICADO'
+        # Exemplo: 'SESP.R1 - Inclusão no PDTIC de necessidades não enquadradas nas soluções de TIC'
+        if col_id_risco != -1 and col_id_risco < len(linha):
+            val_id_risco = " ".join(linha[col_id_risco].strip().splitlines()).strip()
+            chave_risco_ident = next(
+                (k for k in item.keys() if _resolver_chave_sinonimo(k) == "RISCO IDENTIFICADO"),
+                None,
+            )
+            if chave_risco_ident and item.get(chave_risco_ident) and val_id_risco:
+                val_risco_txt = str(item[chave_risco_ident]).strip()
+                if (
+                    remover_acentos(val_id_risco) not in {"ID DO RISCO", "ID RISCO", "CODIGO DO RISCO", "RISCO ID", "ID"}
+                    and not val_risco_txt.startswith(f"{val_id_risco} -")
+                    and not val_risco_txt.startswith(f"{val_id_risco}-")
+                ):
+                    item[chave_risco_ident] = f"{val_id_risco} - {val_risco_txt}"
 
         # Proteção para 'Inventário de necessidades': como 'CLASSIFICAÇÃO DE PRIORIDADE' já vem com
         # um toggle pré-selecionado na planilha, linhas em branco no template que tenham apenas a
