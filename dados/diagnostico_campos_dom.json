@@ -1,87 +1,135 @@
 {
   "ok": true,
-  "url": "https://parana.nexprivacy.com/admin/institutional-documents/100/edit",
+  "url": "https://parana.nexprivacy.com/admin/institutional-documents/157/edit",
   "title": "Nex Privacy",
-  "etapaAtiva": "6. Monitoramento e Revisão",
+  "etapaAtiva": "3. Diagnóstico",
+  "mensagensPagina": [
+    "Totais consolidados Ano 1: R$ 343.582.291,66 | Ano 2: R$ 337.237.857,79 | Ano 3: R$ 0,00 | Ano 4: R$ 0,00 | Total geral: R$ 680.820.149,45",
+    "Revisão antes da geração Confirme se o nome do órgão e a logo estão corretos. Revise se todas as tabelas obrigatórias possuem pelo menos uma linha útil. As dicas exibidas no wizard não entram no `.docx` final."
+  ],
+  "scriptsInline": [],
   "formInfo": {
     "existe": true,
     "id": "pdtic-form",
     "method": "POST",
-    "action": "https://parana.nexprivacy.com/admin/institutional-documents/100",
+    "action": "https://parana.nexprivacy.com/admin/institutional-documents/157",
     "enctype": "multipart/form-data",
-    "totalNamedFields": 1035,
+    "totalNamedFields": 3663,
     "janelaLimite1000": [
+      {
+        "pos1Based": 994,
+        "tag": "textarea",
+        "type": "",
+        "name": "diagnosis[needs][189][description]",
+        "valorPreview": "Aquisição de Notebooks"
+      },
+      {
+        "pos1Based": 995,
+        "tag": "select",
+        "type": "",
+        "name": "diagnosis[needs][189][priority]",
+        "valorPreview": "Média"
+      },
       {
         "pos1Based": 996,
         "tag": "input",
         "type": "text",
-        "name": "goals_actions[10][main_action]",
-        "valorPreview": "SESP.KR.11 - Mapear, modelar, padronizar e in"
+        "name": "diagnosis[needs][189][requester_area]",
+        "valorPreview": "PPPR"
       },
       {
         "pos1Based": 997,
-        "tag": "input",
-        "type": "text",
-        "name": "goals_actions[10][indicator]",
-        "valorPreview": "Índice de Cobertura de Processos Padronizados"
+        "tag": "textarea",
+        "type": "",
+        "name": "diagnosis[needs][189][justification]",
+        "valorPreview": "Necessário para fornecimento para servidores que não te"
       },
       {
         "pos1Based": 998,
-        "tag": "input",
-        "type": "text",
-        "name": "goals_actions[10][deadline]",
-        "valorPreview": "4º Trimestre 2027"
+        "tag": "textarea",
+        "type": "",
+        "name": "diagnosis[needs][190][description]",
+        "valorPreview": "Aquisição de Monitores"
       },
       {
         "pos1Based": 999,
-        "tag": "input",
-        "type": "text",
-        "name": "goals_actions[10][responsible]",
-        "valorPreview": "SESP/DGSP/CTIC/CGGG, SESP/DGSP/CTIC/CGPII"
+        "tag": "select",
+        "type": "",
+        "name": "diagnosis[needs][190][priority]",
+        "valorPreview": "Alta"
       },
       {
         "pos1Based": 1000,
         "tag": "input",
         "type": "text",
-        "name": "goals_actions[11][id]",
-        "valorPreview": "OE.TIC.5"
+        "name": "diagnosis[needs][190][requester_area]",
+        "valorPreview": "PPPR"
       },
       {
         "pos1Based": 1001,
-        "tag": "input",
-        "type": "text",
-        "name": "goals_actions[11][strategic_objective]",
-        "valorPreview": "Aprimorar a governança e gestão de TIC"
+        "tag": "textarea",
+        "type": "",
+        "name": "diagnosis[needs][190][justification]",
+        "valorPreview": "Necessário para fornecimento de novos monitores para se"
       },
       {
         "pos1Based": 1002,
-        "tag": "input",
-        "type": "text",
-        "name": "goals_actions[11][goal]",
-        "valorPreview": ""
+        "tag": "textarea",
+        "type": "",
+        "name": "diagnosis[needs][191][description]",
+        "valorPreview": "Aquisição de Impressoras"
       },
       {
         "pos1Based": 1003,
-        "tag": "input",
-        "type": "text",
-        "name": "goals_actions[11][main_action]",
-        "valorPreview": ""
+        "tag": "select",
+        "type": "",
+        "name": "diagnosis[needs][191][priority]",
+        "valorPreview": "Baixa"
       },
       {
         "pos1Based": 1004,
         "tag": "input",
         "type": "text",
-        "name": "goals_actions[11][indicator]",
-        "valorPreview": ""
+        "name": "diagnosis[needs][191][requester_area]",
+        "valorPreview": "PPPR"
       },
       {
         "pos1Based": 1005,
+        "tag": "textarea",
+        "type": "",
+        "name": "diagnosis[needs][191][justification]",
+        "valorPreview": "Necessário caso contrato de aluguel de impressoras seja"
+      },
+      {
+        "pos1Based": 1006,
         "tag": "input",
         "type": "text",
-        "name": "goals_actions[11][deadline]",
-        "valorPreview": ""
+        "name": "goals_actions[0][id]",
+        "valorPreview": "OE.TIC.1"
+      },
+      {
+        "pos1Based": 1007,
+        "tag": "input",
+        "type": "text",
+        "name": "goals_actions[0][strategic_objective]",
+        "valorPreview": "Fornecer serviços de TIC eficazes, eficientes e de qual"
+      },
+      {
+        "pos1Based": 1008,
+        "tag": "input",
+        "type": "text",
+        "name": "goals_actions[0][goal]",
+        "valorPreview": "IDSiC = recursos adotados"
+      },
+      {
+        "pos1Based": 1009,
+        "tag": "input",
+        "type": "text",
+        "name": "goals_actions[0][main_action]",
+        "valorPreview": "SESP.KR.1 - Adotar recursos metodológicos e tecnológico"
       }
-    ]
+    ],
+    "camposInvalidosHTML5": []
   },
   "repeaters": {
     "strengths": {
@@ -491,28 +539,156 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar ação",
-      "totalRows": 12,
-      "filledRows": 12,
+      "totalRows": 108,
+      "filledRows": 108,
       "emptyRows": 0,
       "partialRows": [
         {
-          "card": 12,
-          "qtdPreenchidos": 2,
+          "card": 100,
+          "qtdPreenchidos": 5,
           "totalCampos": 7,
           "preenchidos": [
             "ID",
-            "Objetivo estratégico"
-          ],
-          "vazios": [
+            "Objetivo estratégico",
             "Meta",
             "Ação principal",
-            "Indicador",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 101,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 102,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 103,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 104,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 105,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 106,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 107,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
+            "Prazo",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 108,
+          "qtdPreenchidos": 5,
+          "totalCampos": 7,
+          "preenchidos": [
+            "ID",
+            "Objetivo estratégico",
+            "Meta",
+            "Ação principal",
+            "Indicador"
+          ],
+          "vazios": [
             "Prazo",
             "Responsável"
           ]
         }
       ],
-      "qtdPartialRows": 1,
+      "qtdPartialRows": 9,
       "duplicateNamesCount": 0,
       "duplicateNamesSample": [],
       "schema": [
@@ -589,126 +765,126 @@
       ],
       "ultimosPreenchidos": [
         {
-          "card": 10,
-          "qtdPreenchidos": 7,
+          "card": 106,
+          "qtdPreenchidos": 5,
           "totalCampos": 7,
           "campos": [
             {
-              "name": "goals_actions[9][id]",
+              "name": "goals_actions[105][id]",
               "label": "ID",
-              "valor": "OE.TIC.5"
+              "valor": "OE.TIC.9"
             },
             {
-              "name": "goals_actions[9][strategic_objective]",
+              "name": "goals_actions[105][strategic_objective]",
               "label": "Objetivo estratégico",
-              "valor": "Aprimorar a governança e gestão de TIC"
+              "valor": "Valorizar e desenvolver competências nas"
             },
             {
-              "name": "goals_actions[9][goal]",
+              "name": "goals_actions[105][goal]",
               "label": "Meta",
-              "valor": "ICPPI ≥ 20%"
+              "valor": "Em elaboração"
             },
             {
-              "name": "goals_actions[9][main_action]",
+              "name": "goals_actions[105][main_action]",
               "label": "Ação principal",
-              "valor": "SESP.KR.10 - Mapear, modelar, padronizar"
+              "valor": "Sem ID - Em elaboração"
             },
             {
-              "name": "goals_actions[9][indicator]",
+              "name": "goals_actions[105][indicator]",
               "label": "Indicador",
-              "valor": "Índice de Cobertura de Processos Padroni"
+              "valor": "Índice de Retenção de Talentos em TIC"
             },
             {
-              "name": "goals_actions[9][deadline]",
+              "name": "goals_actions[105][deadline]",
               "label": "Prazo",
-              "valor": "4º Trimestre 2027"
+              "valor": ""
             },
             {
-              "name": "goals_actions[9][responsible]",
+              "name": "goals_actions[105][responsible]",
               "label": "Responsável",
-              "valor": "SESP/DGSP/CTIC"
+              "valor": ""
             }
           ]
         },
         {
-          "card": 11,
-          "qtdPreenchidos": 7,
+          "card": 107,
+          "qtdPreenchidos": 5,
           "totalCampos": 7,
           "campos": [
             {
-              "name": "goals_actions[10][id]",
+              "name": "goals_actions[106][id]",
               "label": "ID",
-              "valor": "OE.TIC.5"
+              "valor": "OE.TIC.9"
             },
             {
-              "name": "goals_actions[10][strategic_objective]",
+              "name": "goals_actions[106][strategic_objective]",
               "label": "Objetivo estratégico",
-              "valor": "Aprimorar a governança e gestão de TIC"
+              "valor": "Valorizar e desenvolver competências nas"
             },
             {
-              "name": "goals_actions[10][goal]",
+              "name": "goals_actions[106][goal]",
               "label": "Meta",
-              "valor": "ICPPI ≥ 20%"
+              "valor": "Em elaboração"
             },
             {
-              "name": "goals_actions[10][main_action]",
+              "name": "goals_actions[106][main_action]",
               "label": "Ação principal",
-              "valor": "SESP.KR.11 - Mapear, modelar, padronizar"
+              "valor": "Sem ID - Em elaboração"
             },
             {
-              "name": "goals_actions[10][indicator]",
+              "name": "goals_actions[106][indicator]",
               "label": "Indicador",
-              "valor": "Índice de Cobertura de Processos Padroni"
+              "valor": "Mapeamento e Redução do Gap de Competênc"
             },
             {
-              "name": "goals_actions[10][deadline]",
+              "name": "goals_actions[106][deadline]",
               "label": "Prazo",
-              "valor": "4º Trimestre 2027"
+              "valor": ""
             },
             {
-              "name": "goals_actions[10][responsible]",
+              "name": "goals_actions[106][responsible]",
               "label": "Responsável",
-              "valor": "SESP/DGSP/CTIC/CGGG, SESP/DGSP/CTIC/CGPI"
+              "valor": ""
             }
           ]
         },
         {
-          "card": 12,
-          "qtdPreenchidos": 2,
+          "card": 108,
+          "qtdPreenchidos": 5,
           "totalCampos": 7,
           "campos": [
             {
-              "name": "goals_actions[11][id]",
+              "name": "goals_actions[107][id]",
               "label": "ID",
-              "valor": "OE.TIC.5"
+              "valor": "OE.TIC.10"
             },
             {
-              "name": "goals_actions[11][strategic_objective]",
+              "name": "goals_actions[107][strategic_objective]",
               "label": "Objetivo estratégico",
-              "valor": "Aprimorar a governança e gestão de TIC"
+              "valor": "Estimular a inovação de soluções de TIC "
             },
             {
-              "name": "goals_actions[11][goal]",
+              "name": "goals_actions[107][goal]",
               "label": "Meta",
-              "valor": ""
+              "valor": "Em elaboração"
             },
             {
-              "name": "goals_actions[11][main_action]",
+              "name": "goals_actions[107][main_action]",
               "label": "Ação principal",
-              "valor": ""
+              "valor": "Sem ID - Em elaboração"
             },
             {
-              "name": "goals_actions[11][indicator]",
+              "name": "goals_actions[107][indicator]",
               "label": "Indicador",
-              "valor": ""
+              "valor": "Em elaboração"
             },
             {
-              "name": "goals_actions[11][deadline]",
+              "name": "goals_actions[107][deadline]",
               "label": "Prazo",
               "valor": ""
             },
             {
-              "name": "goals_actions[11][responsible]",
+              "name": "goals_actions[107][responsible]",
               "label": "Responsável",
               "valor": ""
             }
@@ -723,29 +899,182 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar linha",
-      "totalRows": 1,
-      "filledRows": 1,
+      "totalRows": 155,
+      "filledRows": 155,
       "emptyRows": 0,
       "partialRows": [
         {
           "card": 1,
-          "qtdPreenchidos": 1,
+          "qtdPreenchidos": 6,
           "totalCampos": 8,
           "preenchidos": [
-            "Total"
-          ],
-          "vazios": [
             "Ação (ID)",
             "Descrição do custo",
             "Fonte de recurso",
             "Ano 1",
             "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 2,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 3,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 4,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 5,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 6,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 7,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 8,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 9,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
+            "Ano 3",
+            "Ano 4"
+          ]
+        },
+        {
+          "card": 10,
+          "qtdPreenchidos": 6,
+          "totalCampos": 8,
+          "preenchidos": [
+            "Ação (ID)",
+            "Descrição do custo",
+            "Fonte de recurso",
+            "Ano 1",
+            "Ano 2",
+            "Total"
+          ],
+          "vazios": [
             "Ano 3",
             "Ano 4"
           ]
         }
       ],
-      "qtdPartialRows": 1,
+      "qtdPartialRows": 155,
       "duplicateNamesCount": 0,
       "duplicateNamesSample": [],
       "schema": [
@@ -832,49 +1161,143 @@
       ],
       "ultimosPreenchidos": [
         {
-          "card": 1,
-          "qtdPreenchidos": 1,
+          "card": 153,
+          "qtdPreenchidos": 5,
           "totalCampos": 8,
           "campos": [
             {
-              "name": "budget_plan[0][action_id]",
+              "name": "budget_plan[152][action_id]",
               "label": "Ação (ID)",
-              "valor": ""
+              "valor": "PPPR.P.6"
             },
             {
-              "name": "budget_plan[0][cost_description]",
+              "name": "budget_plan[152][cost_description]",
               "label": "Descrição do custo",
-              "valor": ""
+              "valor": "Aquisição de Notebooks"
             },
             {
-              "name": "budget_plan[0][funding_source]",
+              "name": "budget_plan[152][funding_source]",
               "label": "Fonte de recurso",
               "valor": ""
             },
             {
-              "name": "budget_plan[0][year_1]",
+              "name": "budget_plan[152][year_1]",
               "label": "Ano 1",
-              "valor": ""
+              "valor": "700.000,00"
             },
             {
-              "name": "budget_plan[0][year_2]",
+              "name": "budget_plan[152][year_2]",
               "label": "Ano 2",
-              "valor": ""
+              "valor": "700.000,00"
             },
             {
-              "name": "budget_plan[0][year_3]",
+              "name": "budget_plan[152][year_3]",
               "label": "Ano 3",
               "valor": ""
             },
             {
-              "name": "budget_plan[0][year_4]",
+              "name": "budget_plan[152][year_4]",
               "label": "Ano 4",
               "valor": ""
             },
             {
-              "name": "budget_plan[0][total]",
+              "name": "budget_plan[152][total]",
               "label": "Total",
-              "valor": "0,00"
+              "valor": "1.400.000,00"
+            }
+          ]
+        },
+        {
+          "card": 154,
+          "qtdPreenchidos": 5,
+          "totalCampos": 8,
+          "campos": [
+            {
+              "name": "budget_plan[153][action_id]",
+              "label": "Ação (ID)",
+              "valor": "PPPR.P.7"
+            },
+            {
+              "name": "budget_plan[153][cost_description]",
+              "label": "Descrição do custo",
+              "valor": "Aquisição de Monitores"
+            },
+            {
+              "name": "budget_plan[153][funding_source]",
+              "label": "Fonte de recurso",
+              "valor": ""
+            },
+            {
+              "name": "budget_plan[153][year_1]",
+              "label": "Ano 1",
+              "valor": "760.000,00"
+            },
+            {
+              "name": "budget_plan[153][year_2]",
+              "label": "Ano 2",
+              "valor": "250.000,00"
+            },
+            {
+              "name": "budget_plan[153][year_3]",
+              "label": "Ano 3",
+              "valor": ""
+            },
+            {
+              "name": "budget_plan[153][year_4]",
+              "label": "Ano 4",
+              "valor": ""
+            },
+            {
+              "name": "budget_plan[153][total]",
+              "label": "Total",
+              "valor": "1.010.000,00"
+            }
+          ]
+        },
+        {
+          "card": 155,
+          "qtdPreenchidos": 5,
+          "totalCampos": 8,
+          "campos": [
+            {
+              "name": "budget_plan[154][action_id]",
+              "label": "Ação (ID)",
+              "valor": "PPPR.P.8"
+            },
+            {
+              "name": "budget_plan[154][cost_description]",
+              "label": "Descrição do custo",
+              "valor": "Aquisição de Impressoras"
+            },
+            {
+              "name": "budget_plan[154][funding_source]",
+              "label": "Fonte de recurso",
+              "valor": ""
+            },
+            {
+              "name": "budget_plan[154][year_1]",
+              "label": "Ano 1",
+              "valor": "870.000,00"
+            },
+            {
+              "name": "budget_plan[154][year_2]",
+              "label": "Ano 2",
+              "valor": "300.000,00"
+            },
+            {
+              "name": "budget_plan[154][year_3]",
+              "label": "Ano 3",
+              "valor": ""
+            },
+            {
+              "name": "budget_plan[154][year_4]",
+              "label": "Ano 4",
+              "valor": ""
+            },
+            {
+              "name": "budget_plan[154][total]",
+              "label": "Total",
+              "valor": "1.170.000,00"
             }
           ]
         }
@@ -887,11 +1310,42 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar risco",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
-      "partialRows": [],
-      "qtdPartialRows": 0,
+      "totalRows": 53,
+      "filledRows": 53,
+      "emptyRows": 0,
+      "partialRows": [
+        {
+          "card": 37,
+          "qtdPreenchidos": 3,
+          "totalCampos": 6,
+          "preenchidos": [
+            "Risco identificado",
+            "Nível",
+            "Ação de mitigação"
+          ],
+          "vazios": [
+            "Probabilidade",
+            "Impacto",
+            "Responsável"
+          ]
+        },
+        {
+          "card": 53,
+          "qtdPreenchidos": 3,
+          "totalCampos": 6,
+          "preenchidos": [
+            "Risco identificado",
+            "Nível",
+            "Ação de mitigação"
+          ],
+          "vazios": [
+            "Probabilidade",
+            "Impacto",
+            "Responsável"
+          ]
+        }
+      ],
+      "qtdPartialRows": 2,
       "duplicateNamesCount": 0,
       "duplicateNamesSample": [],
       "schema": [
@@ -956,7 +1410,119 @@
           "label": "Responsável"
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 51,
+          "qtdPreenchidos": 6,
+          "totalCampos": 6,
+          "campos": [
+            {
+              "name": "risk_plan[50][risk]",
+              "label": "Risco identificado",
+              "valor": "Descentralização e Falta de Padronização"
+            },
+            {
+              "name": "risk_plan[50][probability]",
+              "label": "Probabilidade",
+              "valor": "4 - Muito provável"
+            },
+            {
+              "name": "risk_plan[50][impact]",
+              "label": "Impacto",
+              "valor": "2 - Baixo"
+            },
+            {
+              "name": "risk_plan[50][level]",
+              "label": "Nível",
+              "valor": "12 - Moderado"
+            },
+            {
+              "name": "risk_plan[50][mitigation]",
+              "label": "Ação de mitigação",
+              "valor": "Criação e implementação de uma Base de C"
+            },
+            {
+              "name": "risk_plan[50][responsible]",
+              "label": "Responsável",
+              "valor": "PMPR/DTI/SUPORTE"
+            }
+          ]
+        },
+        {
+          "card": 52,
+          "qtdPreenchidos": 6,
+          "totalCampos": 6,
+          "campos": [
+            {
+              "name": "risk_plan[51][risk]",
+              "label": "Risco identificado",
+              "valor": "Inoperância do Datacenter por Colapso de"
+            },
+            {
+              "name": "risk_plan[51][probability]",
+              "label": "Probabilidade",
+              "valor": "4 - Muito provável"
+            },
+            {
+              "name": "risk_plan[51][impact]",
+              "label": "Impacto",
+              "valor": "5 - Muito alto"
+            },
+            {
+              "name": "risk_plan[51][level]",
+              "label": "Nível",
+              "valor": "24 - Crítico"
+            },
+            {
+              "name": "risk_plan[51][mitigation]",
+              "label": "Ação de mitigação",
+              "valor": "Conclusão e tramitação emergencial do pr"
+            },
+            {
+              "name": "risk_plan[51][responsible]",
+              "label": "Responsável",
+              "valor": "PMPR/DTI/CIGD"
+            }
+          ]
+        },
+        {
+          "card": 53,
+          "qtdPreenchidos": 3,
+          "totalCampos": 6,
+          "campos": [
+            {
+              "name": "risk_plan[52][risk]",
+              "label": "Risco identificado",
+              "valor": "Em elaboração"
+            },
+            {
+              "name": "risk_plan[52][probability]",
+              "label": "Probabilidade",
+              "valor": ""
+            },
+            {
+              "name": "risk_plan[52][impact]",
+              "label": "Impacto",
+              "valor": ""
+            },
+            {
+              "name": "risk_plan[52][level]",
+              "label": "Nível",
+              "valor": "Sem score - N/A"
+            },
+            {
+              "name": "risk_plan[52][mitigation]",
+              "label": "Ação de mitigação",
+              "valor": "Em elaboração"
+            },
+            {
+              "name": "risk_plan[52][responsible]",
+              "label": "Responsável",
+              "valor": ""
+            }
+          ]
+        }
+      ]
     },
     "technical-trainings": {
       "label": "5.1 Treinamentos técnicos",
@@ -965,9 +1531,9 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
+      "totalRows": 25,
+      "filledRows": 25,
+      "emptyRows": 0,
       "partialRows": [],
       "qtdPartialRows": 0,
       "duplicateNamesCount": 0,
@@ -984,7 +1550,44 @@
           "label": ""
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 23,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "training_plan[technical_trainings][22]",
+              "label": "",
+              "valor": "IIPR - Curso por assinatura Shell e Scri"
+            }
+          ]
+        },
+        {
+          "card": 24,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "training_plan[technical_trainings][23]",
+              "label": "",
+              "valor": "PMPR - O Plano de Capacitação de Pessoas"
+            }
+          ]
+        },
+        {
+          "card": 25,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "training_plan[technical_trainings][24]",
+              "label": "",
+              "valor": "PPPR - Em elaboração"
+            }
+          ]
+        }
+      ]
     },
     "talent-actions": {
       "label": "5.1 Retenção de talentos",
@@ -993,9 +1596,9 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
+      "totalRows": 22,
+      "filledRows": 22,
+      "emptyRows": 0,
       "partialRows": [],
       "qtdPartialRows": 0,
       "duplicateNamesCount": 0,
@@ -1012,7 +1615,44 @@
           "label": ""
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 20,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "training_plan[talent_retention_actions][19]",
+              "label": "",
+              "valor": "IIPR - Conexão com a Missão de Segurança"
+            }
+          ]
+        },
+        {
+          "card": 21,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "training_plan[talent_retention_actions][20]",
+              "label": "",
+              "valor": "IIPR - Autonomia Técnica (Fim do Microge"
+            }
+          ]
+        },
+        {
+          "card": 22,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "training_plan[talent_retention_actions][21]",
+              "label": "",
+              "valor": "PPPR - Em elaboração"
+            }
+          ]
+        }
+      ]
     },
     "macro-actions": {
       "label": "5.3 Ações Macro",
@@ -1021,9 +1661,9 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
+      "totalRows": 20,
+      "filledRows": 20,
+      "emptyRows": 0,
       "partialRows": [],
       "qtdPartialRows": 0,
       "duplicateNamesCount": 0,
@@ -1040,7 +1680,44 @@
           "label": ""
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 18,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[macro][17]",
+              "label": "",
+              "valor": "IIPR.MA.12 - Capacitação Tecnológica do "
+            }
+          ]
+        },
+        {
+          "card": 19,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[macro][18]",
+              "label": "",
+              "valor": "PMPR.MA.1 - Em elaboração."
+            }
+          ]
+        },
+        {
+          "card": 20,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[macro][19]",
+              "label": "",
+              "valor": "PPPR.MA.1 - Em elaboração."
+            }
+          ]
+        }
+      ]
     },
     "micro-actions": {
       "label": "5.3 Ações Micro",
@@ -1049,9 +1726,9 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
+      "totalRows": 30,
+      "filledRows": 30,
+      "emptyRows": 0,
       "partialRows": [],
       "qtdPartialRows": 0,
       "duplicateNamesCount": 0,
@@ -1068,7 +1745,44 @@
           "label": ""
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 28,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[micro][27]",
+              "label": "",
+              "valor": "IIPR.MI.14 - Atualização de Termos de Us"
+            }
+          ]
+        },
+        {
+          "card": 29,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[micro][28]",
+              "label": "",
+              "valor": "PMPR.MI.1 - Em elaboração."
+            }
+          ]
+        },
+        {
+          "card": 30,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[micro][29]",
+              "label": "",
+              "valor": "PPPR.MI.1 - Em elaboração."
+            }
+          ]
+        }
+      ]
     },
     "extra-actions": {
       "label": "5.3 Ações Extras",
@@ -1077,9 +1791,9 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
+      "totalRows": 19,
+      "filledRows": 19,
+      "emptyRows": 0,
       "partialRows": [],
       "qtdPartialRows": 0,
       "duplicateNamesCount": 0,
@@ -1096,7 +1810,44 @@
           "label": ""
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 17,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[extras][16]",
+              "label": "",
+              "valor": "IIPR.EX.7 - Descarte Ecológico de Hardwa"
+            }
+          ]
+        },
+        {
+          "card": 18,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[extras][17]",
+              "label": "",
+              "valor": "PMPR.EX.1 - Em elaboração."
+            }
+          ]
+        },
+        {
+          "card": 19,
+          "qtdPreenchidos": 1,
+          "totalCampos": 1,
+          "campos": [
+            {
+              "name": "specific_actions[extras][18]",
+              "label": "",
+              "valor": "PPPR.EX.1 - Em elaboração."
+            }
+          ]
+        }
+      ]
     },
     "kpis": {
       "label": "6.1 Indicadores (KPIs)",
@@ -1105,9 +1856,9 @@
       "addBtnExists": true,
       "addBtnDisabled": false,
       "addBtnText": "Adicionar KPI",
-      "totalRows": 1,
-      "filledRows": 0,
-      "emptyRows": 1,
+      "totalRows": 108,
+      "filledRows": 108,
+      "emptyRows": 0,
       "partialRows": [],
       "qtdPartialRows": 0,
       "duplicateNamesCount": 0,
@@ -1134,7 +1885,59 @@
           "label": "Fórmula / descrição"
         }
       ],
-      "ultimosPreenchidos": []
+      "ultimosPreenchidos": [
+        {
+          "card": 106,
+          "qtdPreenchidos": 2,
+          "totalCampos": 2,
+          "campos": [
+            {
+              "name": "monitoring[kpis][105][name]",
+              "label": "Indicador",
+              "valor": "Índice de Retenção de Talentos em TIC"
+            },
+            {
+              "name": "monitoring[kpis][105][formula]",
+              "label": "Fórmula / descrição",
+              "valor": "Em elaboração"
+            }
+          ]
+        },
+        {
+          "card": 107,
+          "qtdPreenchidos": 2,
+          "totalCampos": 2,
+          "campos": [
+            {
+              "name": "monitoring[kpis][106][name]",
+              "label": "Indicador",
+              "valor": "Mapeamento e Redução do Gap de Competênc"
+            },
+            {
+              "name": "monitoring[kpis][106][formula]",
+              "label": "Fórmula / descrição",
+              "valor": "Em elaboração"
+            }
+          ]
+        },
+        {
+          "card": 108,
+          "qtdPreenchidos": 2,
+          "totalCampos": 2,
+          "campos": [
+            {
+              "name": "monitoring[kpis][107][name]",
+              "label": "Indicador",
+              "valor": "Em elaboração"
+            },
+            {
+              "name": "monitoring[kpis][107][formula]",
+              "label": "Fórmula / descrição",
+              "valor": "Em elaboração"
+            }
+          ]
+        }
+      ]
     }
   }
 }

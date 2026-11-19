@@ -24,8 +24,9 @@ dados/*_files/
 dados/comando_preencher_html.js
 dados/cache_etapa_4.json
 
-# Backups locais de desenvolvimento
+# Backups locais de desenvolvimento e vídeos temporários de evidência
 backups/
+*.mp4
 
 # Arquivos de sistema e IDEs
 .DS_Store
