@@ -260,7 +260,7 @@ JS_HELPER_INSPECIONAR_DOM = r"""
         const camposComName = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]'))
             .filter(el => !el.disabled);
         const janela1000 = [];
-        for (let idx = 995; idx <= 1004 && idx < camposComName.length; idx++) {
+        for (let idx = 993; idx <= 1008 && idx < camposComName.length; idx++) {
             if (idx < 0) continue;
             const c = camposComName[idx];
             janela1000.push({
@@ -268,9 +268,15 @@ JS_HELPER_INSPECIONAR_DOM = r"""
                 tag: c.tagName.toLowerCase(),
                 type: (c.getAttribute('type') || '').toLowerCase(),
                 name: c.name,
-                valorPreview: String(c.value || '').slice(0, 45)
+                valorPreview: String(c.value || '').slice(0, 55)
             });
         }
+        const invalidos = Array.from(form.querySelectorAll(':invalid')).slice(0, 15).map(el => ({
+            tag: el.tagName.toLowerCase(),
+            name: el.name || '',
+            id: el.id || '',
+            validationMessage: el.validationMessage || ''
+        }));
         formInfo = {
             existe: true,
             id: form.id || '',
@@ -278,7 +284,8 @@ JS_HELPER_INSPECIONAR_DOM = r"""
             action: form.getAttribute('action') || location.href,
             enctype: form.getAttribute('enctype') || 'application/x-www-form-urlencoded',
             totalNamedFields: camposComName.length,
-            janelaLimite1000: janela1000
+            janelaLimite1000: janela1000,
+            camposInvalidosHTML5: invalidos
         };
     }
 
@@ -383,12 +390,24 @@ JS_HELPER_INSPECIONAR_DOM = r"""
         };
     }
 
+    const mensagensPagina = Array.from(document.querySelectorAll('.alert, .invalid-feedback, .toast-body, [role="alert"]'))
+        .map(el => String(el.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 15);
+
+    const scriptsInline = Array.from(document.querySelectorAll('script:not([src])'))
+        .map(s => String(s.textContent || ''))
+        .filter(t => t.includes('submit') || t.includes('repeater') || t.includes('pdtic') || t.includes('draft'))
+        .map(t => t.slice(0, 15000));
+
     const btnAtivo = document.querySelector('.wizard-nav button.active');
     return {
         ok: true,
         url: location.href,
         title: document.title,
         etapaAtiva: btnAtivo ? btnAtivo.textContent.trim() : '',
+        mensagensPagina: mensagensPagina,
+        scriptsInline: scriptsInline,
         formInfo: formInfo,
         repeaters: repeatersInfo
     };
@@ -3335,11 +3354,17 @@ def executar_analise_completa_campos(
     print("=" * 100)
     print(f"🌐 URL da Guia:       {diag.get('url')}")
     print(f"📍 Etapa Ativa:       {diag.get('etapaAtiva')}")
+    msgs_pag = diag.get("mensagensPagina") or []
+    if msgs_pag:
+        print(f"🔔 Mensagens na tela: {msgs_pag}")
     if form_info.get("existe"):
         print(
             f"📝 Formulário HTML:   method={form_info.get('method')} | enctype={form_info.get('enctype')} | "
             f"Total atual de variáveis [name] no <form> = {form_info.get('totalNamedFields')}"
         )
+        inv_html5 = form_info.get("camposInvalidosHTML5") or []
+        if inv_html5:
+            print(f"⚠️  Campos :invalid HTML5 no <form>: {inv_html5}")
         janela1000 = form_info.get("janelaLimite1000") or []
         if janela1000:
             print("🚨 JANELA EM TORNO DA 1.000ª VARIÁVEL DO <form> (Limite padrão PHP max_input_vars = 1000):")
