@@ -25,7 +25,6 @@ import time
 
 from src.automacao_background import (
     ARQUIVO_LOG_BG,
-    DEFINICAO_PARTES_LIMITE_1000,
     DELAY_ADICIONAR_MS_PADRAO,
     NOME_ARQUIVO_EXCEL_PADRAO,
     PASTA_EXTENSAO_BG,
@@ -204,33 +203,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Não clica em 'Salvar rascunho' ao final (mantém os dados apenas preenchidos na tela).",
     )
-    parser.add_argument(
-        "--parte",
-        dest="parte",
-        type=int,
-        choices=[1, 2, 3, 4, 5],
-        default=None,
-        help="Executa uma das 5 partes (< 1.000 campos por documento no servidor): 1, 2, 3, 4 ou 5.",
-    )
-    parser.add_argument(
-        "--inverso",
-        "--reverso",
-        "--de-tras-para-frente",
-        dest="inverso",
-        action="store_true",
-        help="Preenche os blocos de trás para frente (Etapa 6 -> 5.3 -> 5.1 -> 4.3 -> 4.2 -> 4.1 -> 3.2 -> 3.1).",
-    )
-    parser.add_argument(
-        "--a-partir-do-corte",
-        "--continuar-do-corte",
-        dest="a_partir_do_corte",
-        action="store_true",
-        help="Ignora Etapa 3 (SWOT + Inventário) e cards #1..#11 de 4.1, iniciando no card #12 ('Aprimorar a governança e gestão de TIC') em diante.",
-    )
     return parser.parse_args()
 
 
-def menu_interativo() -> tuple[str, int | None, int | None]:
+def menu_interativo() -> tuple[str, int | None]:
     """Exibe um menu intuitivo quando o script é executado sem parâmetros."""
     print("\n" + "=" * 78)
     print("🤖 AUTOMAÇÃO PDTIC — MODO SEGUNDO PLANO (BACKGROUND / 100% OCULTO)")
@@ -245,16 +221,14 @@ def menu_interativo() -> tuple[str, int | None, int | None]:
     print("  [5] Página 6 (KPIs / Monitoramento)")
     print("  [6] Bloco Específico (ex: 4.1, 4.2, 4.3, 3.1, 3.2, 5.1, 5.3)")
     print("  [7] Abrir Google Chrome com porta CDP 9222 ativada")
-    print("  [8] Dividir em 5 Partes (< 1.000 campos cada — Contorno do limite do servidor)")
     print("  [0] Sair")
     print("-" * 78)
 
     try:
-        opcao = input("Digite a opção desejada [0-8]: ").strip()
+        opcao = input("Digite a opção desejada [1-7]: ").strip()
     except (EOFError, KeyboardInterrupt):
         sys.exit(0)
 
-    parte_escolhida: int | None = None
     if opcao == "1":
         alvo = "todas"
     elif opcao == "2":
@@ -274,19 +248,6 @@ def menu_interativo() -> tuple[str, int | None, int | None]:
     elif opcao == "7":
         iniciar_chrome_com_cdp()
         sys.exit(0)
-    elif opcao == "8":
-        print("\nPartes disponíveis (< 1.000 campos cada):")
-        for num_p, info_p in DEFINICAO_PARTES_LIMITE_1000.items():
-            print(f"  [{num_p}] {info_p['titulo']} -> salva como {info_p['arquivo_sugerido']}")
-        try:
-            p_str = input("Digite o número da Parte [1-5]: ").strip()
-            if p_str in ("1", "2", "3", "4", "5"):
-                parte_escolhida = int(p_str)
-            else:
-                parte_escolhida = 1
-        except (EOFError, KeyboardInterrupt):
-            sys.exit(0)
-        alvo = "todas"
     elif opcao == "0":
         sys.exit(0)
     else:
@@ -294,16 +255,15 @@ def menu_interativo() -> tuple[str, int | None, int | None]:
         alvo = "todas"
 
     limite = None
-    if parte_escolhida is None:
-        try:
-            lim_str = input("Deseja limitar a quantidade de linhas para teste? (Pressione Enter para processar todas): ").strip()
-            if lim_str.isdigit() and int(lim_str) > 0:
-                limite = int(lim_str)
-                print(f"⚠️ Limite ativado: apenas as primeiras {limite} linha(s) de cada bloco serão enviadas.")
-        except (EOFError, KeyboardInterrupt):
-            pass
+    try:
+        lim_str = input("Deseja limitar a quantidade de linhas para teste? (Pressione Enter para processar todas): ").strip()
+        if lim_str.isdigit() and int(lim_str) > 0:
+            limite = int(lim_str)
+            print(f"⚠️ Limite ativado: apenas as primeiras {limite} linha(s) de cada bloco serão enviadas.")
+    except (EOFError, KeyboardInterrupt):
+        pass
 
-    return alvo, limite, parte_escolhida
+    return alvo, limite
 
 
 def main() -> None:
@@ -322,20 +282,13 @@ def main() -> None:
         args.pagina6,
         args.tudo,
         args.analisar,
-        args.parte,
-        args.a_partir_do_corte,
     ])
 
-    parte_ativa = args.parte
     if nenhum_alvo_passado and sys.stdin.isatty():
-        alvo, limite, parte_ativa = menu_interativo()
+        alvo, limite = menu_interativo()
     else:
-        if args.analisar and not any([args.bloco, args.pagina3, args.pagina4, args.pagina5, args.pagina6, args.tudo, args.parte, args.a_partir_do_corte]):
+        if args.analisar and not any([args.bloco, args.pagina3, args.pagina4, args.pagina5, args.pagina6, args.tudo]):
             alvo = "analisar"
-        elif args.a_partir_do_corte:
-            alvo = "a-partir-do-corte-4.1-card12"
-        elif args.parte:
-            alvo = f"parte-{args.parte}"
         elif args.bloco:
             alvo = args.bloco
         elif args.pagina3 and not args.tudo:
@@ -362,12 +315,7 @@ def main() -> None:
     print("👻 AUTOMAÇÃO PDTIC 100% OCULTA (SEGUNDO PLANO / BACKGROUND)")
     print("=" * 78)
     print(f"🎯 Alvo da Execução:  {alvo.upper()}")
-    print(f"🔄 Ordem dos Blocos:  {'INVERSA (De trás para frente: Etapa 6 -> Etapa 3)' if args.inverso else 'DIRETA (Etapa 3 -> Etapa 6)'}")
     print(f"📊 Limite de Linhas:  {limite if limite else 'TODAS AS LINHAS'}")
-    if parte_ativa:
-        print(f"🧩 Divisão <1000:     {DEFINICAO_PARTES_LIMITE_1000[parte_ativa]['titulo']}")
-    if args.a_partir_do_corte:
-        print("⏩ Ponto de Partida:  Card #12 de 4.1 ('Aprimorar a governança e gestão de TIC') -> Etapa 6 (ignora Etapa 3 e 4.1[1..11])")
     print(f"🩹 Modo Rascunho:     {'PREENCHER SÓ O QUE FALTA (Incremental)' if somente_faltantes else 'REESCREVER TUDO'}")
     print(f"🔁 2ª Passada Final:  {'ATIVADA (Grau de Confirmação %)' if segunda_passada else 'DESATIVADA'}")
     print(f"💾 Salvar Rascunho:   {'AUTOMÁTICO SE 100% CONFIRMADO' if salvar_rascunho else 'DESATIVADO'}")
@@ -392,9 +340,6 @@ def main() -> None:
         somente_faltantes=somente_faltantes,
         segunda_passada=segunda_passada,
         salvar_rascunho=salvar_rascunho,
-        parte=parte_ativa,
-        ordem_inversa=args.inverso,
-        a_partir_do_corte=args.a_partir_do_corte,
     )
 
     if sucesso:
