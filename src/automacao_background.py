@@ -1298,15 +1298,25 @@ JS_HELPER_SALVAR_RASCUNHO = r"""
     const totalNamedForm = form
         ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length
         : 0;
+    const camposInvalidosAntes = form
+        ? Array.from(form.querySelectorAll(':invalid')).slice(0, 10).map(el => ({
+            name: el.name || '',
+            id: el.id || '',
+            msg: el.validationMessage || ''
+        }))
+        : [];
 
     const infoBotao = {
         ok: true,
         clicado: true,
+        urlAntes: location.href,
         textoBotao: String(btn.textContent || '').trim(),
         formAttr: btn.getAttribute('form') || '',
+        formNoValidate: Boolean(btn.formNoValidate),
         submitMode: btn.getAttribute('data-submit-mode') || '',
-        submitAction: btn.getAttribute('data-submit-action') || '',
-        totalNamedForm: totalNamedForm
+        submitAction: btn.getAttribute('data-submit-action') || (form ? form.action : ''),
+        totalNamedForm: totalNamedForm,
+        camposInvalidosAntes: camposInvalidosAntes
     };
 
     const atrasoMs = typeof cfg.delayBeforeClickMs === 'number' ? cfg.delayBeforeClickMs : 400;
@@ -2286,7 +2296,10 @@ class ControladorExecucaoOculta:
             )
 
             if idx_lote + 1 < total_lotes:
-                time.sleep(0.30)
+                time.sleep(0.65)
+
+        # Pausa curta de estabilização ao concluir todos os lotes do bloco
+        time.sleep(0.50)
 
         # 3. Confirmação pós-escrita do bloco completo para aferir o Grau de Confirmação (%)
         verif_pos = self.verificar_repeater(
@@ -3602,9 +3615,16 @@ def executar_automacao_segundo_plano(
             )
             res_draft = ctrl.clicar_salvar_rascunho(timeout=20.0)
             if res_draft.get("ok"):
+                inv_antes = res_draft.get("camposInvalidosAntes") or []
+                if inv_antes:
+                    log_debug(
+                        "SALVAR RASCUNHO",
+                        f"⚠️ Atenção: campos obrigatórios (:invalid) detectados no formulário antes do clique: {inv_antes}",
+                        nivel="WARN",
+                    )
                 log_debug(
                     "SALVAR RASCUNHO",
-                    f"💾 Clique em '{res_draft.get('textoBotao')}' enviado com sucesso! "
+                    f"💾 Clique único em '{res_draft.get('textoBotao')}' enviado com sucesso! "
                     f"(form='{res_draft.get('formAttr')}', mode='{res_draft.get('submitMode')}', "
                     f"action='{res_draft.get('submitAction')}', total_inputs_enviados={res_draft.get('totalNamedForm')})",
                     nivel="OK",
