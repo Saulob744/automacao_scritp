@@ -61,6 +61,7 @@ from src.leitor_dados import (
 
 PORTA_PONTE_LOCAL = 8765
 PORTA_CDP_PADRAO = 9222
+VERSAO_PONTE_MINIMA = 3
 TIMEOUT_CONEXAO_PADRAO = 25
 TIMEOUT_COMANDO_PADRAO = 90
 DELAY_PASSO_MS_PADRAO = 450
@@ -394,6 +395,270 @@ JS_HELPER_INSPECIONAR_DOM = r"""
 })
 """
 
+JS_HELPER_VERIFICAR_REPEATER = r"""
+(async function(config) {
+    const stepIndex = config.stepIndex;
+    const repeaterName = config.repeaterName;
+    const mode = config.mode || 'multi_field';
+    const items = config.items || [];
+    const delayStepMs = typeof config.delayStepMs === 'number' ? config.delayStepMs : 300;
+
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+
+    if (stepIndex !== null && stepIndex !== undefined) {
+        const navBtn = document.querySelector(`.wizard-nav button[data-step-index="${stepIndex}"]`);
+        if (navBtn && !navBtn.classList.contains('active')) {
+            navBtn.click();
+            await sleep(delayStepMs);
+        }
+    }
+
+    let container = document.querySelector(`[data-repeater="${repeaterName}"]`);
+    for (let tent = 0; !container && tent < 12; tent++) {
+        await sleep(80);
+        container = document.querySelector(`[data-repeater="${repeaterName}"]`);
+    }
+    if (!container) {
+        return {
+            ok: false,
+            erro: `Container HTML [data-repeater="${repeaterName}"] não encontrado na guia (${location.href}).`
+        };
+    }
+
+    function obterLinhasRepeater() {
+        const candidatos = Array.from(
+            container.querySelectorAll('[data-repeater-row], [data-repeater-item], .wizard-table-row, .repeater-item')
+        ).filter(el => el.tagName !== 'TEMPLATE' && el.tagName !== 'SCRIPT');
+        if (candidatos.length > 0) {
+            return candidatos.filter(r => !candidatos.some(outro => outro !== r && outro.contains(r)));
+        }
+        return Array.from(container.children).filter(el => el.tagName !== 'TEMPLATE' && el.tagName !== 'SCRIPT');
+    }
+
+    function colapsarEspacos(s) {
+        return String(s ?? '').replace(/[\r\n\t\u00a0]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function normalizarTexto(s) {
+        return colapsarEspacos(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    }
+
+    function extrairNumeroEstrito(val) {
+        let s = String(val ?? '').trim().replace(/^R\$\s*/i, '').replace(/\s+/g, '');
+        if (!s) return null;
+        if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s)) {
+            const n = Number(s.replace(/\./g, '').replace(',', '.'));
+            return Number.isFinite(n) ? n : null;
+        }
+        if (/^-?\d+,\d+$/.test(s)) {
+            const n = Number(s.replace(',', '.'));
+            return Number.isFinite(n) ? n : null;
+        }
+        if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+            const n = Number(s.replace(/\./g, ''));
+            return Number.isFinite(n) ? n : null;
+        }
+        if (/^-?\d+(\.\d+)?$/.test(s)) {
+            const n = Number(s);
+            return Number.isFinite(n) ? n : null;
+        }
+        return null;
+    }
+
+    function compararValorElemento(el, valorEsperado) {
+        if (!el) return { ok: false, motivo: 'seletor_nao_encontrado', valorAtual: '' };
+        const espCol = colapsarEspacos(valorEsperado);
+        if (!espCol) return { ok: true, motivo: 'esperado_vazio', valorAtual: colapsarEspacos(el.value) };
+
+        const tag = el.tagName.toLowerCase();
+        const atualCol = colapsarEspacos(el.value);
+
+        if (tag === 'select') {
+            if (!atualCol) return { ok: false, motivo: 'select_vazio', valorAtual: '' };
+            const espNorm = normalizarTexto(espCol);
+            const atualNorm = normalizarTexto(atualCol);
+            const optSel = el.selectedIndex >= 0 ? el.options[el.selectedIndex] : null;
+            const optTxtNorm = optSel ? normalizarTexto(optSel.textContent) : '';
+            const bateSelect = (
+                atualNorm === espNorm ||
+                optTxtNorm === espNorm ||
+                (optTxtNorm && (optTxtNorm.includes(espNorm) || espNorm.includes(optTxtNorm)))
+            );
+            return {
+                ok: Boolean(bateSelect),
+                motivo: bateSelect ? 'ok' : 'select_divergente',
+                valorAtual: optSel ? colapsarEspacos(optSel.textContent) : atualCol
+            };
+        }
+
+        if (!atualCol) {
+            return { ok: false, motivo: 'vazio_no_dom', valorAtual: '' };
+        }
+        if (atualCol === espCol || normalizarTexto(atualCol) === normalizarTexto(espCol)) {
+            return { ok: true, motivo: 'ok', valorAtual: atualCol };
+        }
+        if (el.maxLength && el.maxLength > 0 && espCol.length > el.maxLength) {
+            const espTrunc = colapsarEspacos(espCol.slice(0, el.maxLength));
+            if (atualCol === espTrunc || normalizarTexto(atualCol) === normalizarTexto(espTrunc)) {
+                return { ok: true, motivo: 'ok_maxlength', valorAtual: atualCol };
+            }
+        }
+        const nAtual = extrairNumeroEstrito(atualCol);
+        const nEsp = extrairNumeroEstrito(espCol);
+        if (nAtual !== null && nEsp !== null && Math.abs(nAtual - nEsp) <= 0.02) {
+            return { ok: true, motivo: 'ok_numerico', valorAtual: atualCol };
+        }
+        return { ok: false, motivo: 'valor_divergente', valorAtual: atualCol };
+    }
+
+    const rows = obterLinhasRepeater();
+    let linhasCompletas = 0;
+    let linhasParciaisOuDivergentes = 0;
+    let linhasVaziasNoDOM = 0;
+    let linhasAusentesNoDOM = 0;
+    let camposEsperadosTotal = 0;
+    let camposConfirmadosTotal = 0;
+    const indicesPendentes = [];
+    const divergencias = [];
+
+    if (mode === 'single_column') {
+        for (let i = 0; i < items.length; i++) {
+            const esp = colapsarEspacos(items[i]);
+            if (!esp) continue;
+            camposEsperadosTotal++;
+            if (i >= rows.length) {
+                linhasAusentesNoDOM++;
+                indicesPendentes.push(i);
+                if (divergencias.length < 25) {
+                    divergencias.push({
+                        card: i + 1,
+                        statusCard: 'ausente_no_dom',
+                        esperado: esp.slice(0, 60),
+                        atual: ''
+                    });
+                }
+                continue;
+            }
+            const inp = rows[i].querySelector('input.form-control, textarea.form-control, input:not([type="hidden"])');
+            const cmp = compararValorElemento(inp, esp);
+            if (cmp.ok) {
+                linhasCompletas++;
+                camposConfirmadosTotal++;
+            } else {
+                indicesPendentes.push(i);
+                if (!cmp.valorAtual) {
+                    linhasVaziasNoDOM++;
+                } else {
+                    linhasParciaisOuDivergentes++;
+                }
+                if (divergencias.length < 25) {
+                    divergencias.push({
+                        card: i + 1,
+                        statusCard: !cmp.valorAtual ? 'vazio_no_dom' : 'valor_divergente',
+                        motivo: cmp.motivo,
+                        esperado: esp.slice(0, 60),
+                        atual: String(cmp.valorAtual || '').slice(0, 60)
+                    });
+                }
+            }
+        }
+    } else {
+        for (let i = 0; i < items.length; i++) {
+            const mapa = items[i] || {};
+            const entradasValidas = Object.entries(mapa).filter(([, v]) => colapsarEspacos(v) !== '');
+            if (entradasValidas.length === 0) continue;
+
+            if (i >= rows.length) {
+                camposEsperadosTotal += entradasValidas.length;
+                linhasAusentesNoDOM++;
+                indicesPendentes.push(i);
+                if (divergencias.length < 25) {
+                    divergencias.push({
+                        card: i + 1,
+                        statusCard: 'ausente_no_dom',
+                        qtdCamposFaltantes: entradasValidas.length
+                    });
+                }
+                continue;
+            }
+
+            const row = rows[i];
+            let confirmadosNoCard = 0;
+            let naoVaziosUsuarioNoCard = 0;
+            const falhasCard = [];
+
+            for (const [sel, valEsp] of entradasValidas) {
+                camposEsperadosTotal++;
+                const el = row.querySelector(sel);
+                if (el && !el.hasAttribute('readonly') && colapsarEspacos(el.value) !== '') {
+                    naoVaziosUsuarioNoCard++;
+                }
+                const cmp = compararValorElemento(el, valEsp);
+                if (cmp.ok) {
+                    confirmadosNoCard++;
+                    camposConfirmadosTotal++;
+                } else {
+                    falhasCard.push({
+                        seletor: sel,
+                        name: el ? (el.name || '') : '',
+                        motivo: cmp.motivo,
+                        esperado: colapsarEspacos(valEsp).slice(0, 50),
+                        atual: String(cmp.valorAtual || '').slice(0, 50)
+                    });
+                }
+            }
+
+            if (falhasCard.length === 0) {
+                linhasCompletas++;
+            } else {
+                indicesPendentes.push(i);
+                if (naoVaziosUsuarioNoCard === 0) {
+                    linhasVaziasNoDOM++;
+                } else {
+                    linhasParciaisOuDivergentes++;
+                }
+                if (divergencias.length < 25) {
+                    divergencias.push({
+                        card: i + 1,
+                        statusCard: naoVaziosUsuarioNoCard === 0 ? 'vazio_no_dom' : 'parcial_ou_divergente',
+                        confirmadosNoCard,
+                        esperadosNoCard: entradasValidas.length,
+                        camposFaltantes: falhasCard
+                    });
+                }
+            }
+        }
+    }
+
+    const grauConfirmacaoPct = camposEsperadosTotal > 0
+        ? Number(((camposConfirmadosTotal / camposEsperadosTotal) * 100).toFixed(2))
+        : 100.0;
+    const form = document.querySelector('#pdtic-form') || document.querySelector('form');
+    const totalNamedForm = form
+        ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length
+        : 0;
+
+    return {
+        ok: true,
+        repeaterName,
+        totalLinhasPlanilha: items.length,
+        totalLinhasDOM: rows.length,
+        linhasExtrasDOM: Math.max(0, rows.length - items.length),
+        linhasCompletas,
+        linhasParciaisOuDivergentes,
+        linhasVaziasNoDOM,
+        linhasAusentesNoDOM,
+        qtdPendentes: indicesPendentes.length,
+        indicesPendentes,
+        camposEsperadosTotal,
+        camposConfirmadosTotal,
+        grauConfirmacaoPct,
+        divergencias,
+        totalNamedForm
+    };
+})
+"""
+
 JS_HELPER_PREENCHER_REPEATER = r"""
 (async function(config) {
     const stepIndex = config.stepIndex;
@@ -402,6 +667,7 @@ JS_HELPER_PREENCHER_REPEATER = r"""
     const items = config.items || [];
     const startIndex = typeof config.startIndex === 'number' ? config.startIndex : null;
     const clearBeforeFill = Boolean(config.clearBeforeFill);
+    const onlyMissingFields = config.onlyMissingFields !== undefined ? Boolean(config.onlyMissingFields) : false;
     const delayStepMs = typeof config.delayStepMs === 'number' ? config.delayStepMs : 450;
     const delayAddMs = typeof config.delayAddMs === 'number' ? config.delayAddMs : 90;
     const delayFieldMs = typeof config.delayFieldMs === 'number' ? config.delayFieldMs : 25;
@@ -454,8 +720,78 @@ JS_HELPER_PREENCHER_REPEATER = r"""
         return '';
     }
 
+    function colapsarEspacos(s) {
+        return String(s ?? '').replace(/[\r\n\t\u00a0]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
     function normalizarTexto(s) {
-        return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+        return colapsarEspacos(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    }
+
+    function extrairNumeroEstrito(val) {
+        let s = String(val ?? '').trim().replace(/^R\$\s*/i, '').replace(/\s+/g, '');
+        if (!s) return null;
+        if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s)) {
+            const n = Number(s.replace(/\./g, '').replace(',', '.'));
+            return Number.isFinite(n) ? n : null;
+        }
+        if (/^-?\d+,\d+$/.test(s)) {
+            const n = Number(s.replace(',', '.'));
+            return Number.isFinite(n) ? n : null;
+        }
+        if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+            const n = Number(s.replace(/\./g, ''));
+            return Number.isFinite(n) ? n : null;
+        }
+        if (/^-?\d+(\.\d+)?$/.test(s)) {
+            const n = Number(s);
+            return Number.isFinite(n) ? n : null;
+        }
+        return null;
+    }
+
+    function compararValorElemento(el, valorEsperado) {
+        if (!el) return { ok: false, motivo: 'elemento_nulo', valorAtual: '' };
+        const espCol = colapsarEspacos(valorEsperado);
+        if (!espCol) return { ok: true, motivo: 'esperado_vazio', valorAtual: colapsarEspacos(el.value) };
+
+        const tag = el.tagName.toLowerCase();
+        const atualCol = colapsarEspacos(el.value);
+
+        if (tag === 'select') {
+            if (!atualCol) return { ok: false, motivo: 'select_vazio', valorAtual: '' };
+            const espNorm = normalizarTexto(espCol);
+            const atualNorm = normalizarTexto(atualCol);
+            const optSel = el.selectedIndex >= 0 ? el.options[el.selectedIndex] : null;
+            const optTxtNorm = optSel ? normalizarTexto(optSel.textContent) : '';
+            const bateSelect = (
+                atualNorm === espNorm ||
+                optTxtNorm === espNorm ||
+                (optTxtNorm && (optTxtNorm.includes(espNorm) || espNorm.includes(optTxtNorm)))
+            );
+            return {
+                ok: Boolean(bateSelect),
+                motivo: bateSelect ? 'ok' : 'select_divergente',
+                valorAtual: optSel ? colapsarEspacos(optSel.textContent) : atualCol
+            };
+        }
+
+        if (!atualCol) return { ok: false, motivo: 'vazio_no_dom', valorAtual: '' };
+        if (atualCol === espCol || normalizarTexto(atualCol) === normalizarTexto(espCol)) {
+            return { ok: true, motivo: 'ok', valorAtual: atualCol };
+        }
+        if (el.maxLength && el.maxLength > 0 && espCol.length > el.maxLength) {
+            const espTrunc = colapsarEspacos(espCol.slice(0, el.maxLength));
+            if (atualCol === espTrunc || normalizarTexto(atualCol) === normalizarTexto(espTrunc)) {
+                return { ok: true, motivo: 'ok_maxlength', valorAtual: atualCol };
+            }
+        }
+        const nAtual = extrairNumeroEstrito(atualCol);
+        const nEsp = extrairNumeroEstrito(espCol);
+        if (nAtual !== null && nEsp !== null && Math.abs(nAtual - nEsp) <= 0.02) {
+            return { ok: true, motivo: 'ok_numerico', valorAtual: atualCol };
+        }
+        return { ok: false, motivo: 'valor_divergente', valorAtual: atualCol };
     }
 
     function converterParaNumeroHTML(valStr) {
@@ -494,11 +830,12 @@ JS_HELPER_PREENCHER_REPEATER = r"""
 
     async function definirValorElementoVerificado(el, valor) {
         if (!el) return { ok: false, motivo: 'elemento_nulo', valorFinal: '' };
-        const valStr = String(valor ?? '').trim();
-        if (!valStr) return { ok: false, motivo: 'valor_vazio', valorFinal: '' };
+        const valRaw = String(valor ?? '').trim();
+        if (!valRaw) return { ok: false, motivo: 'valor_vazio', valorFinal: '' };
 
         const tag = el.tagName.toLowerCase();
         const tipo = (el.getAttribute('type') || 'text').toLowerCase();
+        const valStr = tag === 'input' ? colapsarEspacos(valRaw) : valRaw;
 
         if (tag === 'select') {
             const alvoNorm = normalizarTexto(valStr);
@@ -515,34 +852,33 @@ JS_HELPER_PREENCHER_REPEATER = r"""
             if (!escolheu) el.value = valStr;
             dispararEventos(el);
             if (delayFieldMs > 0) await sleep(delayFieldMs);
-            const finalSel = String(el.value || '').trim();
-            return { ok: finalSel !== '', valorFinal: finalSel, motivo: finalSel !== '' ? 'ok' : 'select_sem_opcao' };
+            const cmpSel = compararValorElemento(el, valStr);
+            return { ok: cmpSel.ok, valorFinal: cmpSel.valorAtual, motivo: cmpSel.motivo };
         }
 
         const eraReadonly = el.hasAttribute('readonly');
         if (eraReadonly) el.removeAttribute('readonly');
 
-        // Monta candidatos de formato (especialmente para inputs numéricos ou máscaras monetárias)
         const numHTML = converterParaNumeroHTML(valStr);
         const candidatos = tipo === 'number'
             ? [numHTML, valStr]
             : [valStr, numHTML, numHTML.replace('.', ',')];
 
-        let valorLido = '';
+        let ultimoCmp = { ok: false, motivo: `rejeitado_pelo_input(type=${tipo})`, valorAtual: '' };
         for (const cand of candidatos) {
-            if (!cand) continue;
-            aplicarValorNativo(el, cand);
+            if (cand === undefined || cand === null || String(cand).trim() === '') continue;
+            aplicarValorNativo(el, String(cand));
             dispararEventos(el);
             if (delayFieldMs > 0) await sleep(delayFieldMs);
-            valorLido = String(el.value || '').trim();
-            if (valorLido !== '') break;
+            ultimoCmp = compararValorElemento(el, valStr);
+            if (ultimoCmp.ok) break;
         }
 
         if (eraReadonly) el.setAttribute('readonly', '');
         return {
-            ok: valorLido !== '',
-            valorFinal: valorLido,
-            motivo: valorLido !== '' ? 'ok' : `rejeitado_pelo_input(type=${tipo})`
+            ok: ultimoCmp.ok,
+            valorFinal: ultimoCmp.valorAtual,
+            motivo: ultimoCmp.motivo
         };
     }
 
@@ -645,6 +981,8 @@ JS_HELPER_PREENCHER_REPEATER = r"""
     let preenchidos = 0;
     let camposEsperadosTotal = 0;
     let camposConfirmadosTotal = 0;
+    let camposPreservados = 0;
+    let camposEscritosAgora = 0;
     const detalhes = [];
     const seletoresNaoEncontrados = [];
     const camposRejeitados = [];
@@ -652,15 +990,17 @@ JS_HELPER_PREENCHER_REPEATER = r"""
 
     if (mode === 'single_column') {
         for (let i = 0; i < items.length; i++) {
-            const texto = String(items[i] ?? '').trim();
+            const rawItem = items[i];
+            const temIndiceExplicito = rawItem && typeof rawItem === 'object' && typeof rawItem.__targetIndex === 'number';
+            const texto = String(temIndiceExplicito ? (rawItem.__value ?? '') : (rawItem ?? '')).trim();
             if (!texto) continue;
             camposEsperadosTotal++;
 
             let alvoInput = null;
             let idxUsado = -1;
+            const targetIdx = temIndiceExplicito ? rawItem.__targetIndex : (startIndex !== null ? startIndex + i : null);
 
-            if (startIndex !== null) {
-                const targetIdx = startIndex + i;
+            if (targetIdx !== null) {
                 const gar = await garantirCardNoIndice(targetIdx);
                 totalCardsCriados += gar.criadosAgora || 0;
                 if (!gar.ok) {
@@ -698,10 +1038,21 @@ JS_HELPER_PREENCHER_REPEATER = r"""
             }
 
             if (alvoInput) {
+                if (onlyMissingFields) {
+                    const jaOk = compararValorElemento(alvoInput, texto);
+                    if (jaOk.ok) {
+                        preenchidos++;
+                        camposConfirmadosTotal++;
+                        camposPreservados++;
+                        detalhes.push(`caixa #${idxUsado} [JÁ OK NO RASCUNHO]: "${jaOk.valorAtual.slice(0, 38)}"`);
+                        continue;
+                    }
+                }
                 const verif = await definirValorElementoVerificado(alvoInput, texto);
                 if (verif.ok) {
                     preenchidos++;
                     camposConfirmadosTotal++;
+                    camposEscritosAgora++;
                     detalhes.push(`caixa #${idxUsado} (${alvoInput.name || 'input'}) <- "${verif.valorFinal.slice(0, 38)}"`);
                 } else {
                     camposRejeitados.push({ card: idxUsado, seletor: 'single_column', motivo: verif.motivo, valorTentado: texto.slice(0, 40) });
@@ -714,6 +1065,9 @@ JS_HELPER_PREENCHER_REPEATER = r"""
         const indicesCorrigidos = corrigirIndicesDuplicadosNoRepeater();
         const form = document.querySelector('#pdtic-form') || document.querySelector('form');
         const totalNamedForm = form ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length : 0;
+        const grauConfirmacaoLotePct = camposEsperadosTotal > 0
+            ? Number(((camposConfirmadosTotal / camposEsperadosTotal) * 100).toFixed(2))
+            : 100.0;
 
         return {
             ok: true,
@@ -723,6 +1077,9 @@ JS_HELPER_PREENCHER_REPEATER = r"""
             totalLinhasDOM: obterLinhasRepeater().length,
             camposEsperadosTotal,
             camposConfirmadosTotal,
+            camposPreservados,
+            camposEscritosAgora,
+            grauConfirmacaoLotePct,
             seletoresNaoEncontrados,
             camposRejeitados,
             indicesCorrigidos,
@@ -732,12 +1089,15 @@ JS_HELPER_PREENCHER_REPEATER = r"""
     }
 
     for (let i = 0; i < items.length; i++) {
-        const mapaCampos = items[i] || {};
+        const rawItem = items[i] || {};
+        const temIndiceExplicito = typeof rawItem.__targetIndex === 'number' && rawItem.__fields && typeof rawItem.__fields === 'object';
+        const mapaCampos = temIndiceExplicito ? rawItem.__fields : rawItem;
+        const targetIdx = temIndiceExplicito ? rawItem.__targetIndex : (startIndex !== null ? startIndex + i : null);
+
         let rowAlvo = null;
         let idxUsado = -1;
 
-        if (startIndex !== null) {
-            const targetIdx = startIndex + i;
+        if (targetIdx !== null) {
             const gar = await garantirCardNoIndice(targetIdx);
             totalCardsCriados += gar.criadosAgora || 0;
             if (!gar.ok) {
@@ -780,6 +1140,8 @@ JS_HELPER_PREENCHER_REPEATER = r"""
 
         if (rowAlvo) {
             let camposOk = 0;
+            let camposPreservadosCard = 0;
+            let camposEscritosCard = 0;
             let camposTentadosCard = 0;
             const falhasCard = [];
 
@@ -806,10 +1168,23 @@ JS_HELPER_PREENCHER_REPEATER = r"""
                     mapeamentoRealCampos[seletorRelativo] = `${elCampo.tagName.toLowerCase()}[type="${(elCampo.getAttribute('type') || 'text').toLowerCase()}" name="${elCampo.name || ''}" label="${acharLabelCampo(elCampo, rowAlvo)}"]`;
                 }
 
+                if (onlyMissingFields) {
+                    const jaOk = compararValorElemento(elCampo, valStr);
+                    if (jaOk.ok) {
+                        camposOk++;
+                        camposConfirmadosTotal++;
+                        camposPreservados++;
+                        camposPreservadosCard++;
+                        continue;
+                    }
+                }
+
                 const verif = await definirValorElementoVerificado(elCampo, valStr);
                 if (verif.ok) {
                     camposOk++;
                     camposConfirmadosTotal++;
+                    camposEscritosAgora++;
+                    camposEscritosCard++;
                 } else {
                     camposRejeitados.push({
                         card: idxUsado,
@@ -823,15 +1198,23 @@ JS_HELPER_PREENCHER_REPEATER = r"""
                 }
             }
 
-            preenchidos++;
+            if (camposOk === camposTentadosCard) {
+                preenchidos++;
+            }
+            const infoInc = camposPreservadosCard > 0
+                ? ` (preservados=${camposPreservadosCard}, preenchidos agora=${camposEscritosCard})`
+                : '';
             const sufixoFalha = falhasCard.length > 0 ? ` ⚠️ FALHAS: ${falhasCard.join(', ')}` : '';
-            detalhes.push(`sub-card #${idxUsado}: ${camposOk}/${camposTentadosCard} campo(s) confirmado(s) no DOM${sufixoFalha}`);
+            detalhes.push(`sub-card #${idxUsado}: ${camposOk}/${camposTentadosCard} campo(s) confirmado(s) no DOM${infoInc}${sufixoFalha}`);
         }
     }
 
     const indicesCorrigidos = corrigirIndicesDuplicadosNoRepeater();
     const form = document.querySelector('#pdtic-form') || document.querySelector('form');
     const totalNamedForm = form ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length : 0;
+    const grauConfirmacaoLotePct = camposEsperadosTotal > 0
+        ? Number(((camposConfirmadosTotal / camposEsperadosTotal) * 100).toFixed(2))
+        : 100.0;
 
     return {
         ok: true,
@@ -841,6 +1224,9 @@ JS_HELPER_PREENCHER_REPEATER = r"""
         totalLinhasDOM: obterLinhasRepeater().length,
         camposEsperadosTotal,
         camposConfirmadosTotal,
+        camposPreservados,
+        camposEscritosAgora,
+        grauConfirmacaoLotePct,
         mapeamentoRealCampos,
         seletoresNaoEncontrados: seletoresNaoEncontrados.slice(0, 15),
         qtdSeletoresNaoEncontrados: seletoresNaoEncontrados.length,
@@ -853,20 +1239,90 @@ JS_HELPER_PREENCHER_REPEATER = r"""
 })
 """
 
+JS_HELPER_SALVAR_RASCUNHO = r"""
+(function(config) {
+    const cfg = config || {};
+    const seletoresPrioritarios = [
+        'button.js-submit-mode[data-submit-mode="draft"][form="pdtic-form"]',
+        'button[data-submit-mode="draft"][form="pdtic-form"]',
+        'button.js-submit-mode[data-submit-mode="draft"]',
+        'button[data-submit-mode="draft"]'
+    ];
+    let btn = null;
+    for (const sel of seletoresPrioritarios) {
+        btn = document.querySelector(sel);
+        if (btn) break;
+    }
+    if (!btn) {
+        btn = Array.from(document.querySelectorAll('button[type="submit"], button')).find(b =>
+            String(b.textContent || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .includes('SALVAR RASCUNHO')
+        ) || null;
+    }
+    if (!btn) {
+        return {
+            ok: false,
+            erro: 'Botão "Salvar rascunho" (data-submit-mode="draft") não foi encontrado no DOM da guia aberta.'
+        };
+    }
+    if (btn.disabled) {
+        return {
+            ok: false,
+            erro: 'Botão "Salvar rascunho" foi encontrado, mas está desabilitado (disabled).'
+        };
+    }
+
+    const form = document.querySelector('#pdtic-form') || document.querySelector('form');
+    const totalNamedForm = form
+        ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length
+        : 0;
+
+    const infoBotao = {
+        ok: true,
+        clicado: true,
+        textoBotao: String(btn.textContent || '').trim(),
+        formAttr: btn.getAttribute('form') || '',
+        submitMode: btn.getAttribute('data-submit-mode') || '',
+        submitAction: btn.getAttribute('data-submit-action') || '',
+        totalNamedForm: totalNamedForm
+    };
+
+    const atrasoMs = typeof cfg.delayBeforeClickMs === 'number' ? cfg.delayBeforeClickMs : 400;
+    setTimeout(() => {
+        try {
+            btn.scrollIntoView({ block: 'center', behavior: 'instant' });
+        } catch (e) {}
+        btn.click();
+    }, atrasoMs);
+
+    return infoBotao;
+})
+"""
+
 JS_BRIDGE_CONSOLE = (
     r"""
 (function() {
     if (window.__PDTIC_BRIDGE_TIMER_ID__) {
         clearInterval(window.__PDTIC_BRIDGE_TIMER_ID__);
-        console.log("🔄 [PDTIC 2º Plano] Atualizando ponte ativa para a versão com diagnóstico avançado...");
+        console.log("🔄 [PDTIC 2º Plano] Atualizando ponte ativa para a v3 (Incremental + 2ª Passada + Salvar Rascunho)...");
     }
     window.__PDTIC_BRIDGE_RUNNING__ = true;
+    window.__PDTIC_BRIDGE_VERSION__ = 3;
     const SERVIDOR = "__SERVIDOR_URL__";
     const fnInspecionar = """
     + JS_HELPER_INSPECIONAR_DOM.strip()
     + r""";
+    const fnVerificar = """
+    + JS_HELPER_VERIFICAR_REPEATER.strip()
+    + r""";
     const fnPreencher = """
     + JS_HELPER_PREENCHER_REPEATER.strip()
+    + r""";
+    const fnSalvarRascunho = """
+    + JS_HELPER_SALVAR_RASCUNHO.strip()
     + r""";
 
     let ocupada = false;
@@ -894,6 +1350,7 @@ JS_BRIDGE_CONSOLE = (
                 const btn = document.querySelector('.wizard-nav button.active');
                 await enviarResultado(tarefa.id, {
                     ok: true,
+                    versao: 3,
                     url: location.href,
                     title: document.title,
                     etapaAtiva: btn ? btn.textContent.trim() : '1. Identificação',
@@ -902,12 +1359,22 @@ JS_BRIDGE_CONSOLE = (
             } else if (tarefa.acao === 'inspect_dom') {
                 const res = fnInspecionar(tarefa.payload || {});
                 await enviarResultado(tarefa.id, res);
-            } else if (tarefa.acao === 'fill_repeater') {
-                const res = await fnPreencher(tarefa.payload);
+            } else if (tarefa.acao === 'verify_repeater') {
+                const res = await fnVerificar(tarefa.payload || {});
                 await enviarResultado(tarefa.id, res);
+            } else if (tarefa.acao === 'fill_repeater') {
+                const res = await fnPreencher(tarefa.payload || {});
+                await enviarResultado(tarefa.id, res);
+            } else if (tarefa.acao === 'save_draft') {
+                const res = fnSalvarRascunho(tarefa.payload || {});
+                await enviarResultado(tarefa.id, res);
+            } else if (tarefa.acao === 'upgrade_bridge') {
+                const novoCodigo = await (await fetch(`${SERVIDOR}/bridge.js`, { cache: 'no-store' })).text();
+                await enviarResultado(tarefa.id, { ok: true, atualizado: true });
+                setTimeout(() => eval(novoCodigo), 50);
             }
         } catch (e) {
-            console.error("[PDTIC 2º Plano] Erro no poll:", e);
+            console.error("[PDTIC 2º Plano v3] Erro no poll:", e);
         } finally {
             ocupada = false;
         }
@@ -915,7 +1382,7 @@ JS_BRIDGE_CONSOLE = (
 
     window.__PDTIC_BRIDGE_TIMER_ID__ = setInterval(poll, 350);
     poll();
-    console.log("✅ [PDTIC 2º Plano v2] Guia conectada com inspeção de campos e verificação reversa!");
+    console.log("✅ [PDTIC 2º Plano v3] Conectado! Preenchimento incremental do rascunho + 2ª Passada + Salvar Rascunho ativos!");
 })();
 """
 )
@@ -1110,6 +1577,7 @@ class ControladorExecucaoOculta:
         delay_field_ms: int = DELAY_CAMPO_MS_PADRAO,
         tamanho_lote: int = TAMANHO_LOTE_PADRAO,
         limpar_antes: bool = False,
+        somente_faltantes: bool = True,
     ) -> None:
         self.porta_ponte = porta_ponte
         self.porta_cdp = porta_cdp
@@ -1118,9 +1586,13 @@ class ControladorExecucaoOculta:
         self.delay_field_ms = delay_field_ms
         self.tamanho_lote = max(1, tamanho_lote)
         self.limpar_antes = limpar_antes
+        self.somente_faltantes = bool(somente_faltantes and not limpar_antes)
         self.cliente_cdp: Optional[ClienteCDP] = None
         self.modo_ativo: str = "nenhum"
         self.historico_relatorio: List[Dict[str, Any]] = []
+        self.blocos_para_segunda_passada: List[Dict[str, Any]] = []
+        self.resumo_segunda_passada: Optional[Dict[str, Any]] = None
+        self.resultado_salvar_rascunho: Optional[Dict[str, Any]] = None
         self.ultimo_diagnostico_dom: Optional[Dict[str, Any]] = None
 
         self._lock = threading.Lock()
@@ -1142,27 +1614,67 @@ class ControladorExecucaoOculta:
         DADOS_DIR.mkdir(parents=True, exist_ok=True)
         caminho_relatorio = DADOS_DIR / f"relatorio_pdtic_{time.strftime('%Y%m%d_%H%M%S')}.md"
 
+        tot_campos_esp = sum(h.get("campos_esperados", 0) for h in self.historico_relatorio)
+        tot_campos_conf = sum(h.get("campos_confirmados", 0) for h in self.historico_relatorio)
+        grau_global = round((tot_campos_conf / tot_campos_esp) * 100.0, 2) if tot_campos_esp > 0 else 100.0
+        if self.resumo_segunda_passada:
+            grau_global = float(self.resumo_segunda_passada.get("grau_confirmacao_global", grau_global))
+            tot_campos_esp = int(self.resumo_segunda_passada.get("campos_esperados_global", tot_campos_esp))
+            tot_campos_conf = int(self.resumo_segunda_passada.get("campos_confirmados_global", tot_campos_conf))
+
         linhas_md = [
             "# 📊 Relatório de Auditoria - Automação PDTIC",
             f"**Data da Execução:** {time.strftime('%d/%m/%Y às %H:%M:%S')}",
             f"**Modo de Conexão Usado:** {self.modo_ativo.upper()}",
+            f"**Modo Incremental (Só o que falta):** {'ATIVADO ✅' if self.somente_faltantes else 'COMPLETO'}",
             f"**Tempos de Espera:** Passo={self.delay_step_ms}ms | +Adicionar={self.delay_add_ms}ms | Campo={self.delay_field_ms}ms | Lote={self.tamanho_lote}",
             "---",
-            "## 🎯 Resumo Geral",
+            "## 🎯 Resumo Geral e Grau de Confirmação",
             f"- **Blocos Processados:** {len(self.historico_relatorio)}",
             f"- **Total de Linhas da Planilha:** {sum(h['total_planilha'] for h in self.historico_relatorio)}",
-            f"- **Total de Itens Confirmados no DOM:** {sum(h['preenchidos'] for h in self.historico_relatorio)}",
+            f"- **Total de Linhas Confirmadas no DOM:** {sum(h['preenchidos'] for h in self.historico_relatorio)}",
+            f"- **Linhas que Já Estavam Prontas no Rascunho:** {sum(h.get('linhas_ja_prontas_antes', 0) for h in self.historico_relatorio)}",
+            f"- **Linhas Preenchidas/Completadas Agora:** {sum(h.get('linhas_trabalhadas_agora', 0) for h in self.historico_relatorio)}",
             f"- **Novos Sub-cards Criados (+Adicionar):** {sum(h.get('cards_criados', 0) for h in self.historico_relatorio)}",
-            f"- **Campos Confirmados (Leitura Reversa):** {sum(h.get('campos_confirmados', 0) for h in self.historico_relatorio)} / {sum(h.get('campos_esperados', 0) for h in self.historico_relatorio)}",
+            f"- **Campos Confirmados (2ª Passada):** {tot_campos_conf} / {tot_campos_esp}",
+            f"- **🏅 GRAU DE CONFIRMAÇÃO GLOBAL:** **{grau_global:.2f}%**",
         ]
+        if self.resultado_salvar_rascunho:
+            if self.resultado_salvar_rascunho.get("ok"):
+                linhas_md.append(
+                    f"- **💾 Botão `Salvar rascunho`:** **CLICADO AUTOMATICAMENTE ✅** "
+                    f"(`data-submit-mode=\"{self.resultado_salvar_rascunho.get('submitMode')}\"` -> "
+                    f"`{self.resultado_salvar_rascunho.get('submitAction')}`)"
+                )
+            else:
+                linhas_md.append(
+                    f"- **💾 Botão `Salvar rascunho`:** ❌ Não clicado ({self.resultado_salvar_rascunho.get('erro')})"
+                )
+
         ultimo_total_form = max((h.get("total_named_form", 0) for h in self.historico_relatorio), default=0)
         if ultimo_total_form:
             linhas_md.append(f"- **Total Final de Variáveis `[name]` no `<form>`:** {ultimo_total_form}")
             if ultimo_total_form > 1000:
                 linhas_md.append(
                     f"- ⚠️ **ALERTA DE SERVIDOR (`max_input_vars`):** O `<form>` possui **{ultimo_total_form} campos `[name]`** "
-                    "(acima de 1.000). Se o servidor PHP estiver com `max_input_vars = 1000`, ao clicar em Salvar o backend truncará no 1.000º campo!"
+                    "(acima de 1.000). Se o servidor PHP estiver com `max_input_vars = 1000`, ao submeter o POST o backend truncará no 1.000º campo até que o limite seja ampliado no servidor!"
                 )
+
+        if self.resumo_segunda_passada and self.resumo_segunda_passada.get("blocos"):
+            linhas_md.extend([
+                "---",
+                "## 🔁 Tabela da 2ª Passada de Auditoria Independente\n",
+                "| Bloco | Repeater | Linhas OK / Planilha | Campos Confirmados | Grau Inicial (Rascunho) | Grau Final (2ª Passada) | Status |",
+                "| :--- | :--- | :---: | :---: | :---: | :---: | :---: |",
+            ])
+            for b2 in self.resumo_segunda_passada["blocos"]:
+                st_txt = "✅ 100% OK" if b2.get("ok_100") else f"⚠️ {b2.get('pendentes', 0)} pend."
+                linhas_md.append(
+                    f"| {b2['bloco']} | `{b2['repeater']}` | {b2['linhas_ok']}/{b2['total_planilha']} | "
+                    f"{b2['campos_confirmados']}/{b2['campos_esperados']} | {b2['grau_antes']:.2f}% | "
+                    f"**{b2['grau_final']:.2f}%** | {st_txt} |"
+                )
+
         linhas_md.extend([
             "---",
             "## 📝 Detalhamento por Bloco (De -> Para)\n"
@@ -1171,8 +1683,20 @@ class ControladorExecucaoOculta:
         for hist in self.historico_relatorio:
             linhas_md.append(f"### {hist['bloco']}")
             linhas_md.append(f"- **Contêiner Alvo (Repeater):** `{hist['repeater']}`")
-            linhas_md.append(f"- **Comparativo Planilha × DOM:** {hist['preenchidos']} de {hist['total_planilha']} linha(s) | DOM Inicial={hist.get('dom_inicial', '?')} -> Criados=+{hist.get('cards_criados', 0)} -> DOM Final={hist.get('dom_final', '?')}")
-            linhas_md.append(f"- **Campos Verificados no DOM:** {hist.get('campos_confirmados', 0)} de {hist.get('campos_esperados', 0)} campo(s)")
+            linhas_md.append(
+                f"- **Estado no Rascunho Antes:** {hist.get('linhas_ja_prontas_antes', 0)}/{hist['total_planilha']} linha(s) pronta(s) "
+                f"(Grau inicial: **{hist.get('grau_confirmacao_antes', 0.0):.2f}%**)"
+            )
+            acao_exec_txt = (
+                "⏭️ Pulado (já estava 100% preenchido no rascunho)"
+                if hist.get("pulado_ja_completo")
+                else f"Preenchidos/completados {hist.get('linhas_trabalhadas_agora', 0)} card(s) (+{hist.get('cards_criados', 0)} criados no DOM)"
+            )
+            linhas_md.append(f"- **Ação Executada:** {acao_exec_txt}")
+            linhas_md.append(
+                f"- **Grau de Confirmação Final:** **{hist.get('grau_confirmacao_depois', 100.0):.2f}%** "
+                f"({hist.get('campos_confirmados', 0)}/{hist.get('campos_esperados', 0)} campo(s) confirmados | DOM Final={hist.get('dom_final', '?')})"
+            )
             linhas_md.append(f"- **Tempo Gasto:** {hist['tempo']}s")
 
             map_campos = hist.get("mapeamento_campos") or {}
@@ -1183,12 +1707,15 @@ class ControladorExecucaoOculta:
 
             nao_enc = hist.get("seletores_nao_encontrados") or []
             rejeit = hist.get("campos_rejeitados") or []
-            if nao_enc or rejeit:
+            divs_fin = hist.get("divergencias_finais") or []
+            if nao_enc or rejeit or divs_fin:
                 linhas_md.append("\n**⚠️ Alertas de Campos neste Bloco:**")
                 for ne in nao_enc[:10]:
                     linhas_md.append(f"> - ❌ Seletor não encontrado no card #{ne.get('card')}: `{ne.get('seletor')}` (disponíveis: `{ne.get('camposDisponiveisNoCard')}`)")
                 for rj in rejeit[:10]:
                     linhas_md.append(f"> - ⚠️ Valor rejeitado no card #{rj.get('card')} (`{rj.get('name')}` type=`{rj.get('type')}`): `{rj.get('motivo')}` | valor=`{rj.get('valorTentado')}`")
+                for dv in divs_fin[:10]:
+                    linhas_md.append(f"> - ❌ Divergência na 2ª passada: `{dv}`")
             
             # --- SEÇÃO 1: O QUE VEIO DA PLANILHA ---
             linhas_md.append("\n**📄 1. O QUE FOI LIDO DA PLANILHA:**")
@@ -1206,7 +1733,7 @@ class ControladorExecucaoOculta:
                         linhas_md.append(f"> **Linha {idx}:** `{str(item).strip()}`")
 
             # --- SEÇÃO 2: O QUE O JAVASCRIPT COLOCOU NA TELA ---
-            linhas_md.append("\n**📋 2. O QUE FOI COLADO NO SISTEMA (Confirmação):**")
+            linhas_md.append("\n**📋 2. O QUE FOI COLADO / CONFIRMADO NO SISTEMA:**")
             if not hist['detalhes']:
                 linhas_md.append("> *Nenhum detalhe retornado do navegador.*")
             else:
@@ -1387,6 +1914,80 @@ class ControladorExecucaoOculta:
         self.ultimo_diagnostico_dom = res_ponte
         return res_ponte
 
+    def verificar_repeater(
+        self,
+        step_index: Optional[int],
+        repeater_name: str,
+        mode: str,
+        items: List[Any],
+        delay_step_ms: int = 300,
+        timeout: float = 35.0,
+    ) -> Dict[str, Any]:
+        """
+        Verifica de forma somente-leitura todos os cards e campos de um repeater no DOM
+        em relação aos dados esperados da planilha, retornando o Grau de Confirmação (%)
+        e os índices exatos que faltam ou divergem.
+        """
+        cfg = {
+            "stepIndex": step_index,
+            "repeaterName": repeater_name,
+            "mode": mode,
+            "items": items,
+            "delayStepMs": delay_step_ms,
+        }
+        if self.modo_ativo == "cdp" and self.cliente_cdp is not None:
+            try:
+                expressao = f"{JS_HELPER_VERIFICAR_REPEATER}({json.dumps(cfg, ensure_ascii=False)})"
+                res = self.cliente_cdp.executar_js(expressao)
+                if isinstance(res, dict):
+                    return res
+                return {"ok": False, "erro": f"Retorno inesperado do verify_repeater via CDP: {res}"}
+            except Exception as exc:
+                return {"ok": False, "erro": f"Exceção CDP em verify_repeater: {exc}"}
+
+        res_ponte = self.enviar_comando_ponte("verify_repeater", {"payload": cfg}, timeout=timeout)
+        if not isinstance(res_ponte, dict):
+            return {
+                "ok": False,
+                "erro": (
+                    f"TIMEOUT ({timeout:.0f}s) no verify_repeater('{repeater_name}'). "
+                    "Certifique-se de que a ponte v3 está ativa na guia."
+                ),
+            }
+        return res_ponte
+
+    def clicar_salvar_rascunho(self, timeout: float = 20.0) -> Dict[str, Any]:
+        """
+        Localiza e clica automaticamente no botão:
+        `<button type="submit" form="pdtic-form" class="btn btn-outline-primary js-submit-mode" data-submit-mode="draft" ...>Salvar rascunho</button>`
+        """
+        cfg = {"delayBeforeClickMs": 450}
+        if self.modo_ativo == "cdp" and self.cliente_cdp is not None:
+            try:
+                expressao = f"{JS_HELPER_SALVAR_RASCUNHO}({json.dumps(cfg, ensure_ascii=False)})"
+                res = self.cliente_cdp.executar_js(expressao)
+                if isinstance(res, dict):
+                    self.resultado_salvar_rascunho = res
+                    return res
+                erro_cdp = {"ok": False, "erro": f"Retorno inesperado ao salvar rascunho via CDP: {res}"}
+                self.resultado_salvar_rascunho = erro_cdp
+                return erro_cdp
+            except Exception as exc:
+                erro_exc = {"ok": False, "erro": f"Exceção CDP ao clicar em Salvar rascunho: {exc}"}
+                self.resultado_salvar_rascunho = erro_exc
+                return erro_exc
+
+        res_ponte = self.enviar_comando_ponte("save_draft", {"payload": cfg}, timeout=timeout)
+        if not isinstance(res_ponte, dict):
+            erro_ponte = {
+                "ok": False,
+                "erro": f"TIMEOUT ({timeout:.0f}s) aguardando confirmação do clique em 'Salvar rascunho'.",
+            }
+            self.resultado_salvar_rascunho = erro_ponte
+            return erro_ponte
+        self.resultado_salvar_rascunho = res_ponte
+        return res_ponte
+
     def _executar_chamada_repeater_unica(
         self,
         payload: Dict[str, Any],
@@ -1422,44 +2023,37 @@ class ControladorExecucaoOculta:
         timeout: float = float(TIMEOUT_COMANDO_PADRAO),
     ) -> Dict[str, Any]:
         """
-        Preenche um repeater em lotes cadenciados (com tempo de espera entre cards e entre lotes),
-        analisando previamente o DOM e comparando:
-        Linhas na Planilha × Cards Iniciais no DOM × Novos Cards Criados × Campos Confirmados por Leitura Reversa!
+        Analisa previamente cada card/campo existente no rascunho do DOM vs Planilha,
+        preserva tudo que já está 100% correto, preenche APENAS o que falta (ou está parcial/divergente)
+        em lotes cadenciados e calcula o Grau de Confirmação (%) antes e depois da escrita!
         """
         todos_itens = list(payload.get("items") or [])
         total_planilha = len(todos_itens)
         repeater_name = str(payload.get("repeaterName") or "")
         step_index = payload.get("stepIndex")
         mode = str(payload.get("mode") or "multi_field")
+        t_global = time.time()
 
-        # 1. Pré-análise do Repeater no DOM antes de colar
+        # Registra este bloco para a 2ª Passada independente ao final de todos os blocos
+        self.blocos_para_segunda_passada.append({
+            "stepIndex": step_index,
+            "repeaterName": repeater_name,
+            "mode": mode,
+            "nomeExibicao": nome_exibicao,
+            "items": todos_itens,
+            "histIndex": len(self.historico_relatorio),
+        })
+
+        # 1. Pré-análise estrutural + Auditoria de Conteúdo do Rascunho Atual
         info_antes = self.inspecionar_dom(
             {"repeaters": [{"step": step_index, "name": repeater_name, "label": nome_exibicao}]},
             timeout=10.0,
         )
-        dom_inicial_analise = "?"
+        dom_inicial_analise: Any = "?"
         if info_antes.get("ok") and isinstance(info_antes.get("repeaters"), dict):
             rep_pre = info_antes["repeaters"].get(repeater_name) or {}
             if rep_pre.get("exists"):
-                tot_r = rep_pre.get("totalRows", 0)
-                fill_r = rep_pre.get("filledRows", 0)
-                emp_r = rep_pre.get("emptyRows", 0)
-                part_r = rep_pre.get("qtdPartialRows", 0)
-                dom_inicial_analise = tot_r
-                prev_novos = max(0, total_planilha - tot_r)
-                btn_status = (
-                    "DESABILITADO ❌"
-                    if rep_pre.get("addBtnDisabled")
-                    else ("OK ✅" if rep_pre.get("addBtnExists") else "NÃO ENCONTRADO ❌")
-                )
-                log_debug(
-                    nome_exibicao,
-                    f"📊 ANÁLISE PRÉ-COLAGEM ({repeater_name}): "
-                    f"Linhas na Planilha={total_planilha} | Cards já no DOM={tot_r} "
-                    f"(preenchidos={fill_r}, vazios={emp_r}, parciais={part_r}) | "
-                    f"Novos cards a criar=+{prev_novos} | Botão '+Adicionar'={btn_status}",
-                    nivel="INFO",
-                )
+                dom_inicial_analise = rep_pre.get("totalRows", 0)
                 schema = rep_pre.get("schema") or []
                 if schema:
                     resumo_schema = ", ".join(
@@ -1467,43 +2061,149 @@ class ControladorExecucaoOculta:
                         for c in schema
                     )
                     log_debug(nome_exibicao, f"🔎 Campos HTML do card ({len(schema)}): {resumo_schema}", nivel="DEBUG")
-                if part_r > 0:
+
+        grau_antes = 0.0
+        linhas_ja_prontas_antes = 0
+        campos_esp_total_bloco = 0
+        campos_conf_antes = 0
+        indices_pendentes: List[int] = list(range(total_planilha))
+
+        if self.somente_faltantes and not self.limpar_antes:
+            verif_pre = self.verificar_repeater(
+                step_index=step_index,
+                repeater_name=repeater_name,
+                mode=mode,
+                items=todos_itens,
+                delay_step_ms=self.delay_step_ms,
+                timeout=30.0,
+            )
+            if not verif_pre.get("ok"):
+                return {
+                    "ok": False,
+                    "erro": f"Falha ao auditar rascunho antes de preencher '{repeater_name}': {verif_pre.get('erro')}",
+                }
+
+            dom_inicial_analise = verif_pre.get("totalLinhasDOM", dom_inicial_analise)
+            linhas_ja_prontas_antes = int(verif_pre.get("linhasCompletas", 0))
+            linhas_parciais = int(verif_pre.get("linhasParciaisOuDivergentes", 0))
+            linhas_vazias = int(verif_pre.get("linhasVaziasNoDOM", 0))
+            linhas_ausentes = int(verif_pre.get("linhasAusentesNoDOM", 0))
+            campos_esp_total_bloco = int(verif_pre.get("camposEsperadosTotal", 0))
+            campos_conf_antes = int(verif_pre.get("camposConfirmadosTotal", 0))
+            grau_antes = float(verif_pre.get("grauConfirmacaoPct", 0.0))
+            indices_pendentes = [int(x) for x in (verif_pre.get("indicesPendentes") or [])]
+
+            log_debug(
+                nome_exibicao,
+                f"📋 AUDITORIA DO RASCUNHO ({repeater_name}): "
+                f"Já prontos={linhas_ja_prontas_antes}/{total_planilha} cards "
+                f"({campos_conf_antes}/{campos_esp_total_bloco} campos -> Grau Inicial={grau_antes:.2f}%) | "
+                f"Parciais/Divergentes={linhas_parciais} | Vazios no DOM={linhas_vazias} | "
+                f"Ausentes (+Criar)={linhas_ausentes} | Pendentes={len(indices_pendentes)}",
+                nivel="INFO",
+            )
+            if linhas_parciais > 0 and verif_pre.get("divergencias"):
+                amostra_div = [d for d in verif_pre["divergencias"] if d.get("statusCard") == "parcial_ou_divergente"][:3]
+                if amostra_div:
                     log_debug(
                         nome_exibicao,
-                        f"⚠️ Detectado(s) {part_r} card(s) PARCIALMENTE preenchido(s) no DOM antes de iniciar: {rep_pre.get('partialRows')}",
+                        f"🩹 Card(s) parcial(is) detectado(s) para completar apenas campos faltantes: {amostra_div}",
                         nivel="WARN",
                     )
 
-        # 2. Execução em lotes cadenciados (evita travamento/confusão no DOM em listas grandes)
-        tam_lote = self.tamanho_lote
-        total_lotes = max(1, (total_planilha + tam_lote - 1) // tam_lote)
-        t_global = time.time()
+            # Se JÁ ESTÁ 100% CONFIRMADO no rascunho, pula completamente a escrita deste bloco!
+            if len(indices_pendentes) == 0 and grau_antes >= 100.0:
+                dt_skip = round(time.time() - t_global, 2)
+                log_debug(
+                    nome_exibicao,
+                    f"⏭️  [100% JÁ NO RASCUNHO] Todos os {total_planilha} card(s) ({campos_conf_antes}/{campos_esp_total_bloco} campos) "
+                    f"já estão 100% corretos! Nenhum campo precisou ser reescrito ({dt_skip}s).",
+                    nivel="OK",
+                )
+                detalhes_skip = [
+                    f"⏭️ Rascunho já continha {linhas_ja_prontas_antes}/{total_planilha} linhas ({campos_conf_antes}/{campos_esp_total_bloco} campos) com Grau de Confirmação = 100.00%."
+                ]
+                self.historico_relatorio.append({
+                    "bloco": nome_exibicao,
+                    "repeater": repeater_name,
+                    "total_planilha": total_planilha,
+                    "preenchidos": linhas_ja_prontas_antes,
+                    "linhas_ja_prontas_antes": linhas_ja_prontas_antes,
+                    "linhas_trabalhadas_agora": 0,
+                    "pulado_ja_completo": True,
+                    "grau_confirmacao_antes": 100.0,
+                    "grau_confirmacao_depois": 100.0,
+                    "dom_inicial": dom_inicial_analise,
+                    "cards_criados": 0,
+                    "dom_final": dom_inicial_analise,
+                    "campos_esperados": campos_esp_total_bloco,
+                    "campos_confirmados": campos_conf_antes,
+                    "mapeamento_campos": {},
+                    "seletores_nao_encontrados": [],
+                    "campos_rejeitados": [],
+                    "total_named_form": int(verif_pre.get("totalNamedForm", 0) or 0),
+                    "detalhes": detalhes_skip,
+                    "tempo": dt_skip,
+                    "itens_enviados": todos_itens,
+                })
+                return {
+                    "ok": True,
+                    "puladoJaCompleto": True,
+                    "preenchidos": linhas_ja_prontas_antes,
+                    "cardsCriados": 0,
+                    "totalLinhasDOM": dom_inicial_analise,
+                    "camposEsperadosTotal": campos_esp_total_bloco,
+                    "camposConfirmadosTotal": campos_conf_antes,
+                    "grauConfirmacaoPct": 100.0,
+                    "totalNamedForm": int(verif_pre.get("totalNamedForm", 0) or 0),
+                    "detalhes": detalhes_skip,
+                    "_tempo_s": dt_skip,
+                }
 
-        preenchidos_acum = 0
+        # 2. Monta a fila exata apenas dos itens pendentes (ou todos, se --limpar / modo completo)
+        if self.somente_faltantes and not self.limpar_antes:
+            if mode == "single_column":
+                itens_para_enviar: List[Any] = [
+                    {"__targetIndex": idx_p, "__value": todos_itens[idx_p]} for idx_p in indices_pendentes
+                ]
+            else:
+                itens_para_enviar = [
+                    {"__targetIndex": idx_p, "__fields": todos_itens[idx_p]} for idx_p in indices_pendentes
+                ]
+        else:
+            itens_para_enviar = todos_itens
+
+        qtd_fila = len(itens_para_enviar)
+        tam_lote = self.tamanho_lote
+        total_lotes = max(1, (qtd_fila + tam_lote - 1) // tam_lote)
+
+        preenchidos_lotes = 0
         cards_criados_acum = 0
-        campos_esp_acum = 0
-        campos_conf_acum = 0
+        campos_preservados_acum = 0
+        campos_escritos_acum = 0
         detalhes_acum: List[str] = []
         mapeamento_real: Dict[str, str] = {}
         seletores_nao_enc: List[Dict[str, Any]] = []
         campos_rejeitados: List[Dict[str, Any]] = []
         dom_inicial_real: Any = dom_inicial_analise
-        dom_final_real: Any = 0
+        dom_final_real: Any = dom_inicial_analise
         total_named_form = 0
 
         for idx_lote in range(total_lotes):
             ini = idx_lote * tam_lote
-            fim = min(total_planilha, ini + tam_lote)
-            fatia = todos_itens[ini:fim]
+            fim = min(qtd_fila, ini + tam_lote)
+            fatia = itens_para_enviar[ini:fim]
 
+            usar_start_index = None if (self.somente_faltantes and not self.limpar_antes) else ini
             payload_lote = {
                 "stepIndex": step_index,
                 "repeaterName": repeater_name,
                 "mode": mode,
                 "items": fatia,
-                "startIndex": ini,
+                "startIndex": usar_start_index,
+                "onlyMissingFields": bool(self.somente_faltantes and not self.limpar_antes),
                 "clearBeforeFill": bool(self.limpar_antes and idx_lote == 0),
-                "delayStepMs": self.delay_step_ms if idx_lote == 0 else 80,
+                "delayStepMs": self.delay_step_ms if idx_lote == 0 else 60,
                 "delayAddMs": self.delay_add_ms,
                 "delayFieldMs": self.delay_field_ms,
             }
@@ -1513,50 +2213,92 @@ class ControladorExecucaoOculta:
                 erro_msg = res_lote.get("erro") if isinstance(res_lote, dict) else str(res_lote)
                 log_debug(
                     nome_exibicao,
-                    f"❌ Falha no Lote {idx_lote + 1}/{total_lotes} (linhas {ini + 1}..{fim} de {total_planilha}): {erro_msg}",
+                    f"❌ Falha no Lote {idx_lote + 1}/{total_lotes} (pendentes {ini + 1}..{fim} de {qtd_fila}): {erro_msg}",
                     nivel="ERRO",
                 )
                 return {
                     "ok": False,
                     "erro": erro_msg,
                     "loteFalhou": idx_lote + 1,
-                    "linhasProcessadasAntesDoErro": preenchidos_acum,
+                    "linhasProcessadasAntesDoErro": preenchidos_lotes,
                     "cardsCriadosAntesDoErro": cards_criados_acum,
                     "detalhes": detalhes_acum,
                 }
 
-            if idx_lote == 0 and "linhasIniciaisDOM" in res_lote:
+            if idx_lote == 0 and "linhasIniciaisDOM" in res_lote and dom_inicial_real == "?":
                 dom_inicial_real = res_lote.get("linhasIniciaisDOM")
 
             p_lote = int(res_lote.get("preenchidos", 0))
             c_lote = int(res_lote.get("cardsCriados", 0))
             ce_lote = int(res_lote.get("camposEsperadosTotal", 0))
             cc_lote = int(res_lote.get("camposConfirmadosTotal", 0))
+            cp_lote = int(res_lote.get("camposPreservados", 0))
+            cw_lote = int(res_lote.get("camposEscritosAgora", 0))
+            grau_lote = float(res_lote.get("grauConfirmacaoLotePct", 100.0))
             dom_final_real = res_lote.get("totalLinhasDOM", dom_final_real)
             total_named_form = int(res_lote.get("totalNamedForm", total_named_form) or 0)
 
-            preenchidos_acum += p_lote
+            preenchidos_lotes += p_lote
             cards_criados_acum += c_lote
-            campos_esp_acum += ce_lote
-            campos_conf_acum += cc_lote
+            campos_preservados_acum += cp_lote
+            campos_escritos_acum += cw_lote
             detalhes_acum.extend(res_lote.get("detalhes") or [])
             mapeamento_real.update(res_lote.get("mapeamentoRealCampos") or {})
             seletores_nao_enc.extend(res_lote.get("seletoresNaoEncontrados") or [])
             campos_rejeitados.extend(res_lote.get("camposRejeitados") or [])
 
+            primeiro_card_lote = (
+                fatia[0]["__targetIndex"] + 1
+                if isinstance(fatia[0], dict) and "__targetIndex" in fatia[0]
+                else ini + 1
+            )
+            ultimo_card_lote = (
+                fatia[-1]["__targetIndex"] + 1
+                if isinstance(fatia[-1], dict) and "__targetIndex" in fatia[-1]
+                else fim
+            )
+
             log_debug(
                 nome_exibicao,
-                f"📦 Lote {idx_lote + 1}/{total_lotes} (linhas {ini + 1}..{fim}/{total_planilha}) em {res_lote.get('_tempo_s', 0)}s | "
-                f"+{c_lote} card(s) criado(s) | DOM atual={dom_final_real} | "
-                f"Campos confirmados={cc_lote}/{ce_lote} | Total inputs <form>={total_named_form}",
+                f"📦 Lote {idx_lote + 1}/{total_lotes} (cards #{primeiro_card_lote}..#{ultimo_card_lote}) em {res_lote.get('_tempo_s', 0)}s | "
+                f"+{c_lote} criado(s) | escritos={cw_lote}, preservados={cp_lote} | "
+                f"Confirmação lote={cc_lote}/{ce_lote} ({grau_lote:.1f}%) | DOM={dom_final_real} | <form>={total_named_form}",
                 nivel="DEBUG" if total_lotes > 1 else "INFO",
             )
 
-            # Pausa entre lotes para o navegador respirar e atualizar layout/máscaras
             if idx_lote + 1 < total_lotes:
                 time.sleep(0.30)
 
+        # 3. Confirmação pós-escrita do bloco completo para aferir o Grau de Confirmação (%)
+        verif_pos = self.verificar_repeater(
+            step_index=step_index,
+            repeater_name=repeater_name,
+            mode=mode,
+            items=todos_itens,
+            delay_step_ms=80,
+            timeout=30.0,
+        )
+        if verif_pos.get("ok"):
+            linhas_confirmadas_finais = int(verif_pos.get("linhasCompletas", linhas_ja_prontas_antes + preenchidos_lotes))
+            campos_esp_finais = int(verif_pos.get("camposEsperadosTotal", campos_esp_total_bloco))
+            campos_conf_finais = int(verif_pos.get("camposConfirmadosTotal", 0))
+            grau_depois = float(verif_pos.get("grauConfirmacaoPct", 0.0))
+            dom_final_real = verif_pos.get("totalLinhasDOM", dom_final_real)
+            total_named_form = int(verif_pos.get("totalNamedForm", total_named_form) or 0)
+        else:
+            linhas_confirmadas_finais = linhas_ja_prontas_antes + preenchidos_lotes
+            campos_esp_finais = campos_esp_total_bloco or campos_escritos_acum
+            campos_conf_finais = campos_conf_antes + campos_escritos_acum
+            grau_depois = round((campos_conf_finais / campos_esp_finais) * 100.0, 2) if campos_esp_finais > 0 else 100.0
+
         dt_total = round(time.time() - t_global, 2)
+        log_debug(
+            nome_exibicao,
+            f"🏅 GRAU DE CONFIRMAÇÃO ({repeater_name}): {grau_antes:.2f}% -> {grau_depois:.2f}% "
+            f"({campos_conf_finais}/{campos_esp_finais} campos | {linhas_confirmadas_finais}/{total_planilha} linhas | "
+            f"escritos agora={campos_escritos_acum}, preservados={campos_preservados_acum})",
+            nivel="OK" if grau_depois >= 100.0 else "WARN",
+        )
 
         if seletores_nao_enc:
             log_debug(
@@ -1567,13 +2309,7 @@ class ControladorExecucaoOculta:
         if campos_rejeitados:
             log_debug(
                 nome_exibicao,
-                f"⚠️ ATENÇÃO: {len(campos_rejeitados)} campo(s) ficaram vazios após digitação! Exemplo: {campos_rejeitados[0]}",
-                nivel="WARN",
-            )
-        if preenchidos_acum != total_planilha:
-            log_debug(
-                nome_exibicao,
-                f"⚠️ DIVERGÊNCIA DE QUANTIDADE: Planilha tinha {total_planilha} linha(s), mas {preenchidos_acum} foram confirmadas!",
+                f"⚠️ ATENÇÃO: {len(campos_rejeitados)} campo(s) rejeitado(s)/divergente(s)! Exemplo: {campos_rejeitados[0]}",
                 nivel="WARN",
             )
 
@@ -1581,12 +2317,17 @@ class ControladorExecucaoOculta:
             "bloco": nome_exibicao,
             "repeater": repeater_name,
             "total_planilha": total_planilha,
-            "preenchidos": preenchidos_acum,
+            "preenchidos": linhas_confirmadas_finais,
+            "linhas_ja_prontas_antes": linhas_ja_prontas_antes,
+            "linhas_trabalhadas_agora": qtd_fila,
+            "pulado_ja_completo": False,
+            "grau_confirmacao_antes": grau_antes,
+            "grau_confirmacao_depois": grau_depois,
             "dom_inicial": dom_inicial_real,
             "cards_criados": cards_criados_acum,
             "dom_final": dom_final_real,
-            "campos_esperados": campos_esp_acum,
-            "campos_confirmados": campos_conf_acum,
+            "campos_esperados": campos_esp_finais,
+            "campos_confirmados": campos_conf_finais,
             "mapeamento_campos": mapeamento_real,
             "seletores_nao_encontrados": seletores_nao_enc,
             "campos_rejeitados": campos_rejeitados,
@@ -1598,17 +2339,196 @@ class ControladorExecucaoOculta:
 
         return {
             "ok": True,
-            "preenchidos": preenchidos_acum,
+            "preenchidos": linhas_confirmadas_finais,
             "cardsCriados": cards_criados_acum,
             "totalLinhasDOM": dom_final_real,
-            "camposEsperadosTotal": campos_esp_acum,
-            "camposConfirmadosTotal": campos_conf_acum,
+            "camposEsperadosTotal": campos_esp_finais,
+            "camposConfirmadosTotal": campos_conf_finais,
+            "grauConfirmacaoPct": grau_depois,
             "seletoresNaoEncontrados": seletores_nao_enc,
             "camposRejeitados": campos_rejeitados,
             "totalNamedForm": total_named_form,
             "detalhes": detalhes_acum,
             "_tempo_s": dt_total,
         }
+
+    def executar_segunda_passada_verificacao(self, tentar_reparo_cirurgico: bool = True) -> Dict[str, Any]:
+        """
+        Executa uma 2ª PASSADA independente por todos os blocos processados,
+        relendo do zero todos os campos do DOM e confrontando com a planilha.
+        Se detectar qualquer campo divergente/faltante, tenta 1 reparo cirúrgico lento e revalida.
+        """
+        if not self.blocos_para_segunda_passada:
+            return {
+                "ok": True,
+                "tudo_100_confirmado": True,
+                "grau_confirmacao_global": 100.0,
+                "campos_esperados_global": 0,
+                "campos_confirmados_global": 0,
+                "blocos": [],
+            }
+
+        print("\n" + "=" * 105)
+        log_debug(
+            "2ª PASSADA — AUDITORIA FINAL",
+            f"Iniciando 2ª passada independente de verificação em {len(self.blocos_para_segunda_passada)} bloco(s)...",
+            nivel="INFO",
+        )
+        print("=" * 105)
+
+        resumo_blocos: List[Dict[str, Any]] = []
+        campos_esp_global = 0
+        campos_conf_global = 0
+        blocos_com_falha: List[Dict[str, Any]] = []
+
+        for reg in self.blocos_para_segunda_passada:
+            step_idx = reg["stepIndex"]
+            rep_name = reg["repeaterName"]
+            mode = reg["mode"]
+            nome_exib = reg["nomeExibicao"]
+            itens = reg["items"]
+            hist_idx = reg["histIndex"]
+
+            verif = self.verificar_repeater(
+                step_index=step_idx,
+                repeater_name=rep_name,
+                mode=mode,
+                items=itens,
+                delay_step_ms=self.delay_step_ms,
+                timeout=35.0,
+            )
+            if not verif.get("ok"):
+                log_debug("2ª PASSADA", f"❌ Erro ao verificar '{nome_exib}': {verif.get('erro')}", nivel="ERRO")
+                blocos_com_falha.append({"bloco": nome_exib, "erro": verif.get("erro")})
+                continue
+
+            pendentes = [int(i) for i in (verif.get("indicesPendentes") or [])]
+
+            # Se algo falhou na 1ª passada, realiza reparo cirúrgico automático com espera reforçada
+            if pendentes and tentar_reparo_cirurgico:
+                log_debug(
+                    "2ª PASSADA — REPARO CIRÚRGICO",
+                    f"⚠️ '{nome_exib}' apresentou {len(pendentes)} linha(s) pendente(s) na 2ª passada "
+                    f"(Grau={verif.get('grauConfirmacaoPct')}%). Reaplicando cirurgicamente com espera reforçada...",
+                    nivel="WARN",
+                )
+                if mode == "single_column":
+                    itens_reparo: List[Any] = [{"__targetIndex": idx_p, "__value": itens[idx_p]} for idx_p in pendentes]
+                else:
+                    itens_reparo = [{"__targetIndex": idx_p, "__fields": itens[idx_p]} for idx_p in pendentes]
+
+                tam_lote_rep = max(1, min(10, self.tamanho_lote))
+                for ini_r in range(0, len(itens_reparo), tam_lote_rep):
+                    fatia_r = itens_reparo[ini_r : ini_r + tam_lote_rep]
+                    self._executar_chamada_repeater_unica(
+                        {
+                            "stepIndex": step_idx,
+                            "repeaterName": rep_name,
+                            "mode": mode,
+                            "items": fatia_r,
+                            "startIndex": None,
+                            "onlyMissingFields": True,
+                            "clearBeforeFill": False,
+                            "delayStepMs": self.delay_step_ms if ini_r == 0 else 80,
+                            "delayAddMs": max(160, self.delay_add_ms),
+                            "delayFieldMs": max(55, self.delay_field_ms),
+                        },
+                        timeout=float(TIMEOUT_COMANDO_PADRAO),
+                    )
+                    time.sleep(0.25)
+
+                verif_pos_reparo = self.verificar_repeater(
+                    step_index=step_idx,
+                    repeater_name=rep_name,
+                    mode=mode,
+                    items=itens,
+                    delay_step_ms=100,
+                    timeout=35.0,
+                )
+                if verif_pos_reparo.get("ok"):
+                    verif = verif_pos_reparo
+                    pendentes = [int(i) for i in (verif.get("indicesPendentes") or [])]
+
+            c_esp = int(verif.get("camposEsperadosTotal", 0))
+            c_conf = int(verif.get("camposConfirmadosTotal", 0))
+            linhas_ok = int(verif.get("linhasCompletas", 0))
+            grau_fin = float(verif.get("grauConfirmacaoPct", 0.0))
+            divs = verif.get("divergencias") or []
+            ok_100 = len(pendentes) == 0 and c_conf == c_esp
+
+            campos_esp_global += c_esp
+            campos_conf_global += c_conf
+
+            grau_antes_hist = 0.0
+            if 0 <= hist_idx < len(self.historico_relatorio):
+                h_ref = self.historico_relatorio[hist_idx]
+                grau_antes_hist = float(h_ref.get("grau_confirmacao_antes", 0.0))
+                h_ref["preenchidos"] = linhas_ok
+                h_ref["campos_esperados"] = c_esp
+                h_ref["campos_confirmados"] = c_conf
+                h_ref["grau_confirmacao_depois"] = grau_fin
+                h_ref["dom_final"] = verif.get("totalLinhasDOM", h_ref.get("dom_final"))
+                h_ref["total_named_form"] = int(verif.get("totalNamedForm", h_ref.get("total_named_form", 0)) or 0)
+                if divs:
+                    h_ref["divergencias_finais"] = divs
+
+            if not ok_100:
+                blocos_com_falha.append({
+                    "bloco": nome_exib,
+                    "repeater": rep_name,
+                    "pendentes": len(pendentes),
+                    "grau": grau_fin,
+                    "divergencias": divs[:5],
+                })
+
+            resumo_blocos.append({
+                "bloco": nome_exib,
+                "repeater": rep_name,
+                "total_planilha": len(itens),
+                "linhas_ok": linhas_ok,
+                "campos_esperados": c_esp,
+                "campos_confirmados": c_conf,
+                "grau_antes": grau_antes_hist,
+                "grau_final": grau_fin,
+                "pendentes": len(pendentes),
+                "ok_100": ok_100,
+            })
+
+        grau_global = round((campos_conf_global / campos_esp_global) * 100.0, 2) if campos_esp_global > 0 else 100.0
+        tudo_ok = len(blocos_com_falha) == 0 and campos_conf_global == campos_esp_global
+
+        print("-" * 105)
+        print(
+            f"{'BLOCO AUDITADO (2ª PASSADA)':<38} | {'LINHAS OK':>11} | {'CAMPOS OK':>13} | {'ANTES':>9} | {'FINAL':>9} | {'STATUS'}"
+        )
+        print("-" * 105)
+        for rb in resumo_blocos:
+            st = "✅ 100% CONFIRMADO" if rb["ok_100"] else f"❌ {rb['pendentes']} PENDENTE(S)"
+            linhas_str = f"{rb['linhas_ok']}/{rb['total_planilha']}"
+            campos_str = f"{rb['campos_confirmados']}/{rb['campos_esperados']}"
+            print(
+                f"{rb['bloco'][:38]:<38} | {linhas_str:>11} | {campos_str:>13} | "
+                f"{rb['grau_antes']:>8.2f}% | {rb['grau_final']:>8.2f}% | {st}"
+            )
+        print("-" * 105)
+        icone_global = "🏆" if tudo_ok else "⚠️"
+        print(
+            f"{icone_global} GRAU DE CONFIRMAÇÃO GLOBAL DA 2ª PASSADA: {grau_global:.2f}% "
+            f"({campos_conf_global}/{campos_esp_global} campos confirmados no DOM)"
+        )
+        print("=" * 105 + "\n", flush=True)
+
+        resultado_final = {
+            "ok": True,
+            "tudo_100_confirmado": tudo_ok,
+            "grau_confirmacao_global": grau_global,
+            "campos_esperados_global": campos_esp_global,
+            "campos_confirmados_global": campos_conf_global,
+            "blocos": resumo_blocos,
+            "blocos_com_falha": blocos_com_falha,
+        }
+        self.resumo_segunda_passada = resultado_final
+        return resultado_final
 
 
 # =============================================================================
@@ -1624,12 +2544,12 @@ def conectar_guia_com_debug_e_timer(
     Tenta conectar à guia já aberta do Nex Privacy testando:
     1º Canal A: Porta CDP 9222 (`--remote-debugging-port=9222`).
     2º Canal B: Ponte/Extensão local na porta 8765 (`dados/extensao_background` ou Console F12).
-    Se não conectar dentro de `timeout_segundos`, PARA IMEDIATAMENTE e exibe o diagnóstico completo!
+    Exige versão da ponte >= VERSAO_PONTE_MINIMA (v3) para suportar auditoria incremental + 2ª passada + Salvar rascunho.
     """
-    log_debug("PASSO 1/3 — CONEXÃO", "Iniciando verificação dos canais de comunicação em 2º plano...", nivel="INFO")
+    log_debug("PASSO 1/4 — CONEXÃO", "Iniciando verificação dos canais de comunicação em 2º plano...", nivel="INFO")
 
     # 1. Testa primeiro se o Chrome já está ouvindo na porta CDP 9222
-    log_debug("PASSO 1/3 — CONEXÃO", f"Testando Canal A (CDP direto em http://127.0.0.1:{ctrl.porta_cdp}/json)...", nivel="DEBUG")
+    log_debug("PASSO 1/4 — CONEXÃO", f"Testando Canal A (CDP direto em http://127.0.0.1:{ctrl.porta_cdp}/json)...", nivel="DEBUG")
     cli_cdp, msg_cdp = _tentar_conectar_via_cdp_9222(ctrl.porta_cdp)
     if cli_cdp is not None:
         ctrl.cliente_cdp = cli_cdp
@@ -1637,20 +2557,20 @@ def conectar_guia_com_debug_e_timer(
         etapa_dom = cli_cdp.executar_js(
             "(document.querySelector('.wizard-nav button.active') || {textContent: '1. Identificação'}).textContent.trim()"
         )
-        log_debug("PASSO 1/3 — CONEXÃO", f"{msg_cdp} | Etapa ativa no DOM: '{etapa_dom}'", nivel="OK")
+        log_debug("PASSO 1/4 — CONEXÃO", f"{msg_cdp} | Etapa ativa no DOM: '{etapa_dom}'", nivel="OK")
         return True
-    log_debug("PASSO 1/3 — CONEXÃO", f"Canal A (CDP 9222) não ativo: {msg_cdp}", nivel="WARN")
+    log_debug("PASSO 1/4 — CONEXÃO", f"Canal A (CDP 9222) não ativo: {msg_cdp}", nivel="WARN")
 
     # 2. Inicia e testa o Canal B (Servidor Ponte / Extensão em 127.0.0.1:8765)
     log_debug(
-        "PASSO 1/3 — CONEXÃO",
+        "PASSO 1/4 — CONEXÃO",
         f"Iniciando Canal B (Ponte Oculta em http://127.0.0.1:{ctrl.porta_ponte})...",
         nivel="DEBUG",
     )
     ok_srv, msg_srv = ctrl.iniciar_servidor_ponte()
     if not ok_srv:
         return abortar_com_diagnostico(
-            onde_parou="PASSO 1/3 — Inicialização do Servidor Ponte Local (Porta 8765)",
+            onde_parou="PASSO 1/4 — Inicialização do Servidor Ponte Local (Porta 8765)",
             motivo_erro=msg_srv,
             detalhes_tecnicos=[
                 f"Canal A (CDP 9222): {msg_cdp}",
@@ -1661,30 +2581,41 @@ def conectar_guia_com_debug_e_timer(
                 "Ou passe outra porta com `--porta 8766`.",
             ],
         )
-    log_debug("PASSO 1/3 — CONEXÃO", msg_srv, nivel="OK")
+    log_debug("PASSO 1/4 — CONEXÃO", msg_srv, nivel="OK")
+
+    comando_console = f"fetch('http://127.0.0.1:{ctrl.porta_ponte}/bridge.js').then(r=>r.text()).then(eval)"
+    detectou_ponte_antiga = False
 
     # Testa um ping rápido inicial de 2s
     res_ping = ctrl.enviar_comando_ponte("ping", timeout=2.0)
     if isinstance(res_ping, dict) and res_ping.get("ok"):
-        ctrl.modo_ativo = "ponte"
-        log_debug(
-            "PASSO 1/3 — CONEXÃO",
-            f"Guia já aberta conectada via Canal B ({res_ping.get('modo')}): "
-            f"'{res_ping.get('title')}' | Etapa ativa: '{res_ping.get('etapaAtiva')}'",
-            nivel="OK",
-        )
-        return True
+        versao_remota = int(res_ping.get("versao") or 1)
+        if versao_remota >= VERSAO_PONTE_MINIMA:
+            ctrl.modo_ativo = "ponte"
+            log_debug(
+                "PASSO 1/4 — CONEXÃO",
+                f"Guia já aberta conectada via Canal B v{versao_remota} ({res_ping.get('modo')}): "
+                f"'{res_ping.get('title')}' | Etapa ativa: '{res_ping.get('etapaAtiva')}'",
+                nivel="OK",
+            )
+            return True
+        detectou_ponte_antiga = True
 
-    comando_console = f"fetch('http://127.0.0.1:{ctrl.porta_ponte}/bridge.js').then(r=>r.text()).then(eval)"
     print("\n" + "-" * 78)
-    log_debug(
-        "PASSO 1/3 — CONEXÃO",
-        f"Nenhuma resposta imediata da guia do Nex Privacy. Iniciando TIMER DE {timeout_segundos}s...",
-        nivel="TIMER",
-    )
-    print(f"   👉 Extensão automática (em chrome://extensions -> Carregar sem compactação):")
-    print(f"      {PASTA_EXTENSAO_BG}")
-    print(f"   👉 Ou no Console [F12] da guia aberta do Nex Privacy:")
+    if detectou_ponte_antiga:
+        log_debug(
+            "PASSO 1/4 — ATUALIZAÇÃO DA PONTE",
+            f"A guia aberta está com a Ponte v2 anterior! Cole 1 vez o comando abaixo no Console [F12] "
+            f"para ativar a Ponte v{VERSAO_PONTE_MINIMA} (Incremental + 2ª Passada + Salvar Rascunho). Timer={timeout_segundos}s:",
+            nivel="WARN",
+        )
+    else:
+        log_debug(
+            "PASSO 1/4 — CONEXÃO",
+            f"Nenhuma resposta imediata da guia do Nex Privacy. Iniciando TIMER DE {timeout_segundos}s...",
+            nivel="TIMER",
+        )
+    print(f"   👉 Cole no Console [F12] da guia aberta do Nex Privacy:")
     print(f"      {comando_console}")
     print("-" * 78, flush=True)
 
@@ -1696,58 +2627,61 @@ def conectar_guia_com_debug_e_timer(
 
         if decorrido != ultimo_aviso and decorrido % 3 == 0:
             ultimo_aviso = decorrido
+            msg_aguardo = (
+                f"Aguardando colar atualização da Ponte v{VERSAO_PONTE_MINIMA} no Console [F12]... "
+                if detectou_ponte_antiga
+                else "Aguardando sinal da guia do Nex Privacy... "
+            )
             log_debug(
                 "TIMER CONEXÃO",
-                f"Aguardando sinal da guia do Nex Privacy... "
-                f"Restam {restante:2d}s | Polls recebidos={ctrl.qtd_polls_recebidos} | "
+                f"{msg_aguardo}Restam {restante:2d}s | Polls={ctrl.qtd_polls_recebidos} | "
                 f"Bridge.js baixado={ctrl.qtd_bridge_baixados}",
                 nivel="TIMER",
             )
 
         res_ping = ctrl.enviar_comando_ponte("ping", timeout=1.0)
         if isinstance(res_ping, dict) and res_ping.get("ok"):
-            ctrl.modo_ativo = "ponte"
-            log_debug(
-                "PASSO 1/3 — CONEXÃO",
-                f"Sinal recebido! Guia conectada: '{res_ping.get('title')}' "
-                f"| Etapa ativa: '{res_ping.get('etapaAtiva')}' | Modo: {res_ping.get('modo')}",
-                nivel="OK",
-            )
-            return True
+            versao_remota = int(res_ping.get("versao") or 1)
+            if versao_remota >= VERSAO_PONTE_MINIMA:
+                ctrl.modo_ativo = "ponte"
+                log_debug(
+                    "PASSO 1/4 — CONEXÃO",
+                    f"Ponte v{versao_remota} conectada! Guia: '{res_ping.get('title')}' "
+                    f"| Etapa ativa: '{res_ping.get('etapaAtiva')}' | Modo: {res_ping.get('modo')}",
+                    nivel="OK",
+                )
+                return True
+            detectou_ponte_antiga = True
 
         # Também re-testa CDP 9222 caso o usuário tenha aberto com porta 9222 nesse meio tempo
         cli_cdp, _ = _tentar_conectar_via_cdp_9222(ctrl.porta_cdp)
         if cli_cdp is not None:
             ctrl.cliente_cdp = cli_cdp
             ctrl.modo_ativo = "cdp"
-            log_debug("PASSO 1/3 — CONEXÃO", "Conectado via Canal A (CDP 9222)!", nivel="OK")
+            log_debug("PASSO 1/4 — CONEXÃO", "Conectado via Canal A (CDP 9222)!", nivel="OK")
             return True
 
-    # SE CHEGOU AQUI, O TIMER EXPIROU! PARA IMEDIATAMENTE E EXPLICA O ERRO!
     detalhes = [
-        f"Tempo limite esgotado ({timeout_segundos}s) esperando resposta da guia '{URL_PADRAO_NEX_PRIVACY}'.",
+        f"Tempo limite esgotado ({timeout_segundos}s) esperando resposta compatível (v{VERSAO_PONTE_MINIMA}) da guia '{URL_PADRAO_NEX_PRIVACY}'.",
         f"Canal A (CDP porta {ctrl.porta_cdp}): {msg_cdp}.",
         f"Canal B (Ponte porta {ctrl.porta_ponte}): Polls recebidos = {ctrl.qtd_polls_recebidos}, Downloads de /bridge.js = {ctrl.qtd_bridge_baixados}.",
     ]
-    if ctrl.qtd_polls_recebidos == 0 and ctrl.qtd_bridge_baixados == 0:
+    if detectou_ponte_antiga:
         detalhes.append(
-            "CAUSA DETECTADA: O navegador Google Chrome aberto está isolado (nem a extensão de "
-            "`dados/extensao_background` foi carregada em `chrome://extensions`, nem o comando do Console F12 foi executado na guia)."
+            f"CAUSA DETECTADA: A guia respondeu com uma versão anterior da ponte (< v{VERSAO_PONTE_MINIMA}). "
+            f"Basta colar `{comando_console}` no Console [F12] da guia aberta para atualizar em tempo real."
         )
-    elif ctrl.qtd_polls_recebidos > 0:
+    elif ctrl.qtd_polls_recebidos == 0 and ctrl.qtd_bridge_baixados == 0:
         detalhes.append(
-            "CAUSA DETECTADA: A extensão respondeu ao poll, mas NÃO encontrou nenhuma aba aberta com a URL "
-            "`https://parana.nexprivacy.com/admin/institutional-documents/...` neste navegador."
+            "CAUSA DETECTADA: O navegador Google Chrome aberto está isolado (nem a extensão foi carregada nem o comando do Console F12 foi executado na guia)."
         )
 
     return abortar_com_diagnostico(
-        onde_parou="PASSO 1/3 — Conexão com a guia já aberta do Nex Privacy",
-        motivo_erro=f"A guia do sistema não respondeu dentro do timer de {timeout_segundos} segundos.",
+        onde_parou="PASSO 1/4 — Conexão com a guia já aberta do Nex Privacy",
+        motivo_erro=f"A guia do sistema não conectou com a Ponte v{VERSAO_PONTE_MINIMA} dentro do timer de {timeout_segundos} segundos.",
         detalhes_tecnicos=detalhes,
         como_resolver=[
-            f"Abra `chrome://extensions` no seu Chrome, ative 'Modo do desenvolvedor', clique em 'Carregar sem compactação' e selecione a pasta:\n      {PASTA_EXTENSAO_BG}",
-            "Certifique-se de que a guia `https://parana.nexprivacy.com/admin/institutional-documents/100/edit` está aberta nesse mesmo Chrome.",
-            "Se preferir usar o Console (F12) na guia aberta sem instalar a extensão, lembre-se de que o Chrome pede para digitar `allow pasting` na 1ª vez antes de colar o comando `fetch(...)`.",
+            f"No Console [F12] da guia `https://parana.nexprivacy.com/admin/institutional-documents/100/edit`, cole:\n      {comando_console}",
         ],
     )
 
@@ -2499,19 +3433,25 @@ def executar_automacao_segundo_plano(
     tamanho_lote: int = TAMANHO_LOTE_PADRAO,
     limpar_antes: bool = False,
     apenas_analisar: bool = False,
+    somente_faltantes: bool = True,
+    segunda_passada: bool = True,
+    salvar_rascunho: bool = True,
 ) -> bool:
     """
-    Executa a automação 100% oculta com `[DEBUG]` passo a passo, análise prévia dos campos do DOM,
-    lotes cadenciados com maior tempo de espera e verificação por leitura reversa.
+    Executa a automação 100% oculta com:
+    1. Análise prévia dos campos do rascunho atual no DOM vs Planilha.
+    2. Preenchimento incremental (`somente_faltantes=True`): preserva o que já está 100% certo e preenche só o que falta.
+    3. 2ª Passada independente (`segunda_passada=True`) conferindo 100% dos campos e calculando o Grau de Confirmação (%).
+    4. Clique automático em `'Salvar rascunho'` (`data-submit-mode="draft"`) SE E SOMENTE SE tudo estiver 100% confirmado!
     """
     chave = str(alvo or "todas").strip().lower()
     mapeamento = carregar_mapeamento() or {}
 
     log_debug(
         "INÍCIO",
-        f"Alvo='{chave}' | Limite={limite or 'SEM LIMITE'} | DelayAdd={delay_add_ms}ms | "
-        f"Lote={tamanho_lote} | LimparAntes={limpar_antes} | ApenasAnalisar={apenas_analisar} | "
-        f"Timeout Conexão={timeout_conexao}s",
+        f"Alvo='{chave}' | Limite={limite or 'SEM LIMITE'} | Incremental={somente_faltantes and not limpar_antes} | "
+        f"2ªPassada={segunda_passada} | SalvarRascunho={salvar_rascunho} | DelayAdd={delay_add_ms}ms | "
+        f"Lote={tamanho_lote} | LimparAntes={limpar_antes} | Timeout={timeout_conexao}s",
         nivel="INFO",
     )
 
@@ -2521,6 +3461,7 @@ def executar_automacao_segundo_plano(
         delay_add_ms=delay_add_ms,
         tamanho_lote=tamanho_lote,
         limpar_antes=limpar_antes,
+        somente_faltantes=somente_faltantes,
     )
     try:
         # PASSO 1: Conectar à guia já aberta do Nex Privacy (com Timer regressivo e diagnóstico)
@@ -2531,7 +3472,7 @@ def executar_automacao_segundo_plano(
         caminho_xlsx = obter_planilha_com_debug_e_timer(ctrl, caminho_planilha)
         if caminho_xlsx is None and not apenas_analisar and chave not in ("pagina6", "p6", "6", "6.1", "kpis"):
             return abortar_com_diagnostico(
-                onde_parou=f"PASSO 2/3 — Leitura da Planilha '{NOME_PADRAO_PLANILHA_DRIVE}'",
+                onde_parou=f"PASSO 2/4 — Leitura da Planilha '{NOME_PADRAO_PLANILHA_DRIVE}'",
                 motivo_erro="Não foi possível ler a planilha `.xlsx` localmente nem via extensão do Chrome.",
                 detalhes_tecnicos=[
                     f"Buscado em: `{DADOS_DIR}`, `{Path.cwd()}` e `{Path.home() / 'Downloads'}`.",
@@ -2550,60 +3491,114 @@ def executar_automacao_segundo_plano(
             log_debug("ANÁLISE CONCLUÍDA", "Modo somente-análise finalizado sem alterar os campos da tela.", nivel="OK")
             return True
 
-        # PASSO 3: Executar os blocos solicitados em sequência (parando imediatamente no 1º erro)
-        log_debug("PASSO 3/3 — EXECUÇÃO", f"Iniciando preenchimento em 2º plano para alvo='{chave}'...", nivel="INFO")
+        # PASSO 3: 1ª Passada — Preenchimento Incremental (apenas o que falta/diverge no rascunho)
+        log_debug(
+            "PASSO 3/4 — 1ª PASSADA",
+            f"Iniciando preenchimento incremental em 2º plano para alvo='{chave}' (somente_faltantes={ctrl.somente_faltantes})...",
+            nivel="INFO",
+        )
 
         if chave in ("3.1", "swot"):
-            return _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-        if chave in ("3.2", "inventario"):
-            return _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-        if chave in ("pagina3", "p3", "3"):
-            return (
+            ok = _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+        elif chave in ("3.2", "inventario"):
+            ok = _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+        elif chave in ("pagina3", "p3", "3"):
+            ok = (
                 _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
                 and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
             )
-        if chave in ("4.1", "metas-acoes"):
-            return _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
-        if chave in ("4.2", "orcamento"):
-            return _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-        if chave in ("4.3", "riscos"):
-            return _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-        if chave in ("pagina4", "p4", "4"):
-            return (
+        elif chave in ("4.1", "metas-acoes"):
+            ok = _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
+        elif chave in ("4.2", "orcamento"):
+            ok = _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+        elif chave in ("4.3", "riscos"):
+            ok = _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+        elif chave in ("pagina4", "p4", "4"):
+            ok = (
                 _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
                 and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
                 and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
             )
-        if chave in ("5.1", "capacitacao"):
-            return _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-        if chave in ("5.3", "acoes-especificas"):
-            return _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-        if chave in ("pagina5", "p5", "5"):
-            return (
+        elif chave in ("5.1", "capacitacao"):
+            ok = _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+        elif chave in ("5.3", "acoes-especificas"):
+            ok = _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+        elif chave in ("pagina5", "p5", "5"):
+            ok = (
                 _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
                 and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
             )
-        if chave in ("pagina6", "p6", "6", "6.1", "kpis"):
-            return _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
-
-        ok = (
-            _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
-            and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
-        )
-        
-        if ok:
-            log_debug(
-                "FINALIZADO",
-                "🎉 Todas as etapas solicitadas foram preenchidas em 2º plano com sucesso!",
-                nivel="OK",
+        elif chave in ("pagina6", "p6", "6", "6.1", "kpis"):
+            ok = _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
+        else:
+            ok = (
+                _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
+                and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
             )
-        return ok
+
+        if not ok:
+            return False
+
+        # PASSO 4: 2ª Passada independente de verificação de todos os campos + Grau de Confirmação Global
+        tudo_confirmado_100 = True
+        grau_global_final = 100.0
+        if segunda_passada:
+            res_2a = ctrl.executar_segunda_passada_verificacao(tentar_reparo_cirurgico=True)
+            tudo_confirmado_100 = bool(res_2a.get("tudo_100_confirmado"))
+            grau_global_final = float(res_2a.get("grau_confirmacao_global", 0.0))
+
+            if not tudo_confirmado_100:
+                falhas_2a = res_2a.get("blocos_com_falha") or []
+                return abortar_com_diagnostico(
+                    onde_parou="PASSO 4/4 — 2ª Passada de Auditoria e Confirmação",
+                    motivo_erro=(
+                        f"Grau de confirmação global ficou em {grau_global_final:.2f}% "
+                        "(abaixo de 100%). Por segurança, 'Salvar rascunho' NÃO foi clicado!"
+                    ),
+                    detalhes_tecnicos=[f"Bloco com divergência: {f}" for f in falhas_2a],
+                    como_resolver=[
+                        "Confira no relatório de auditoria qual campo divergiu e rode novamente para completar apenas o pendente.",
+                    ],
+                )
+
+        # PASSO 5 (Final): Se estiver 100% confirmado, clica automaticamente em 'Salvar rascunho'
+        if salvar_rascunho and tudo_confirmado_100:
+            log_debug(
+                "SALVAR RASCUNHO",
+                f"✅ Grau de Confirmação = {grau_global_final:.2f}% (100% validado na 2ª passada)! "
+                "Clicando no botão 'Salvar rascunho' (data-submit-mode=\"draft\")...",
+                nivel="INFO",
+            )
+            res_draft = ctrl.clicar_salvar_rascunho(timeout=20.0)
+            if res_draft.get("ok"):
+                log_debug(
+                    "SALVAR RASCUNHO",
+                    f"💾 Clique em '{res_draft.get('textoBotao')}' enviado com sucesso! "
+                    f"(form='{res_draft.get('formAttr')}', mode='{res_draft.get('submitMode')}', "
+                    f"action='{res_draft.get('submitAction')}', total_inputs_enviados={res_draft.get('totalNamedForm')})",
+                    nivel="OK",
+                )
+                # Aguarda brevemente para o navegador disparar a submissão do formulário antes de encerrar o servidor local
+                time.sleep(1.2)
+            else:
+                log_debug(
+                    "SALVAR RASCUNHO",
+                    f"⚠️ Todos os campos foram confirmados (100%), mas não foi possível clicar em 'Salvar rascunho': {res_draft.get('erro')}",
+                    nivel="WARN",
+                )
+
+        log_debug(
+            "FINALIZADO",
+            f"🎉 Processo concluído com Grau de Confirmação Global = {grau_global_final:.2f}%!",
+            nivel="OK",
+        )
+        return True
     finally:
         # Gerar o relatório de auditoria antes de encerrar
         if hasattr(ctrl, 'historico_relatorio') and ctrl.historico_relatorio:

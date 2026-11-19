@@ -178,6 +178,31 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Limpa linhas existentes de cada bloco antes de colar os dados da planilha.",
     )
+    parser.add_argument(
+        "--reescrever-tudo",
+        dest="reescrever_tudo",
+        action="store_true",
+        help="Desativa o modo incremental (reescreve também os campos que já estavam preenchidos no rascunho).",
+    )
+    parser.add_argument(
+        "--sem-segunda-passada",
+        dest="sem_segunda_passada",
+        action="store_true",
+        help="Pula a 2ª passada independente de verificação final.",
+    )
+    parser.add_argument(
+        "--salvar-rascunho",
+        dest="salvar_rascunho",
+        action="store_true",
+        default=True,
+        help="Clica automaticamente em 'Salvar rascunho' ao final se 100%% dos campos forem confirmados (padrão: ativo).",
+    )
+    parser.add_argument(
+        "--sem-salvar-rascunho",
+        dest="sem_salvar_rascunho",
+        action="store_true",
+        help="Não clica em 'Salvar rascunho' ao final (mantém os dados apenas preenchidos na tela).",
+    )
     return parser.parse_args()
 
 
@@ -282,11 +307,18 @@ def main() -> None:
     caminho_planilha = localizar_arquivo_planilha_xlsx(args.planilha)
     nome_exib_planilha = caminho_planilha.name if caminho_planilha else NOME_ARQUIVO_EXCEL_PADRAO
 
+    somente_faltantes = not args.reescrever_tudo and not args.limpar
+    segunda_passada = not args.sem_segunda_passada
+    salvar_rascunho = bool(args.salvar_rascunho and not args.sem_salvar_rascunho and not args.analisar)
+
     print("\n" + "=" * 78)
     print("👻 AUTOMAÇÃO PDTIC 100% OCULTA (SEGUNDO PLANO / BACKGROUND)")
     print("=" * 78)
     print(f"🎯 Alvo da Execução:  {alvo.upper()}")
     print(f"📊 Limite de Linhas:  {limite if limite else 'TODAS AS LINHAS'}")
+    print(f"🩹 Modo Rascunho:     {'PREENCHER SÓ O QUE FALTA (Incremental)' if somente_faltantes else 'REESCREVER TUDO'}")
+    print(f"🔁 2ª Passada Final:  {'ATIVADA (Grau de Confirmação %)' if segunda_passada else 'DESATIVADA'}")
+    print(f"💾 Salvar Rascunho:   {'AUTOMÁTICO SE 100% CONFIRMADO' if salvar_rascunho else 'DESATIVADO'}")
     print(f"📗 Arquivo Excel:     {nome_exib_planilha}")
     print(f"🌐 Guia do Sistema:   {URL_PADRAO_NEX_PRIVACY}")
     print(f"🧩 Extensão Oculta:   {PASTA_EXTENSAO_BG}")
@@ -305,6 +337,9 @@ def main() -> None:
         tamanho_lote=args.lote,
         limpar_antes=args.limpar,
         apenas_analisar=args.analisar,
+        somente_faltantes=somente_faltantes,
+        segunda_passada=segunda_passada,
+        salvar_rascunho=salvar_rascunho,
     )
 
     if sucesso:
