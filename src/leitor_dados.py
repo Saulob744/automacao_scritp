@@ -1084,6 +1084,37 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
                     col_formula_cache = idx_col_m
                 break
 
+    # Regra do Bloco '3.2. Inventário de necessidades':
+    # Localiza a coluna 'ID DA INICIATIVA' para concatenar no campo 'DESCRIÇÃO'
+    # (ex: 'SESP.P.44 - Contratação de Assessment de Maturidade e Governança de Dados').
+    tem_inventario_no_bloco = any(
+        _resolver_chave_sinonimo(k) == "DESCRIÇÃO" for k in mapa_coluna_para_indice.keys()
+    ) and any(
+        _resolver_chave_sinonimo(k) in ("JUSTIFICATIVA", "ÁREA DEMANDANTE") for k in mapa_coluna_para_indice.keys()
+    )
+    col_id_iniciativa_inv: int = -1
+    if tem_inventario_no_bloco and 0 <= indice_linha_cabecalho < len(todas_linhas):
+        linha_cab_inv = todas_linhas[indice_linha_cabecalho]
+        prox_cab_inv = (
+            todas_linhas[indice_linha_cabecalho + 1]
+            if (indice_linha_cabecalho + 1) < len(todas_linhas)
+            else []
+        )
+        max_c_inv = max(len(linha_cab_inv), len(prox_cab_inv))
+        for idx_col_inv in range(max_c_inv):
+            if idx_col_inv in mapa_coluna_para_indice.values():
+                continue
+            cel_i1 = linha_cab_inv[idx_col_inv] if idx_col_inv < len(linha_cab_inv) else ""
+            cel_i2 = prox_cab_inv[idx_col_inv] if idx_col_inv < len(prox_cab_inv) else ""
+            comb_i = f"{cel_i1} {cel_i2}".strip()
+            if (
+                _celula_corresponde_coluna(cel_i1, "AÇÃO (ID)")
+                or _celula_corresponde_coluna(cel_i2, "AÇÃO (ID)")
+                or _celula_corresponde_coluna(comb_i, "AÇÃO (ID)")
+            ):
+                col_id_iniciativa_inv = idx_col_inv
+                break
+
     # Coleta TODAS as linhas de dados abaixo do cabeçalho (sem parar em linhas vazias intermediárias)
     if indice_linha_cabecalho != -1:
         inicio_dados = indice_linha_cabecalho + (2 if usou_linha_abaixo_no_cabecalho else 1)
@@ -1234,6 +1265,23 @@ def extrair_tabela_de_texto_tsv(texto: str, nomes_colunas_esperados: List[str]) 
             if val_nivel and val_classif:
                 if " - " not in val_nivel and not val_nivel.endswith(val_classif):
                     item[chave_nivel] = f"{val_nivel} - {val_classif}"
+
+        # 3. Concatenação Inventário de Necessidades (3.2): 'ID DA INICIATIVA' + ' - ' + 'DESCRIÇÃO'
+        # Exemplo: 'SESP.P.44 - Contratação de Assessment de Maturidade e Governança de Dados'
+        if col_id_iniciativa_inv != -1 and col_id_iniciativa_inv < len(linha):
+            val_id_inic = " ".join(linha[col_id_iniciativa_inv].strip().splitlines()).strip()
+            chave_desc_inv = next(
+                (k for k in item.keys() if _resolver_chave_sinonimo(k) == "DESCRIÇÃO"),
+                None,
+            )
+            if chave_desc_inv and item.get(chave_desc_inv) and val_id_inic:
+                val_desc_inv = str(item[chave_desc_inv]).strip()
+                if (
+                    remover_acentos(val_id_inic) not in SINONIMOS_SWOT.get("AÇÃO (ID)", set())
+                    and not val_desc_inv.startswith(f"{val_id_inic} -")
+                    and not val_desc_inv.startswith(f"{val_id_inic}-")
+                ):
+                    item[chave_desc_inv] = f"{val_id_inic} - {val_desc_inv}"
 
         # Proteção para 'Inventário de necessidades': como 'CLASSIFICAÇÃO DE PRIORIDADE' já vem com
         # um toggle pré-selecionado na planilha, linhas em branco no template que tenham apenas a
