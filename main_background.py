@@ -212,6 +212,14 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Executa uma das 5 partes (< 1.000 campos por documento no servidor): 1, 2, 3, 4 ou 5.",
     )
+    parser.add_argument(
+        "--inverso",
+        "--reverso",
+        "--de-tras-para-frente",
+        dest="inverso",
+        action="store_true",
+        help="Preenche os blocos de trás para frente (Etapa 6 -> 5.3 -> 5.1 -> 4.3 -> 4.2 -> 4.1 -> 3.2 -> 3.1).",
+    )
     return parser.parse_args()
 
 
@@ -344,6 +352,7 @@ def main() -> None:
     print("👻 AUTOMAÇÃO PDTIC 100% OCULTA (SEGUNDO PLANO / BACKGROUND)")
     print("=" * 78)
     print(f"🎯 Alvo da Execução:  {alvo.upper()}")
+    print(f"🔄 Ordem dos Blocos:  {'INVERSA (De trás para frente: Etapa 6 -> Etapa 3)' if args.inverso else 'DIRETA (Etapa 3 -> Etapa 6)'}")
     print(f"📊 Limite de Linhas:  {limite if limite else 'TODAS AS LINHAS'}")
     if parte_ativa:
         print(f"🧩 Divisão <1000:     {DEFINICAO_PARTES_LIMITE_1000[parte_ativa]['titulo']}")
@@ -372,6 +381,7 @@ def main() -> None:
         segunda_passada=segunda_passada,
         salvar_rascunho=salvar_rascunho,
         parte=parte_ativa,
+        ordem_inversa=args.inverso,
     )
 
     if sucesso:

@@ -3341,6 +3341,7 @@ def _executar_bloco_3_1_swot(
     caminho_xlsx: Path,
     limite: Optional[int] = None,
     fatia: Optional[Tuple[int, Optional[int]]] = None,
+    ordem_inversa: bool = False,
 ) -> bool:
     log_debug("BLOCO 3.1", "Iniciando Etapa 3 — Bloco 3.1 ('3.1. Análise SWOT')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(caminho_xlsx, "3.1. SWOT", list(COLUNAS_PADRAO_SWOT))
@@ -3350,6 +3351,8 @@ def _executar_bloco_3_1_swot(
         ("OPORTUNIDADES", "opportunities"),
         ("AMEAÇAS", "threats"),
     ]
+    if ordem_inversa:
+        pares = list(reversed(pares))
     for nome_col, rep_name in pares:
         vals = [buscar_valor_da_coluna(l, nome_col) for l in linhas]
         vals = [v for v in vals if v]
@@ -3485,6 +3488,7 @@ def _executar_bloco_5_1_capacitacao(
     caminho_xlsx: Path,
     limite: Optional[int] = None,
     fatia: Optional[Tuple[int, Optional[int]]] = None,
+    ordem_inversa: bool = False,
 ) -> bool:
     log_debug("BLOCO 5.1", "Iniciando Etapa 5 — Bloco 5.1 ('5.1. Plano de Capacitação')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3496,6 +3500,8 @@ def _executar_bloco_5_1_capacitacao(
         ("TREINAMENTOS TÉCNICOS", "technical-trainings"),
         ("AÇÕES DE RETENÇÃO DE TALENTOS", "talent-actions"),
     ]
+    if ordem_inversa:
+        pares = list(reversed(pares))
     for nome_col, rep_name in pares:
         vals = [buscar_valor_da_coluna(l, nome_col) for l in linhas]
         vals = [v for v in vals if v]
@@ -3509,6 +3515,7 @@ def _executar_bloco_5_3_acoes_especificas(
     caminho_xlsx: Path,
     limite: Optional[int] = None,
     fatia: Optional[Tuple[int, Optional[int]]] = None,
+    ordem_inversa: bool = False,
 ) -> bool:
     log_debug("BLOCO 5.3", "Iniciando Etapa 5 — Bloco 5.3 ('5.3. Ações Específicas')...", nivel="INFO")
     linhas = ler_guia_de_arquivo_xlsx(
@@ -3521,6 +3528,8 @@ def _executar_bloco_5_3_acoes_especificas(
         ("AÇÕES MICRO", "micro-actions"),
         ("AÇÕES EXTRAS", "extra-actions"),
     ]
+    if ordem_inversa:
+        pares = list(reversed(pares))
     for nome_col, rep_name in pares:
         vals = [buscar_valor_da_coluna(l, nome_col) for l in linhas]
         vals = [v for v in vals if v]
@@ -3537,14 +3546,17 @@ def _executar_bloco_6_kpis(
     fatia: Optional[Tuple[int, Optional[int]]] = None,
 ) -> bool:
     log_debug("BLOCO 6.1", "Iniciando Etapa 6 — 'Indicadores de sucesso (KPIs)'...", nivel="INFO")
-    linhas_kpis = obter_dados_etapa_4_da_memoria(mapeamento)
-    if not linhas_kpis and caminho_xlsx is not None:
+    linhas_kpis: List[Dict[str, str]] = []
+    if caminho_xlsx is not None:
         linhas_41 = ler_guia_de_arquivo_xlsx(
             caminho_xlsx,
             "4.1. Metas e Ações",
             list(COLUNAS_METAS_ACOES),
         )
-        linhas_kpis = salvar_dados_etapa_4_em_memoria(linhas_41, mapeamento)
+        if linhas_41:
+            linhas_kpis = salvar_dados_etapa_4_em_memoria(linhas_41, mapeamento)
+    if not linhas_kpis:
+        linhas_kpis = obter_dados_etapa_4_da_memoria(mapeamento)
 
     if not linhas_kpis:
         return abortar_com_diagnostico(
@@ -3761,14 +3773,16 @@ def executar_automacao_segundo_plano(
     segunda_passada: bool = True,
     salvar_rascunho: bool = True,
     parte: Optional[int] = None,
+    ordem_inversa: bool = False,
 ) -> bool:
     """
     Executa a automação 100% oculta com:
     1. Análise prévia dos campos do rascunho atual no DOM vs Planilha.
     2. Preenchimento incremental (`somente_faltantes=True`): preserva o que já está 100% certo e preenche só o que falta.
     3. Suporte a divisão em 5 Partes (`parte=1..5`) respeitando estritamente o limite de < 1.000 campos por documento.
-    4. 2ª Passada independente (`segunda_passada=True`) conferindo 100% dos campos e calculando o Grau de Confirmação (%).
-    5. Clique automático em `'Salvar rascunho'` (`data-submit-mode="draft"`) SE E SOMENTE SE tudo estiver 100% confirmado!
+    4. Suporte a preenchimento inverso (`ordem_inversa=True`: Etapa 6 -> Etapa 5 -> Etapa 4 -> Etapa 3).
+    5. 2ª Passada independente (`segunda_passada=True`) conferindo 100% dos campos e calculando o Grau de Confirmação (%).
+    6. Clique automático em `'Salvar rascunho'` (`data-submit-mode="draft"`) SE E SOMENTE SE tudo estiver 100% confirmado!
     """
     chave = str(alvo or "todas").strip().lower()
     mapeamento = carregar_mapeamento() or {}
@@ -3776,11 +3790,13 @@ def executar_automacao_segundo_plano(
 
     if cfg_parte:
         log_debug("MODO 5 PARTES (<1.000 CAMPOS)", f"📦 {cfg_parte['titulo']}", nivel="INFO")
+    if ordem_inversa:
+        log_debug("ORDEM INVERSA", "🔄 Preenchimento de trás para frente ativado (Etapa 6 -> Etapa 3)!", nivel="INFO")
 
     log_debug(
         "INÍCIO",
-        f"Alvo='{chave}' | Parte={parte or 'COMPLETO'} | Limite={limite or 'SEM LIMITE'} | "
-        f"Incremental={somente_faltantes and not limpar_antes} | 2ªPassada={segunda_passada} | "
+        f"Alvo='{chave}' | Parte={parte or 'COMPLETO'} | Ordem={'INVERSA (6->3)' if ordem_inversa else 'DIRETA (3->6)'} | "
+        f"Limite={limite or 'SEM LIMITE'} | Incremental={somente_faltantes and not limpar_antes} | 2ªPassada={segunda_passada} | "
         f"SalvarRascunho={salvar_rascunho} | DelayAdd={delay_add_ms}ms | Lote={tamanho_lote} | Timeout={timeout_conexao}s",
         nivel="INFO",
     )
@@ -3831,25 +3847,43 @@ def executar_automacao_segundo_plano(
 
         if cfg_parte is not None:
             fatias_p = cfg_parte["fatias"]
-            ok = (
-                _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, fatias_p["3.1"])  # type: ignore[arg-type]
-                and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite, fatias_p["3.2"])  # type: ignore[arg-type]
-                and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["4.1"])  # type: ignore[arg-type]
-                and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite, fatias_p["4.2"])  # type: ignore[arg-type]
-                and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite, fatias_p["4.3"])  # type: ignore[arg-type]
-                and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, fatias_p["5.1"])  # type: ignore[arg-type]
-                and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, fatias_p["5.3"])  # type: ignore[arg-type]
-                and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["6.1"])
-            )
+            if ordem_inversa:
+                ok = (
+                    _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["6.1"])
+                    and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, fatias_p["5.3"], ordem_inversa=True)  # type: ignore[arg-type]
+                    and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, fatias_p["5.1"], ordem_inversa=True)  # type: ignore[arg-type]
+                    and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite, fatias_p["4.3"])  # type: ignore[arg-type]
+                    and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite, fatias_p["4.2"])  # type: ignore[arg-type]
+                    and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["4.1"])  # type: ignore[arg-type]
+                    and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite, fatias_p["3.2"])  # type: ignore[arg-type]
+                    and _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, fatias_p["3.1"], ordem_inversa=True)  # type: ignore[arg-type]
+                )
+            else:
+                ok = (
+                    _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, fatias_p["3.1"])  # type: ignore[arg-type]
+                    and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite, fatias_p["3.2"])  # type: ignore[arg-type]
+                    and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["4.1"])  # type: ignore[arg-type]
+                    and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite, fatias_p["4.2"])  # type: ignore[arg-type]
+                    and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite, fatias_p["4.3"])  # type: ignore[arg-type]
+                    and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, fatias_p["5.1"])  # type: ignore[arg-type]
+                    and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, fatias_p["5.3"])  # type: ignore[arg-type]
+                    and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite, fatias_p["6.1"])
+                )
         elif chave in ("3.1", "swot"):
-            ok = _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+            ok = _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, ordem_inversa=ordem_inversa)  # type: ignore[arg-type]
         elif chave in ("3.2", "inventario"):
             ok = _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
         elif chave in ("pagina3", "p3", "3"):
-            ok = (
-                _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-                and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            )
+            if ordem_inversa:
+                ok = (
+                    _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, ordem_inversa=True)  # type: ignore[arg-type]
+                )
+            else:
+                ok = (
+                    _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                )
         elif chave in ("4.1", "metas-acoes"):
             ok = _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
         elif chave in ("4.2", "orcamento"):
@@ -3857,22 +3891,46 @@ def executar_automacao_segundo_plano(
         elif chave in ("4.3", "riscos"):
             ok = _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
         elif chave in ("pagina4", "p4", "4"):
-            ok = (
-                _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
-                and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-                and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            )
+            if ordem_inversa:
+                ok = (
+                    _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
+                )
+            else:
+                ok = (
+                    _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                )
         elif chave in ("5.1", "capacitacao"):
-            ok = _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+            ok = _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, ordem_inversa=ordem_inversa)  # type: ignore[arg-type]
         elif chave in ("5.3", "acoes-especificas"):
-            ok = _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+            ok = _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, ordem_inversa=ordem_inversa)  # type: ignore[arg-type]
         elif chave in ("pagina5", "p5", "5"):
-            ok = (
-                _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-                and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
-            )
+            if ordem_inversa:
+                ok = (
+                    _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, ordem_inversa=True)  # type: ignore[arg-type]
+                    and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, ordem_inversa=True)  # type: ignore[arg-type]
+                )
+            else:
+                ok = (
+                    _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                    and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                )
         elif chave in ("pagina6", "p6", "6", "6.1", "kpis"):
             ok = _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
+        elif ordem_inversa:
+            ok = (
+                _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
+                and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite, ordem_inversa=True)  # type: ignore[arg-type]
+                and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite, ordem_inversa=True)  # type: ignore[arg-type]
+                and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite)  # type: ignore[arg-type]
+                and _executar_bloco_3_2_inventario(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite, ordem_inversa=True)  # type: ignore[arg-type]
+            )
         else:
             ok = (
                 _executar_bloco_3_1_swot(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
