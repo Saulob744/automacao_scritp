@@ -220,6 +220,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Preenche os blocos de trás para frente (Etapa 6 -> 5.3 -> 5.1 -> 4.3 -> 4.2 -> 4.1 -> 3.2 -> 3.1).",
     )
+    parser.add_argument(
+        "--a-partir-do-corte",
+        "--continuar-do-corte",
+        dest="a_partir_do_corte",
+        action="store_true",
+        help="Ignora Etapa 3 (SWOT + Inventário) e cards #1..#11 de 4.1, iniciando no card #12 ('Aprimorar a governança e gestão de TIC') em diante.",
+    )
     return parser.parse_args()
 
 
@@ -316,14 +323,17 @@ def main() -> None:
         args.tudo,
         args.analisar,
         args.parte,
+        args.a_partir_do_corte,
     ])
 
     parte_ativa = args.parte
     if nenhum_alvo_passado and sys.stdin.isatty():
         alvo, limite, parte_ativa = menu_interativo()
     else:
-        if args.analisar and not any([args.bloco, args.pagina3, args.pagina4, args.pagina5, args.pagina6, args.tudo, args.parte]):
+        if args.analisar and not any([args.bloco, args.pagina3, args.pagina4, args.pagina5, args.pagina6, args.tudo, args.parte, args.a_partir_do_corte]):
             alvo = "analisar"
+        elif args.a_partir_do_corte:
+            alvo = "a-partir-do-corte-4.1-card12"
         elif args.parte:
             alvo = f"parte-{args.parte}"
         elif args.bloco:
@@ -356,6 +366,8 @@ def main() -> None:
     print(f"📊 Limite de Linhas:  {limite if limite else 'TODAS AS LINHAS'}")
     if parte_ativa:
         print(f"🧩 Divisão <1000:     {DEFINICAO_PARTES_LIMITE_1000[parte_ativa]['titulo']}")
+    if args.a_partir_do_corte:
+        print("⏩ Ponto de Partida:  Card #12 de 4.1 ('Aprimorar a governança e gestão de TIC') -> Etapa 6 (ignora Etapa 3 e 4.1[1..11])")
     print(f"🩹 Modo Rascunho:     {'PREENCHER SÓ O QUE FALTA (Incremental)' if somente_faltantes else 'REESCREVER TUDO'}")
     print(f"🔁 2ª Passada Final:  {'ATIVADA (Grau de Confirmação %)' if segunda_passada else 'DESATIVADA'}")
     print(f"💾 Salvar Rascunho:   {'AUTOMÁTICO SE 100% CONFIRMADO' if salvar_rascunho else 'DESATIVADO'}")
@@ -382,6 +394,7 @@ def main() -> None:
         salvar_rascunho=salvar_rascunho,
         parte=parte_ativa,
         ordem_inversa=args.inverso,
+        a_partir_do_corte=args.a_partir_do_corte,
     )
 
     if sucesso:

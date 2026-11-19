@@ -3774,6 +3774,7 @@ def executar_automacao_segundo_plano(
     salvar_rascunho: bool = True,
     parte: Optional[int] = None,
     ordem_inversa: bool = False,
+    a_partir_do_corte: bool = False,
 ) -> bool:
     """
     Executa a automação 100% oculta com:
@@ -3790,12 +3791,20 @@ def executar_automacao_segundo_plano(
 
     if cfg_parte:
         log_debug("MODO 5 PARTES (<1.000 CAMPOS)", f"📦 {cfg_parte['titulo']}", nivel="INFO")
+    if a_partir_do_corte:
+        log_debug(
+            "A PARTIR DO CORTE",
+            "⏩ Ignorando Etapa 3 (SWOT + Inventário) e cards #1..#11 de 4.1! "
+            "Iniciando no card #12 ('OE.TIC.5 — Aprimorar a governança e gestão de TIC') em diante!",
+            nivel="INFO",
+        )
     if ordem_inversa:
         log_debug("ORDEM INVERSA", "🔄 Preenchimento de trás para frente ativado (Etapa 6 -> Etapa 3)!", nivel="INFO")
 
     log_debug(
         "INÍCIO",
-        f"Alvo='{chave}' | Parte={parte or 'COMPLETO'} | Ordem={'INVERSA (6->3)' if ordem_inversa else 'DIRETA (3->6)'} | "
+        f"Alvo='{chave}' | Parte={parte or ('POS_CORTE_4.1[12:]' if a_partir_do_corte else 'COMPLETO')} | "
+        f"Ordem={'INVERSA (6->3)' if ordem_inversa else 'DIRETA (3->6)'} | "
         f"Limite={limite or 'SEM LIMITE'} | Incremental={somente_faltantes and not limpar_antes} | 2ªPassada={segunda_passada} | "
         f"SalvarRascunho={salvar_rascunho} | DelayAdd={delay_add_ms}ms | Lote={tamanho_lote} | Timeout={timeout_conexao}s",
         nivel="INFO",
@@ -3808,7 +3817,7 @@ def executar_automacao_segundo_plano(
         tamanho_lote=tamanho_lote,
         limpar_antes=limpar_antes,
         somente_faltantes=somente_faltantes,
-        cortar_excedentes=bool(cfg_parte is not None),
+        cortar_excedentes=bool(cfg_parte is not None or a_partir_do_corte),
     )
     try:
         # PASSO 1: Conectar à guia já aberta do Nex Privacy (com Timer regressivo e diagnóstico)
@@ -3845,7 +3854,16 @@ def executar_automacao_segundo_plano(
             nivel="INFO",
         )
 
-        if cfg_parte is not None:
+        if a_partir_do_corte:
+            ok = (
+                _executar_bloco_4_1_metas(ctrl, caminho_xlsx, mapeamento, limite, fatia=(11, None))  # type: ignore[arg-type]
+                and _executar_bloco_4_2_orcamento(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_4_3_riscos(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_5_1_capacitacao(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_5_3_acoes_especificas(ctrl, caminho_xlsx, limite)  # type: ignore[arg-type]
+                and _executar_bloco_6_kpis(ctrl, caminho_xlsx, mapeamento, limite)
+            )
+        elif cfg_parte is not None:
             fatias_p = cfg_parte["fatias"]
             if ordem_inversa:
                 ok = (
