@@ -1355,15 +1355,158 @@ JS_HELPER_SALVAR_RASCUNHO = r"""
 })
 """
 
+JS_HELPER_TOUR_EVIDENCIA = r"""
+(async function(config) {
+    const cfg = config || {};
+    const pausaMs = typeof cfg.pausaMs === 'number' ? cfg.pausaMs : 2600;
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+
+    function irParaEtapa(stepIdx) {
+        const navBtn = document.querySelector(`.wizard-nav button[data-step-index="${stepIdx}"]`);
+        if (navBtn && !navBtn.classList.contains('active')) {
+            navBtn.click();
+        }
+    }
+
+    function obterLinhas(repName) {
+        const c = document.querySelector(`[data-repeater="${repName}"]`);
+        if (!c) return [];
+        const cand = Array.from(c.querySelectorAll('[data-repeater-row], [data-repeater-item], .wizard-table-row, .repeater-item'))
+            .filter(el => el.tagName !== 'TEMPLATE' && el.tagName !== 'SCRIPT');
+        if (cand.length > 0) return cand.filter(r => !cand.some(o => o !== r && o.contains(r)));
+        return Array.from(c.children).filter(el => el.tagName !== 'TEMPLATE' && el.tagName !== 'SCRIPT');
+    }
+
+    const form = document.querySelector('#pdtic-form') || document.querySelector('form');
+    const totalInputs = form ? form.querySelectorAll('input[name]:not(:disabled), select[name]:not(:disabled), textarea[name]:not(:disabled)').length : 0;
+
+    let hud = document.getElementById('__pdtic_hud_evidencia__');
+    if (hud) hud.remove();
+    hud = document.createElement('div');
+    hud.id = '__pdtic_hud_evidencia__';
+    hud.style.cssText = [
+        'position:fixed', 'top:14px', 'right:16px', 'z-index:2147483647',
+        'background:rgba(15,23,42,0.94)', 'color:#f8fafc', 'padding:12px 18px',
+        'border-radius:10px', 'border-left:6px solid #22c55e',
+        'box-shadow:0 10px 25px rgba(0,0,0,0.35)', 'font-family:system-ui,sans-serif',
+        'font-size:14px', 'line-height:1.45', 'max-width:460px', 'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(hud);
+
+    const destaques = [];
+    function destacar(el, cor, textoBadge) {
+        if (!el) return;
+        const antOutline = el.style.outline;
+        const antBg = el.style.backgroundColor;
+        el.style.outline = `3px solid ${cor}`;
+        el.style.backgroundColor = cor === '#ef4444' ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)';
+        destaques.push(() => {
+            el.style.outline = antOutline;
+            el.style.backgroundColor = antBg;
+        });
+        try {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {}
+        if (textoBadge) {
+            hud.innerHTML = `<div style="font-weight:700;color:#4ade80;margin-bottom:4px;">🎥 EVIDÊNCIA ANTES DE SALVAR (${totalInputs} campos no &lt;form&gt;)</div><div>${textoBadge}</div>`;
+        }
+    }
+
+    function limparDestaques() {
+        while (destaques.length) {
+            const fn = destaques.pop();
+            try { fn(); } catch (e) {}
+        }
+    }
+
+    // 1. Etapa 4.1 Metas e Ações — Card #12 (onde corta após salvar!) + Card #108
+    irParaEtapa(3);
+    await sleep(600);
+    const metasRows = obterLinhas('goals-actions');
+    if (metasRows[11]) {
+        destacar(metasRows[11], '#22c55e', `<b>4.1 Metas e Ações (${metasRows.length} cards):</b> Card #12 ANTES de salvar está com TODOS os 7 campos preenchidos (Meta, Ação, Indicador, Prazo, Responsável).`);
+        await sleep(pausaMs + 800);
+        limparDestaques();
+    }
+    if (metasRows.length > 20) {
+        destacar(metasRows[metasRows.length - 1], '#22c55e', `<b>4.1 Metas e Ações:</b> Último card (#${metasRows.length}/${metasRows.length}) 100% preenchido!`);
+        await sleep(pausaMs);
+        limparDestaques();
+    }
+
+    // 2. Etapa 4.2 Plano Orçamentário — Card #1 e Card #155
+    const orcRows = obterLinhas('budget-plan');
+    if (orcRows[0]) {
+        destacar(orcRows[0], '#22c55e', `<b>4.2 Plano Orçamentário (${orcRows.length} linhas):</b> Linha #1 preenchida + Total calculado.`);
+        await sleep(pausaMs);
+        limparDestaques();
+    }
+    if (orcRows.length > 5) {
+        destacar(orcRows[orcRows.length - 1], '#22c55e', `<b>4.2 Plano Orçamentário:</b> Última linha (#${orcRows.length}/${orcRows.length}) 100% preenchida!`);
+        await sleep(pausaMs);
+        limparDestaques();
+    }
+
+    // 3. Etapa 4.3 Gestão de Riscos — Último card (#53)
+    const riscoRows = obterLinhas('risk-plan');
+    if (riscoRows.length > 0) {
+        destacar(riscoRows[riscoRows.length - 1], '#22c55e', `<b>4.3 Gestão de Riscos:</b> ${riscoRows.length}/${riscoRows.length} riscos preenchidos!`);
+        await sleep(pausaMs);
+        limparDestaques();
+    }
+
+    // 4. Etapa 5 — Capacitação e Ações Específicas
+    irParaEtapa(4);
+    await sleep(600);
+    const trRows = obterLinhas('technical-trainings');
+    const exRows = obterLinhas('extra-actions');
+    if (trRows.length > 0) {
+        destacar(trRows[trRows.length - 1], '#22c55e', `<b>5.1 Capacitação:</b> ${trRows.length} treinamentos técnicos preenchidos!`);
+        await sleep(pausaMs - 400);
+        limparDestaques();
+    }
+    if (exRows.length > 0) {
+        destacar(exRows[exRows.length - 1], '#22c55e', `<b>5.3 Ações Específicas:</b> Macro, Micro e ${exRows.length} Ações Extras preenchidas!`);
+        await sleep(pausaMs - 400);
+        limparDestaques();
+    }
+
+    // 5. Etapa 6 — KPIs (#108)
+    irParaEtapa(5);
+    await sleep(600);
+    const kpiRows = obterLinhas('kpis');
+    if (kpiRows.length > 0) {
+        destacar(kpiRows[kpiRows.length - 1], '#22c55e', `<b>6.1 Indicadores (KPIs):</b> ${kpiRows.length}/${kpiRows.length} indicadores preenchidos!`);
+        await sleep(pausaMs);
+        limparDestaques();
+    }
+
+    // 6. Rolar até o botão Salvar rascunho e clicar!
+    const btn = document.querySelector('button.js-submit-mode[data-submit-mode="draft"]') || document.querySelector('button[data-submit-mode="draft"]');
+    if (!btn) {
+        hud.remove();
+        return { ok: false, erro: 'Botão Salvar rascunho não encontrado.' };
+    }
+    hud.style.borderLeftColor = '#ef4444';
+    destacar(btn, '#ef4444', `<b>CLICANDO EM "SALVAR RASCUNHO":</b> Enviando todos os <b>${totalInputs} campos</b> ao servidor via POST... Observe o corte após recarregar!`);
+    await sleep(2800);
+    limparDestaques();
+    hud.remove();
+
+    setTimeout(() => { btn.click(); }, 250);
+    return { ok: true, totalInputsEnviados: totalInputs };
+})
+"""
+
 JS_BRIDGE_CONSOLE = (
     r"""
 (function() {
     if (window.__PDTIC_BRIDGE_TIMER_ID__) {
         clearInterval(window.__PDTIC_BRIDGE_TIMER_ID__);
-        console.log("🔄 [PDTIC 2º Plano] Atualizando ponte ativa para a v3 (Incremental + 2ª Passada + Salvar Rascunho)...");
+        console.log("🔄 [PDTIC 2º Plano] Atualizando ponte ativa para a v4...");
     }
     window.__PDTIC_BRIDGE_RUNNING__ = true;
-    window.__PDTIC_BRIDGE_VERSION__ = 3;
+    window.__PDTIC_BRIDGE_VERSION__ = 4;
     const SERVIDOR = "__SERVIDOR_URL__";
     const fnInspecionar = """
     + JS_HELPER_INSPECIONAR_DOM.strip()
@@ -1376,6 +1519,9 @@ JS_BRIDGE_CONSOLE = (
     + r""";
     const fnSalvarRascunho = """
     + JS_HELPER_SALVAR_RASCUNHO.strip()
+    + r""";
+    const fnTourEvidencia = """
+    + JS_HELPER_TOUR_EVIDENCIA.strip()
     + r""";
 
     let ocupada = false;
@@ -1420,6 +1566,9 @@ JS_BRIDGE_CONSOLE = (
                 await enviarResultado(tarefa.id, res);
             } else if (tarefa.acao === 'save_draft') {
                 const res = fnSalvarRascunho(tarefa.payload || {});
+                await enviarResultado(tarefa.id, res);
+            } else if (tarefa.acao === 'visual_tour') {
+                const res = await fnTourEvidencia(tarefa.payload || {});
                 await enviarResultado(tarefa.id, res);
             } else if (tarefa.acao === 'upgrade_bridge') {
                 const novoCodigo = await (await fetch(`${SERVIDOR}/bridge.js`, { cache: 'no-store' })).text();
