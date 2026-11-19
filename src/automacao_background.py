@@ -61,9 +61,9 @@ from src.leitor_dados import (
 
 PORTA_PONTE_LOCAL = 8765
 PORTA_CDP_PADRAO = 9222
-VERSAO_PONTE_MINIMA = 4
+VERSAO_PONTE_MINIMA = 5
 TIMEOUT_CONEXAO_PADRAO = 25
-TIMEOUT_COMANDO_PADRAO = 90
+TIMEOUT_COMANDO_PADRAO = 180
 DELAY_PASSO_MS_PADRAO = 450
 DELAY_ADICIONAR_MS_PADRAO = 90
 DELAY_CAMPO_MS_PADRAO = 25
@@ -422,7 +422,9 @@ JS_HELPER_VERIFICAR_REPEATER = r"""
     const items = config.items || [];
     const delayStepMs = typeof config.delayStepMs === 'number' ? config.delayStepMs : 300;
 
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+    const sleep = (ms) => (typeof window.__pdticSleep === 'function')
+        ? window.__pdticSleep(ms)
+        : new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
 
     if (stepIndex !== null && stepIndex !== undefined) {
         const navBtn = document.querySelector(`.wizard-nav button[data-step-index="${stepIndex}"]`);
@@ -692,7 +694,9 @@ JS_HELPER_PREENCHER_REPEATER = r"""
     const delayAddMs = typeof config.delayAddMs === 'number' ? config.delayAddMs : 90;
     const delayFieldMs = typeof config.delayFieldMs === 'number' ? config.delayFieldMs : 25;
 
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+    const sleep = (ms) => (typeof window.__pdticSleep === 'function')
+        ? window.__pdticSleep(ms)
+        : new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
 
     if (stepIndex !== null && stepIndex !== undefined) {
         const navBtn = document.querySelector(`.wizard-nav button[data-step-index="${stepIndex}"]`);
@@ -1359,7 +1363,9 @@ JS_HELPER_TOUR_EVIDENCIA = r"""
 (async function(config) {
     const cfg = config || {};
     const pausaMs = typeof cfg.pausaMs === 'number' ? cfg.pausaMs : 2600;
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+    const sleep = (ms) => (typeof window.__pdticSleep === 'function')
+        ? window.__pdticSleep(ms)
+        : new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
 
     function irParaEtapa(stepIdx) {
         const navBtn = document.querySelector(`.wizard-nav button[data-step-index="${stepIdx}"]`);
@@ -1503,11 +1509,71 @@ JS_BRIDGE_CONSOLE = (
 (function() {
     if (window.__PDTIC_BRIDGE_TIMER_ID__) {
         clearInterval(window.__PDTIC_BRIDGE_TIMER_ID__);
-        console.log("🔄 [PDTIC 2º Plano] Atualizando ponte ativa para a v4...");
+        window.__PDTIC_BRIDGE_TIMER_ID__ = null;
+    }
+    if (window.__PDTIC_WORKER__) {
+        try { window.__PDTIC_WORKER__.terminate(); } catch (e) {}
+        window.__PDTIC_WORKER__ = null;
+    }
+    if (window.__PDTIC_BRIDGE_RUNNING__) {
+        console.log("🔄 [PDTIC 2º Plano] Atualizando ponte ativa para a v5 (Anti-Throttling Web Worker)...");
     }
     window.__PDTIC_BRIDGE_RUNNING__ = true;
-    window.__PDTIC_BRIDGE_VERSION__ = 4;
+    window.__PDTIC_BRIDGE_VERSION__ = 5;
     const SERVIDOR = "__SERVIDOR_URL__";
+
+    // Timer via Web Worker dedicado: imune ao Intensive Wake Up Throttling (60s) de abas em 2º plano do Chrome!
+    const callbacksSleep = new Map();
+    let seqSleep = 0;
+    try {
+        const codigoWorker = [
+            "setInterval(() => postMessage({ type: 'tick' }), 350);",
+            "onmessage = (e) => {",
+            "  const d = e.data || {};",
+            "  if (d.type === 'sleep') {",
+            "    setTimeout(() => postMessage({ type: 'awake', id: d.id }), Math.max(0, d.ms || 0));",
+            "  }",
+            "};"
+        ].join("\n");
+        const blobUrl = URL.createObjectURL(new Blob([codigoWorker], { type: 'application/javascript' }));
+        const worker = new Worker(blobUrl);
+        worker.onmessage = (ev) => {
+            const msg = ev.data || {};
+            if (msg.type === 'tick') {
+                poll();
+            } else if (msg.type === 'awake') {
+                const cb = callbacksSleep.get(msg.id);
+                if (cb) {
+                    callbacksSleep.delete(msg.id);
+                    cb();
+                }
+            }
+        };
+        window.__PDTIC_WORKER__ = worker;
+    } catch (errWorker) {
+        window.__PDTIC_BRIDGE_TIMER_ID__ = setInterval(poll, 350);
+    }
+
+    window.__pdticSleep = function(ms) {
+        const dur = Math.max(0, ms || 0);
+        if (dur === 0) return Promise.resolve();
+        if (window.__PDTIC_WORKER__) {
+            return new Promise((resolve) => {
+                const id = ++seqSleep;
+                callbacksSleep.set(id, resolve);
+                window.__PDTIC_WORKER__.postMessage({ type: 'sleep', id, ms: dur });
+            });
+        }
+        if (document.hidden && typeof MessageChannel !== 'undefined') {
+            return new Promise((resolve) => {
+                const ch = new MessageChannel();
+                ch.port1.onmessage = () => resolve();
+                ch.port2.postMessage(0);
+            });
+        }
+        return new Promise((resolve) => setTimeout(resolve, dur));
+    };
+
     const fnInspecionar = """
     + JS_HELPER_INSPECIONAR_DOM.strip()
     + r""";
@@ -1549,7 +1615,7 @@ JS_BRIDGE_CONSOLE = (
                 const btn = document.querySelector('.wizard-nav button.active');
                 await enviarResultado(tarefa.id, {
                     ok: true,
-                    versao: 4,
+                    versao: 5,
                     url: location.href,
                     title: document.title,
                     etapaAtiva: btn ? btn.textContent.trim() : '1. Identificação',
@@ -1573,18 +1639,20 @@ JS_BRIDGE_CONSOLE = (
             } else if (tarefa.acao === 'upgrade_bridge') {
                 const novoCodigo = await (await fetch(`${SERVIDOR}/bridge.js`, { cache: 'no-store' })).text();
                 await enviarResultado(tarefa.id, { ok: true, atualizado: true });
-                setTimeout(() => eval(novoCodigo), 50);
+                Promise.resolve().then(() => eval(novoCodigo));
             }
         } catch (e) {
-            console.error("[PDTIC 2º Plano v3] Erro no poll:", e);
+            console.error("[PDTIC 2º Plano v5] Erro no poll:", e);
         } finally {
             ocupada = false;
         }
     }
 
-    window.__PDTIC_BRIDGE_TIMER_ID__ = setInterval(poll, 350);
+    if (!window.__PDTIC_WORKER__ && !window.__PDTIC_BRIDGE_TIMER_ID__) {
+        window.__PDTIC_BRIDGE_TIMER_ID__ = setInterval(poll, 350);
+    }
     poll();
-    console.log("✅ [PDTIC 2º Plano v3] Conectado! Preenchimento incremental do rascunho + 2ª Passada + Salvar Rascunho ativos!");
+    console.log("✅ [PDTIC 2º Plano v5] Conectado com Timer Anti-Throttling (Web Worker)! Aba livre em 2º plano sem congelar após 5 min!");
 })();
 """
 )
@@ -2818,9 +2886,9 @@ def conectar_guia_com_debug_e_timer(
             return True
         if versao_remota >= 3:
             log_debug("PASSO 1/4 — CONEXÃO", f"Atualizando Ponte v{versao_remota} -> v{VERSAO_PONTE_MINIMA} automaticamente...", nivel="INFO")
-            ctrl.enviar_comando_ponte("upgrade_bridge", timeout=3.0)
+            ctrl.enviar_comando_ponte("upgrade_bridge", timeout=65.0)
             time.sleep(0.8)
-            res_ping2 = ctrl.enviar_comando_ponte("ping", timeout=2.5)
+            res_ping2 = ctrl.enviar_comando_ponte("ping", timeout=10.0)
             if isinstance(res_ping2, dict) and int(res_ping2.get("versao") or 1) >= VERSAO_PONTE_MINIMA:
                 ctrl.modo_ativo = "ponte"
                 log_debug("PASSO 1/4 — CONEXÃO", f"Ponte atualizada automaticamente para v{res_ping2.get('versao')}!", nivel="OK")
@@ -2877,6 +2945,15 @@ def conectar_guia_com_debug_e_timer(
                     nivel="OK",
                 )
                 return True
+            if versao_remota >= 3:
+                log_debug("PASSO 1/4 — CONEXÃO", f"Atualizando Ponte v{versao_remota} -> v{VERSAO_PONTE_MINIMA} automaticamente (aba em 2º plano)...", nivel="INFO")
+                ctrl.enviar_comando_ponte("upgrade_bridge", timeout=65.0)
+                time.sleep(0.8)
+                res_ping2 = ctrl.enviar_comando_ponte("ping", timeout=10.0)
+                if isinstance(res_ping2, dict) and int(res_ping2.get("versao") or 1) >= VERSAO_PONTE_MINIMA:
+                    ctrl.modo_ativo = "ponte"
+                    log_debug("PASSO 1/4 — CONEXÃO", f"Ponte atualizada automaticamente para v{res_ping2.get('versao')}!", nivel="OK")
+                    return True
             detectou_ponte_antiga = True
 
         # Também re-testa CDP 9222 caso o usuário tenha aberto com porta 9222 nesse meio tempo
