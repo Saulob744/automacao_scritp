@@ -1347,13 +1347,18 @@ JS_HELPER_SALVAR_RASCUNHO = r"""
         camposInvalidosAntes: camposInvalidosAntes
     };
 
-    const atrasoMs = typeof cfg.delayBeforeClickMs === 'number' ? cfg.delayBeforeClickMs : 400;
-    setTimeout(() => {
+    const atrasoMs = typeof cfg.delayBeforeClickMs === 'number' ? cfg.delayBeforeClickMs : 150;
+    const acionarClique = () => {
         try {
             btn.scrollIntoView({ block: 'center', behavior: 'instant' });
         } catch (e) {}
         btn.click();
-    }, atrasoMs);
+    };
+    if (typeof window.__pdticSleep === 'function') {
+        window.__pdticSleep(atrasoMs).then(acionarClique);
+    } else {
+        setTimeout(acionarClique, atrasoMs);
+    }
 
     return infoBotao;
 })
