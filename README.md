@@ -1,5 +1,13 @@
 # 🤖 Automação RPA PDTIC — Preenchimento Inteligente Planilha ➔ Sistema Web
 
+> 🚀 **MODO RECOMENDADO (100% Oculto em 2º Plano — Sem usar Mouse/Teclado):**
+> Consulte o guia direto em **[`GUIA_COMO_RODAR.md`](GUIA_COMO_RODAR.md)**!
+> 1. No terminal: `python main_background.py --tudo --timeout 600` (ou `--analisar` para varredura somente-leitura)
+> 2. No Console (`F12`) da guia aberta do Nex Privacy:
+>    ```js
+>    fetch('http://127.0.0.1:8765/bridge.js').then(r=>r.text()).then(eval)
+>    ```
+
 Sistema de Automação Robótica de Processos (**RPA**) desenvolvido em Python para ler guias específicas de uma planilha (Excel / Google Sheets / LibreOffice Calc) e preencher formulários dinâmicos de um sistema web de PDTIC.
 
 O robô combina **4 camadas de localização e interação**:
