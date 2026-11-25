@@ -4,6 +4,18 @@ Este guia mostra como preencher, atualizar e auditar **100% em segundo plano** (
 
 ---
 
+## 📦 Como Baixar e Instalar do Zero (Quando Precisar Usar Novamente)
+
+```powershell
+git clone https://github.com/Saulob744/automacao_scritp.git automacao
+cd automacao
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+---
+
 ## 📋 Pré-requisitos Rápidos
 
 1. **Planilha Excel na pasta do projeto:**

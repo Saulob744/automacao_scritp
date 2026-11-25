@@ -3,9 +3,10 @@ numpy>=1.26.0
 pillow>=10.4.0
 opencv-python>=4.10.0
 
-# Leitura e manipulação de Planilhas Excel (.xlsx) e Tabelas
+# Leitura e manipulação de Planilhas Excel (.xlsx), Documentos Word (.docx) e Tabelas
 pandas>=2.2.0
 openpyxl>=3.1.5
+python-docx>=1.1.0
 
 # Automação de Interface, Teclado, Mouse e OCR (opcionais / complementares ao driver nativo Win32)
 pyautogui>=0.9.54

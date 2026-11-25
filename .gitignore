@@ -23,6 +23,13 @@ dados/*.html
 dados/*_files/
 dados/comando_preencher_html.js
 dados/cache_etapa_4.json
+dados/chrome_perfil_automacao/
+
+# Regras locais e arquivos privados
+antigravity.rules.md
+.agents/
+docs_privados/
+modo_deus.py
 
 # Backups locais de desenvolvimento e vídeos temporários de evidência
 backups/
